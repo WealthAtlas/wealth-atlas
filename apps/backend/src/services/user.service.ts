@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config'; // Import ConfigService
-import { lastValueFrom } from 'rxjs';
+import { InjectModel } from '@nestjs/mongoose';
 import { AxiosResponse } from 'axios';
+import { Model } from 'mongoose';
+import { lastValueFrom } from 'rxjs';
+import { UserEntity } from '../entities/user.entity';
 import { Auth } from '../models/auth.model';
 import { User } from '../models/user.model';
 
@@ -11,24 +14,24 @@ export class UserService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService, // Inject ConfigService
-  ) {}
+    @InjectModel(UserEntity.name) private userModel: Model<UserEntity>
+  ) { }
 
   async registerUser(
     name: string,
     email: string,
     password: string,
-  ): Promise<boolean> {
-    
-    const baseUrl = this.configService.get<string>('UPSTREAM_BASE_URL');
-    const response: AxiosResponse = await lastValueFrom(
-      this.httpService.post(`${baseUrl}/users`, {
-        name,
-        email,
-        password,
-      }),
-    );
+  ): Promise<void> {
 
-    return response.status === 201;
+    const user = new this.userModel({
+      name,
+      email
+    });
+
+    return user.save().then(() => { }).catch((error) => {
+      console.error('Error saving user:', error);
+      throw new Error('Failed to save user');
+    });
   }
 
   async loginUser(email: string, password: string): Promise<Auth> {

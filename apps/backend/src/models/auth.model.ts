@@ -5,4 +5,8 @@ export class Auth {
 
   @Field()
   token: string;
+
+  constructor(token: string) {
+    this.token = token;
+  }
 }

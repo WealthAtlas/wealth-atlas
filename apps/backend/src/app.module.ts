@@ -6,14 +6,24 @@ import { UserService } from './services/user.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserMutationResolver } from './resolvers/user/user.mutation.resolver';
 import { UserQueryResolver } from './resolvers/user/user.query.resolver';
 import { join } from 'path';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UserEntity, UserSchema } from './entities/user.entity';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (config: ConfigService) => ({
+        uri: config.get<string>('MONGO_URI'),
+      }),
+      inject: [ConfigService],
+    }),
+    MongooseModule.forFeature([{ name: UserEntity.name, schema: UserSchema }]),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       playground: true,

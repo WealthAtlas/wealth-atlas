@@ -14,7 +14,13 @@ export class UserMutationResolver {
     @Args('email') email: string,
     @Args('password') password: string,
   ): Promise<boolean> {
-    return await this.userService.registerUser(name, email, password);
+    return await this.userService.registerUser(name, email, password).then(() => {
+      return true;
+    }).catch((error) => {
+      console.error('Error saving user:', error);
+      throw new Error('Failed to save user');
+    }
+    );
   }
 
   @Public()
