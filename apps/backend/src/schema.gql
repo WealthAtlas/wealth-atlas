@@ -1,0 +1,21 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Auth {
+  token: String!
+}
+
+type User {
+  name: String!
+  email: String!
+}
+
+type Query {
+  user: User!
+}
+
+type Mutation {
+  registerUser(name: String!, email: String!, password: String!): Boolean!
+  loginUser(email: String!, password: String!): Auth!
+}
