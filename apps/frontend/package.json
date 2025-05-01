@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack --port 3000",
     "build": "next build",
     "start": "next start"
   },
@@ -16,7 +16,7 @@
     "next": "15.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@wealth-atlas/shared": "*"
+    "@wealth-atlas/shared": "workspace:*"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

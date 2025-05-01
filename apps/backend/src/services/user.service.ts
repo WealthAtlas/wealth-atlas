@@ -18,6 +18,7 @@ export class UserService {
     email: string,
     password: string,
   ): Promise<boolean> {
+    
     const baseUrl = this.configService.get<string>('UPSTREAM_BASE_URL');
     const response: AxiosResponse = await lastValueFrom(
       this.httpService.post(`${baseUrl}/users`, {
