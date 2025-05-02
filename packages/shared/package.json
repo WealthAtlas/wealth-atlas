@@ -4,8 +4,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "dev": "tsc -b --watch",
-    "build": "tsc -b",
+    "dev": "pnpm tsc -b",
+    "build": "pnpm tsc -b",
     "lint": "eslint \"src/**/*.ts\""
   },
   "main": "./dist/index.js",

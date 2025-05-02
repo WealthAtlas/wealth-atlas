@@ -14,10 +14,7 @@ import { gql, useMutation } from '@apollo/client';
 
 const REGISTER_MUTATION = gql`
     mutation Register($name: String!, $email: String!, $password: String!) {
-        register(input: { name: $name, email: $email, password: $password }) {
-            success
-            message
-        }
+        registerUser(name: $name, email: $email, password: $password)
     }
 `;
 
@@ -37,7 +34,7 @@ const RegisterPage = () => {
                 variables: { name, email, password },
             });
 
-            if (data.register.success) {
+            if (data.registerUser) {
                 router.push('/login'); // Redirect to login page after successful registration
             } else {
                 setError(data.register.message || 'Registration failed');
