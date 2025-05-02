@@ -2,20 +2,20 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type Auth {
+type AuthDTO {
   token: String!
 }
 
-type User {
+type UserDTO {
   name: String!
   email: String!
 }
 
 type Query {
-  user: User!
+  user: UserDTO!
 }
 
 type Mutation {
   registerUser(name: String!, email: String!, password: String!): Boolean!
-  loginUser(email: String!, password: String!): Auth!
+  loginUser(email: String!, password: String!): AuthDTO!
 }

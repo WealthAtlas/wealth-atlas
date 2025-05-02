@@ -1,19 +1,15 @@
-import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config'; // Import ConfigService
+import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
-import { AxiosResponse } from 'axios';
 import { Model } from 'mongoose';
-import { lastValueFrom } from 'rxjs';
 import { UserEntity } from '../entities/user.entity';
-import { Auth } from '../models/auth.model';
-import { User } from '../models/user.model';
+import { User } from '../domain/user';
+import * as argon2 from 'argon2';
 
 @Injectable()
 export class UserService {
   constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService, // Inject ConfigService
+    private readonly jwtService: JwtService,
     @InjectModel(UserEntity.name) private userModel: Model<UserEntity>
   ) { }
 
@@ -22,44 +18,44 @@ export class UserService {
     email: string,
     password: string,
   ): Promise<void> {
+    const passwordHash = await argon2.hash(password);
 
     const user = new this.userModel({
       name,
-      email
+      email,
+      passwordHash,
     });
 
-    return user.save().then(() => { }).catch((error) => {
-      console.error('Error saving user:', error);
-      throw new Error('Failed to save user');
-    });
+    return user.save().then(() => { });
   }
 
   async loginUser(email: string, password: string): Promise<Auth> {
-    const baseUrl = this.configService.get<string>('UPSTREAM_BASE_URL');
-    const response: AxiosResponse = await lastValueFrom(
-      this.httpService.post(`${baseUrl}/auth/validate`, {
-        email,
-        password,
-      }),
-    );
+    const user = await this.userModel.findOne({ email });
 
-    if (response.status === 200) {
-      return response.data;
-    } else {
-      throw new Error('Login failed');
+    if (!user) {
+      throw new Error('Invalid email or password');
     }
+
+    const isPasswordValid = await argon2.verify(user.passwordHash, password);
+
+    if (!isPasswordValid) {
+      throw new Error('Invalid email or password');
+    }
+
+    const payload = { sub: user._id, email: user.email };
+    const token = this.jwtService.sign(payload);
+
+    return { token };
   }
 
   async getUser(userId: string): Promise<User> {
-    const baseUrl = this.configService.get<string>('UPSTREAM_BASE_URL');
-    const response: AxiosResponse = await lastValueFrom(
-      this.httpService.get(`${baseUrl}/users/${userId}`),
-    );
-
-    if (response.status === 200) {
-      return response.data;
-    } else {
-      throw new Error('Failed to fetch users');
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
     }
+    return {
+      name: user.name,
+      email: user.email,
+    };
   }
 }

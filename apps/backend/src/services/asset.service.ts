@@ -1,44 +1,32 @@
-import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config'; // Import ConfigService
-import { lastValueFrom } from 'rxjs';
 import { AxiosResponse } from 'axios';
-import { Auth } from '../models/auth.model';
+import { lastValueFrom } from 'rxjs';
+import { AssetEntity } from '../entities/asset.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CreateAssetInput } from '../graphql/create_asset.input.graphql';
 
 @Injectable()
 export class AssetService {
   constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService, // Inject ConfigService
+    @InjectModel(AssetEntity.name) private assetModel: Model<AssetEntity>
   ) {
   }
 
-  async createAsset(name: string, email: string, password: string): Promise<boolean> {
-    const baseUrl = this.configService.get<string>('UPSTREAM_BASE_URL');
-    const response: AxiosResponse = await lastValueFrom(
-      this.httpService.post(`${baseUrl}/assets`, {
-        name,
-        email,
-        password,
-      }),
-    );
+  async createAsset(userId: string, input: CreateAssetInput): Promise<void> {
+    const asset = new this.assetModel({
+      userId: userId,
+      name: input.name,
+      description: input.description,
+      category: input.category,
+      maturityDate: input.maturityDate,
+      currency: input.currency,
+      riskLevel: input.riskLevel,
+      growthRate: input.growthRate,
+    });
 
-    return response.status===201;
-  }
-
-  async loginUser(email: string, password: string): Promise<Auth> {
-    const baseUrl = this.configService.get<string>('UPSTREAM_BASE_URL');
-    const response: AxiosResponse = await lastValueFrom(
-      this.httpService.post(`${baseUrl}/auth/validate`, {
-        email,
-        password,
-      }),
-    );
-
-    if (response.status===200) {
-      return response.data;
-    } else {
-      throw new Error('Login failed');
-    }
+    await asset.save();
   }
 }

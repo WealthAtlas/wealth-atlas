@@ -1,17 +1,20 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { JwtModule } from '@nestjs/jwt';
-import { UserService } from './services/user.service';
+import { MongooseModule } from '@nestjs/mongoose';
+import { join } from 'path';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { APP_GUARD } from '@nestjs/core';
-import { HttpModule } from '@nestjs/axios';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AssetEntity, AssetSchema } from './entities/asset.entity';
+import { AssetValueEntity, AssetValueSchema } from './entities/asset_value.entity';
+import { InvestmentEntity, InvestmentSchema } from './entities/investment.entity';
+import { UserEntity, UserSchema } from './entities/user.entity';
 import { UserMutationResolver } from './resolvers/user/user.mutation.resolver';
 import { UserQueryResolver } from './resolvers/user/user.query.resolver';
-import { join } from 'path';
-import { MongooseModule } from '@nestjs/mongoose';
-import { UserEntity, UserSchema } from './entities/user.entity';
+import { UserService } from './services/user.service';
 
 @Module({
   imports: [
@@ -23,15 +26,20 @@ import { UserEntity, UserSchema } from './entities/user.entity';
       }),
       inject: [ConfigService],
     }),
-    MongooseModule.forFeature([{ name: UserEntity.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: UserEntity.name, schema: UserSchema },
+      { name: AssetEntity.name, schema: AssetSchema },
+      { name: InvestmentEntity.name, schema: InvestmentSchema },
+      { name: AssetValueEntity.name, schema: AssetValueSchema },
+    ]),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       playground: true,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'), // Auto-generate schema
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
     }),
     JwtModule.register({
-      secret: 'your-secret-key', // Replace with your secret key
-      signOptions: { expiresIn: '1h' }, // Optional: Token expiration
+      secret: 'your-secret-key',
+      signOptions: { expiresIn: '1h' },
     }),
     HttpModule,
   ],
@@ -46,4 +54,4 @@ import { UserEntity, UserSchema } from './entities/user.entity';
     UserService,
   ],
 })
-export class AppModule {}
+export class AppModule { }

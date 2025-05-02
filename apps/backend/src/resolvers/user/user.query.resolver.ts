@@ -1,14 +1,14 @@
 import { Context, Query, Resolver } from '@nestjs/graphql';
-import { User } from '../../models/user.model';
-import { UserService } from '../../services/user.service';
 import { Context as CustomContext } from '../../auth/context';
+import { UserDTO } from '../../graphql/user.graphql';
+import { UserService } from '../../services/user.service';
 
-@Resolver(() => User)
+@Resolver(() => UserDTO)
 export class UserQueryResolver {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
-  @Query(() => User)
-  async user(@Context() context: CustomContext): Promise<User> {
+  @Query(() => UserDTO)
+  async user(@Context() context: CustomContext): Promise<UserDTO> {
     const userId = context.req.user?.userId || '';
     return this.userService.getUser(userId);
   }

@@ -1,11 +1,11 @@
 import { Args, Mutation, Resolver } from '@nestjs/graphql';
-import { UserService } from '../../services/user.service';
-import { Auth } from '../../models/auth.model';
+import { AuthDTO } from '../../graphql/auth.graphql';
 import { Public } from '../../public.decorator';
+import { UserService } from '../../services/user.service';
 
 @Resolver()
 export class UserMutationResolver {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Public()
   @Mutation(() => Boolean)
@@ -24,11 +24,11 @@ export class UserMutationResolver {
   }
 
   @Public()
-  @Mutation(() => Auth)
+  @Mutation(() => AuthDTO)
   async loginUser(
     @Args('email') email: string,
     @Args('password') password: string,
-  ): Promise<Auth> {
+  ): Promise<AuthDTO> {
     return await this.userService.loginUser(email, password);
   }
 }
