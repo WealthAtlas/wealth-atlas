@@ -10,14 +10,11 @@ import {
     Typography,
     Alert,
 } from '@mui/material';
-import {gql, useMutation} from '@apollo/client';
-import Cookies from 'js-cookie';
+import { gql, useMutation } from '@apollo/client';
 
 const LOGIN_MUTATION = gql`
     mutation Login($email: String!, $password: String!) {
-        loginUser(email: $email, password: $password) {
-            token
-        }
+        loginUser(email: $email, password: $password)
     }
 `;
 
@@ -35,8 +32,7 @@ const LoginPage = () => {
                 variables: { email, password },
             });
 
-            if (data.loginUser.token) {
-                Cookies.set('token', data.loginUser.token, { expires: 7, secure: true });
+            if (data.loginUser) {
                 router.push('/dashboard');
             } else {
                 setError(data.register.message || 'Registration failed');
@@ -93,6 +89,7 @@ const LoginPage = () => {
                     )}
                     <Button
                         type="submit"
+                        disabled={loading}
                         variant="contained"
                         color="primary"
                         fullWidth
