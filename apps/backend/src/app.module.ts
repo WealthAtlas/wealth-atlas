@@ -36,6 +36,7 @@ import { UserService } from './services/user.service';
       driver: ApolloDriver,
       playground: true,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      context: ({ req, res }: { req: Request; res: Response }) => ({ req, res }),
     }),
     JwtModule.register({
       secret: 'your-secret-key',

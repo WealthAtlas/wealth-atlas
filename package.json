@@ -9,6 +9,8 @@
       "dev:backend": "pnpm --filter atlas-backend dev",
       "dev:frontend": "pnpm --filter atlas-frontend dev",
       "dev": "pnpm -r dev",
+      "build:backend": "pnpm --filter atlas-backend build",
+      "build:frontend": "pnpm --filter atlas-frontend build",
       "build": "pnpm -r build"
     }
   }
