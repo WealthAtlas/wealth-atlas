@@ -10,18 +10,37 @@ import {
     Typography,
     Alert,
 } from '@mui/material';
+import {gql, useMutation} from '@apollo/client';
+import Cookies from 'js-cookie';
+
+const LOGIN_MUTATION = gql`
+    mutation Login($email: String!, $password: String!) {
+        loginUser(email: $email, password: $password) {
+            token
+        }
+    }
+`;
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const router = useRouter();
+    const [login, { loading }] = useMutation(LOGIN_MUTATION);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            // Make a login API call (not implemented)
-            router.push('/dashboard'); // Redirect to a dashboard or home page after successful login
+            const { data } = await login({
+                variables: { email, password },
+            });
+
+            if (data.loginUser.token) {
+                Cookies.set('token', data.loginUser.token, { expires: 7, secure: true });
+                router.push('/dashboard');
+            } else {
+                setError(data.register.message || 'Registration failed');
+            }
         } catch (err) {
             setError('Login failed: ' + err);
         }
