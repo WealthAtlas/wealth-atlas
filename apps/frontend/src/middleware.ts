@@ -10,9 +10,10 @@ export function middleware(request: NextRequest) {
 
     if (!token) {
         return NextResponse.redirect(new URL('/login', request.url));
+    } else if (request.nextUrl.pathname === '/') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
-    console.log('Valid token, proceeding to:', request.nextUrl.pathname);
     return NextResponse.next();
 }
 
