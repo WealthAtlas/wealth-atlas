@@ -62,14 +62,6 @@ export type UserDto = {
   name: Scalars['String'];
 };
 
-export type CreateAssetMutationVariables = Exact<{
-  email: Scalars['String'];
-  password: Scalars['String'];
-}>;
-
-
-export type CreateAssetMutation = { __typename?: 'Mutation', loginUser: boolean };
-
 export type LoginUserMutationVariables = Exact<{
   email: Scalars['String'];
   password: Scalars['String'];
@@ -88,38 +80,6 @@ export type RegisterUserMutationVariables = Exact<{
 export type RegisterUserMutation = { __typename?: 'Mutation', registerUser: boolean };
 
 
-export const CreateAssetDocument = gql`
-    mutation CreateAsset($email: String!, $password: String!) {
-  loginUser(email: $email, password: $password)
-}
-    `;
-export type CreateAssetMutationFn = Apollo.MutationFunction<CreateAssetMutation, CreateAssetMutationVariables>;
-
-/**
- * __useCreateAssetMutation__
- *
- * To run a mutation, you first call `useCreateAssetMutation` within a React component and pass it any options that fit your needs.
- * When your component renders, `useCreateAssetMutation` returns a tuple that includes:
- * - A mutate function that you can call at any time to execute the mutation
- * - An object with fields that represent the current status of the mutation's execution
- *
- * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
- *
- * @example
- * const [createAssetMutation, { data, loading, error }] = useCreateAssetMutation({
- *   variables: {
- *      email: // value for 'email'
- *      password: // value for 'password'
- *   },
- * });
- */
-export function useCreateAssetMutation(baseOptions?: Apollo.MutationHookOptions<CreateAssetMutation, CreateAssetMutationVariables>) {
-        const options = {...defaultOptions, ...baseOptions}
-        return Apollo.useMutation<CreateAssetMutation, CreateAssetMutationVariables>(CreateAssetDocument, options);
-      }
-export type CreateAssetMutationHookResult = ReturnType<typeof useCreateAssetMutation>;
-export type CreateAssetMutationResult = Apollo.MutationResult<CreateAssetMutation>;
-export type CreateAssetMutationOptions = Apollo.BaseMutationOptions<CreateAssetMutation, CreateAssetMutationVariables>;
 export const LoginUserDocument = gql`
     mutation LoginUser($email: String!, $password: String!) {
   loginUser(email: $email, password: $password)

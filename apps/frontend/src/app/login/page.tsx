@@ -1,6 +1,5 @@
 'use client';
 
-import { useLoginUserMutation } from '@/graphql/models/generated';
 import {
     Alert,
     Box,
@@ -11,6 +10,7 @@ import {
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useLoginUserMutation } from '@/graphql/models/generated';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');

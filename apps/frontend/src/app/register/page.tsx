@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+
 const RegisterPage = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');

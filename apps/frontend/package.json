@@ -33,6 +33,7 @@
     "@graphql-codegen/typescript-react-apollo": "^3.0.0",
     "@graphql-codegen/typescript-react-query": "^5.0.0",
     "@graphql-codegen/near-operation-file-preset": "^3.0.0",
+    "@graphql-codegen/typescript-graphql-request": "^5.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^20",

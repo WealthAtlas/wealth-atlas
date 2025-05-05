@@ -16,42 +16,8 @@ const config: CodegenConfig = {
         withHOC: false,
         withComponent: false,
       },
-    },
-    'src/graphql/dtos/': {
-      preset: 'near-operation-file',
-      presetConfig: {
-        extension: '.dto.ts',
-        baseTypesPath: '../models/generated.ts',
-      },
-      plugins: [
-        'typescript',
-        'typescript-operations',
-      ],
-    },
-    'src/graphql/queries/': {
-      preset: 'near-operation-file',
-      presetConfig: {
-        extension: '.query.ts',
-        baseTypesPath: '../models/generated.ts',
-      },
-      plugins: [
-        'typescript',
-        'typescript-operations',
-      ],
-    },
-    'src/graphql/mutations/': {
-      preset: 'near-operation-file',
-      presetConfig: {
-        extension: '.mutation.ts',
-        baseTypesPath: '../models/generated.ts',
-      },
-      plugins: [
-        'typescript',
-        'typescript-operations',
-      ],
-    },
-  },
-  ignoreNoDocuments: true,
+    }
+  }
 };
 
 export default config;
