@@ -1,7 +1,7 @@
 import { Args, Context, Mutation, Resolver } from '@nestjs/graphql';
 import { Context as CustomContext } from '../../auth/context';
-import { CreateAssetInput } from '../../graphql/create_asset.input.graphql';
-import { AssetService } from '../../services/asset.service';
+import { CreateAssetInput } from './create_asset.input.graphql';
+import { AssetService } from './asset.service';
 
 @Resolver()
 export class AssetMutationResolver {

@@ -1,6 +1,6 @@
 import { Args, Context, Mutation, Resolver } from '@nestjs/graphql';
 import { Public } from '../../public.decorator';
-import { UserService } from '../../services/user.service';
+import { UserService } from './user.service';
 
 @Resolver()
 export class UserMutationResolver {
@@ -29,7 +29,7 @@ export class UserMutationResolver {
     @Context() context: any,
   ): Promise<boolean> {
     const authData = await this.userService.loginUser(email, password);
-
+  
     context.res.cookie('token', authData.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

@@ -1,7 +1,7 @@
 import { Context, Query, Resolver } from '@nestjs/graphql';
 import { Context as CustomContext } from '../../auth/context';
-import { UserDTO } from '../../graphql/user.graphql';
-import { UserService } from '../../services/user.service';
+import { UserDTO } from './user.graphql';
+import { UserService } from './user.service';
 
 @Resolver(() => UserDTO)
 export class UserQueryResolver {

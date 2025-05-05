@@ -12,6 +12,22 @@ type Query {
 }
 
 type Mutation {
+  createAsset(input: CreateAssetInput!): Boolean!
   registerUser(name: String!, email: String!, password: String!): Boolean!
   loginUser(email: String!, password: String!): Boolean!
 }
+
+input CreateAssetInput {
+  name: String!
+  description: String!
+  category: String!
+  maturityDate: DateTime
+  currency: String!
+  riskLevel: String!
+  growthRate: Float
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime

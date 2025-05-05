@@ -1,22 +1,16 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRegisterUserMutation } from '@/graphql/models/generated';
 import {
+    Alert,
     Box,
     Button,
     Container,
     TextField,
     Typography,
-    Alert,
 } from '@mui/material';
-import { gql, useMutation } from '@apollo/client';
-
-const REGISTER_MUTATION = gql`
-    mutation Register($name: String!, $email: String!, $password: String!) {
-        registerUser(name: $name, email: $email, password: $password)
-    }
-`;
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 const RegisterPage = () => {
     const [name, setName] = useState('');
@@ -24,8 +18,7 @@ const RegisterPage = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const router = useRouter();
-
-    const [register, { loading }] = useMutation(REGISTER_MUTATION);
+    const [register, { loading, error: registerError }] = useRegisterUserMutation();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,10 +27,10 @@ const RegisterPage = () => {
                 variables: { name, email, password },
             });
 
-            if (data.registerUser) {
+            if (data?.registerUser) {
                 router.push('/login'); // Redirect to login page after successful registration
             } else {
-                setError(data.register.message || 'Registration failed');
+                setError(registerError?.message || 'Registration failed');
             }
         } catch (err) {
             setError('Registration failed: ' + err);

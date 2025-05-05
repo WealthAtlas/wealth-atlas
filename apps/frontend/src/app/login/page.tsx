@@ -1,29 +1,23 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useLoginUserMutation } from '@/graphql/models/generated';
 import {
+    Alert,
     Box,
     Button,
     Container,
     TextField,
     Typography,
-    Alert,
 } from '@mui/material';
-import { gql, useMutation } from '@apollo/client';
-
-const LOGIN_MUTATION = gql`
-    mutation Login($email: String!, $password: String!) {
-        loginUser(email: $email, password: $password)
-    }
-`;
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const router = useRouter();
-    const [login, { loading }] = useMutation(LOGIN_MUTATION);
+    const [login, { loading, error: loginError }] = useLoginUserMutation();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,10 +26,10 @@ const LoginPage = () => {
                 variables: { email, password },
             });
 
-            if (data.loginUser) {
+            if (data?.loginUser) {
                 router.push('/dashboard');
             } else {
-                setError(data.register.message || 'Registration failed');
+                setError(loginError?.message || 'Login failed');
             }
         } catch (err) {
             setError('Login failed: ' + err);
@@ -43,7 +37,7 @@ const LoginPage = () => {
     };
 
     const handleRegisterRedirect = () => {
-        router.push('/register'); // Redirect to the registration page
+        router.push('/register');
     };
 
     return (

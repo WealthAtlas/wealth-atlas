@@ -7,14 +7,9 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { join } from 'path';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { AssetEntity, AssetSchema } from './entities/asset.entity';
-import { AssetValueEntity, AssetValueSchema } from './entities/asset_value.entity';
-import { InvestmentEntity, InvestmentSchema } from './entities/investment.entity';
-import { UserEntity, UserSchema } from './entities/user.entity';
-import { UserMutationResolver } from './resolvers/user/user.mutation.resolver';
-import { UserQueryResolver } from './resolvers/user/user.query.resolver';
-import { UserService } from './services/user.service';
+import { JwtAuthGuard } from './modules/user/jwt-auth.guard';
+import { AssetModule } from './modules/asset/asset.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -26,33 +21,16 @@ import { UserService } from './services/user.service';
       }),
       inject: [ConfigService],
     }),
-    MongooseModule.forFeature([
-      { name: UserEntity.name, schema: UserSchema },
-      { name: AssetEntity.name, schema: AssetSchema },
-      { name: InvestmentEntity.name, schema: InvestmentSchema },
-      { name: AssetValueEntity.name, schema: AssetValueSchema },
-    ]),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       playground: true,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       context: ({ req, res }: { req: Request; res: Response }) => ({ req, res }),
     }),
-    JwtModule.register({
-      secret: 'your-secret-key',
-      signOptions: { expiresIn: '1h' },
-    }),
     HttpModule,
+    AssetModule,
+    UserModule,
   ],
   controllers: [],
-  providers: [
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    UserMutationResolver,
-    UserQueryResolver,
-    UserService,
-  ],
 })
 export class AppModule { }

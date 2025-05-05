@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { UserEntity } from '../entities/user.entity';
-import { User } from '../domain/user';
 import * as argon2 from 'argon2';
+import { UserEntity } from '../../entities/user.entity';
+import { User } from '../../domain/user';
 
 @Injectable()
 export class UserService {
