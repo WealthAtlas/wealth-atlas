@@ -16,7 +16,27 @@ export type Scalars = {
   DateTime: any;
 };
 
-export type CreateAssetInput = {
+export type AssetDto = {
+  __typename?: 'AssetDTO';
+  addInvestment: Scalars['Boolean'];
+  category: Scalars['String'];
+  currency: Scalars['String'];
+  currentValue?: Maybe<Scalars['Float']>;
+  description: Scalars['String'];
+  growthRate?: Maybe<Scalars['Float']>;
+  id: Scalars['Float'];
+  investments: Array<InvestmentDto>;
+  maturityDate?: Maybe<Scalars['DateTime']>;
+  name: Scalars['String'];
+  riskLevel: Scalars['String'];
+};
+
+
+export type AssetDtoAddInvestmentArgs = {
+  input: InvestmentInput;
+};
+
+export type AssetInput = {
   category: Scalars['String'];
   currency: Scalars['String'];
   description: Scalars['String'];
@@ -24,6 +44,17 @@ export type CreateAssetInput = {
   maturityDate?: InputMaybe<Scalars['DateTime']>;
   name: Scalars['String'];
   riskLevel: Scalars['String'];
+};
+
+export type InvestmentDto = {
+  __typename?: 'InvestmentDTO';
+  amount: Scalars['Float'];
+  date: Scalars['DateTime'];
+};
+
+export type InvestmentInput = {
+  amount: Scalars['Float'];
+  date: Scalars['DateTime'];
 };
 
 export type Mutation = {
@@ -35,24 +66,22 @@ export type Mutation = {
 
 
 export type MutationCreateAssetArgs = {
-  input: CreateAssetInput;
+  input: AssetInput;
 };
 
 
 export type MutationLoginUserArgs = {
-  email: Scalars['String'];
-  password: Scalars['String'];
+  input: UserLoginInput;
 };
 
 
 export type MutationRegisterUserArgs = {
-  email: Scalars['String'];
-  name: Scalars['String'];
-  password: Scalars['String'];
+  input: UserRegisterInput;
 };
 
 export type Query = {
   __typename?: 'Query';
+  assets: Array<AssetDto>;
   user: UserDto;
 };
 
@@ -62,25 +91,33 @@ export type UserDto = {
   name: Scalars['String'];
 };
 
+export type UserLoginInput = {
+  email: Scalars['String'];
+  password: Scalars['String'];
+};
+
+export type UserRegisterInput = {
+  email: Scalars['String'];
+  name: Scalars['String'];
+  password: Scalars['String'];
+};
+
 export type CreateAssetMutationVariables = Exact<{
-  input: CreateAssetInput;
+  input: AssetInput;
 }>;
 
 
 export type CreateAssetMutation = { __typename?: 'Mutation', createAsset: boolean };
 
 export type LoginUserMutationVariables = Exact<{
-  email: Scalars['String'];
-  password: Scalars['String'];
+  input: UserLoginInput;
 }>;
 
 
 export type LoginUserMutation = { __typename?: 'Mutation', loginUser: boolean };
 
 export type RegisterUserMutationVariables = Exact<{
-  name: Scalars['String'];
-  email: Scalars['String'];
-  password: Scalars['String'];
+  input: UserRegisterInput;
 }>;
 
 
@@ -88,7 +125,7 @@ export type RegisterUserMutation = { __typename?: 'Mutation', registerUser: bool
 
 
 export const CreateAssetDocument = gql`
-    mutation CreateAsset($input: CreateAssetInput!) {
+    mutation CreateAsset($input: AssetInput!) {
   createAsset(input: $input)
 }
     `;
@@ -119,8 +156,8 @@ export type CreateAssetMutationHookResult = ReturnType<typeof useCreateAssetMuta
 export type CreateAssetMutationResult = Apollo.MutationResult<CreateAssetMutation>;
 export type CreateAssetMutationOptions = Apollo.BaseMutationOptions<CreateAssetMutation, CreateAssetMutationVariables>;
 export const LoginUserDocument = gql`
-    mutation LoginUser($email: String!, $password: String!) {
-  loginUser(email: $email, password: $password)
+    mutation LoginUser($input: UserLoginInput!) {
+  loginUser(input: $input)
 }
     `;
 export type LoginUserMutationFn = Apollo.MutationFunction<LoginUserMutation, LoginUserMutationVariables>;
@@ -138,8 +175,7 @@ export type LoginUserMutationFn = Apollo.MutationFunction<LoginUserMutation, Log
  * @example
  * const [loginUserMutation, { data, loading, error }] = useLoginUserMutation({
  *   variables: {
- *      email: // value for 'email'
- *      password: // value for 'password'
+ *      input: // value for 'input'
  *   },
  * });
  */
@@ -151,8 +187,8 @@ export type LoginUserMutationHookResult = ReturnType<typeof useLoginUserMutation
 export type LoginUserMutationResult = Apollo.MutationResult<LoginUserMutation>;
 export type LoginUserMutationOptions = Apollo.BaseMutationOptions<LoginUserMutation, LoginUserMutationVariables>;
 export const RegisterUserDocument = gql`
-    mutation RegisterUser($name: String!, $email: String!, $password: String!) {
-  registerUser(name: $name, email: $email, password: $password)
+    mutation RegisterUser($input: UserRegisterInput!) {
+  registerUser(input: $input)
 }
     `;
 export type RegisterUserMutationFn = Apollo.MutationFunction<RegisterUserMutation, RegisterUserMutationVariables>;
@@ -170,9 +206,7 @@ export type RegisterUserMutationFn = Apollo.MutationFunction<RegisterUserMutatio
  * @example
  * const [registerUserMutation, { data, loading, error }] = useRegisterUserMutation({
  *   variables: {
- *      name: // value for 'name'
- *      email: // value for 'email'
- *      password: // value for 'password'
+ *      input: // value for 'input'
  *   },
  * });
  */

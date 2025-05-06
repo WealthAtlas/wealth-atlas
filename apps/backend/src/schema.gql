@@ -43,8 +43,8 @@ type Query {
 
 type Mutation {
   createAsset(input: AssetInput!): Boolean!
-  registerUser(name: String!, email: String!, password: String!): Boolean!
-  loginUser(email: String!, password: String!): Boolean!
+  registerUser(input: UserRegisterInput!): Boolean!
+  loginUser(input: UserLoginInput!): Boolean!
 }
 
 input AssetInput {
@@ -55,4 +55,15 @@ input AssetInput {
   currency: String!
   riskLevel: String!
   growthRate: Float
+}
+
+input UserRegisterInput {
+  name: String!
+  email: String!
+  password: String!
+}
+
+input UserLoginInput {
+  email: String!
+  password: String!
 }

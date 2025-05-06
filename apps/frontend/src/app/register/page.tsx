@@ -25,7 +25,7 @@ const RegisterPage = () => {
         e.preventDefault();
         try {
             const { data } = await register({
-                variables: { name, email, password },
+                variables: { input: { name, email, password } },
             });
 
             if (data?.registerUser) {

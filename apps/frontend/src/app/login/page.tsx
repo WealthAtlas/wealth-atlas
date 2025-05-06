@@ -23,7 +23,7 @@ const LoginPage = () => {
         e.preventDefault();
         try {
             const { data } = await login({
-                variables: { email, password },
+                variables: { input: { email, password } },
             });
 
             if (data?.loginUser) {

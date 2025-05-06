@@ -2,8 +2,7 @@
     "name": "wealth-atlas",
     "private": true,
     "workspaces": [
-      "apps/*",
-      "packages/*"
+      "apps/*"
     ],
     "scripts": {
       "dev:backend": "pnpm --filter atlas-backend dev",

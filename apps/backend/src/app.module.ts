@@ -7,7 +7,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { join } from 'path';
-import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { AssetModule } from './modules/asset/asset.module';
 import { UserModule } from './modules/user/user.module';
 
@@ -21,6 +21,11 @@ import { UserModule } from './modules/user/user.module';
       }),
       inject: [ConfigService],
     }),
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '1h' },
+      global: true,
+    }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       playground: true,
@@ -31,6 +36,10 @@ import { UserModule } from './modules/user/user.module';
     AssetModule,
     UserModule,
   ],
+  providers: [{
+    provide: APP_GUARD,
+    useClass: JwtAuthGuard,
+  }],
   controllers: [],
 })
 export class AppModule { }

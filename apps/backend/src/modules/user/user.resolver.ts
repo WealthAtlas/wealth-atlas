@@ -1,8 +1,8 @@
 import { Args, Context, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { Context as CustomContext } from '../../context';
-import { UserDTO } from './user.graphql';
-import { UserService } from './user.service';
 import { Public } from '../../public.decorator';
+import { UserDTO, UserLoginInput, UserRegisterInput } from './user.graphql';
+import { UserService } from './user.service';
 
 @Resolver(() => UserDTO)
 export class UserResolver {
@@ -11,11 +11,9 @@ export class UserResolver {
   @Public()
   @Mutation(() => Boolean)
   async registerUser(
-    @Args('name') name: string,
-    @Args('email') email: string,
-    @Args('password') password: string,
+    @Args('input') input: UserRegisterInput,
   ): Promise<boolean> {
-    return await this.userService.registerUser(name, email, password).then(() => {
+    return await this.userService.registerUser(input).then(() => {
       return true;
     }).catch((error) => {
       console.error('Error saving user:', error);
@@ -26,11 +24,10 @@ export class UserResolver {
   @Public()
   @Mutation(() => Boolean)
   async loginUser(
-    @Args('email') email: string,
-    @Args('password') password: string,
+    @Args('input') input: UserLoginInput,
     @Context() context: any,
   ): Promise<boolean> {
-    const token = await this.userService.loginUser(email, password);
+    const token = await this.userService.loginUser(input);
 
     context.res.cookie('token', token, {
       httpOnly: true,
