@@ -39,6 +39,20 @@ export class UserResolver {
     return true;
   }
 
+  @Public()
+  @Mutation(() => Boolean)
+  async logoutUser(
+    @Context() context: any,
+  ): Promise<boolean> {
+    context.res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    return true;
+  }
+
   @Query(() => UserDTO)
   async user(@Context() context: CustomContext): Promise<UserDTO> {
     const userId = context.req.user?.userId || '';

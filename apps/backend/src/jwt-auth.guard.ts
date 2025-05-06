@@ -21,7 +21,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const ctx = context.switchToHttp().getRequest<Context>();
-    const token = this.extractTokenFromHeader(ctx.req);
+    const token = this.extractTokenFromCookie(ctx.req);
 
     if (!token) {
       throw new UnauthorizedException('JWT token is missing');
@@ -36,11 +36,8 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 
-  private extractTokenFromHeader(request: any): string | null {
-    const authHeader = request.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return null;
-    }
-    return authHeader.split(' ')[1];
-  }
+  private extractTokenFromCookie(request: any): string | null {
+    const cookies = request.cookies;
+    return cookies?.token || null; 
+}
 }

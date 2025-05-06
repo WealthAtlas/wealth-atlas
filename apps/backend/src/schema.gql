@@ -45,6 +45,7 @@ type Mutation {
   createAsset(input: AssetInput!): Boolean!
   registerUser(input: UserRegisterInput!): Boolean!
   loginUser(input: UserLoginInput!): Boolean!
+  logoutUser: Boolean!
 }
 
 input AssetInput {
