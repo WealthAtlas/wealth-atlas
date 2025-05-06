@@ -12,9 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "paths": {
-      "@wealth-atlas/shared": ["../../packages/shared"]
-    },
+    "typeRoots": ["node_modules/@types"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],

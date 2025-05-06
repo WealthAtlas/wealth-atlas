@@ -110,6 +110,11 @@ export type CreateAssetMutationVariables = Exact<{
 
 export type CreateAssetMutation = { __typename?: 'Mutation', createAsset: boolean };
 
+export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetAssetsQuery = { __typename?: 'Query', assets: Array<{ __typename?: 'AssetDTO', id: number, name: string, description: string, category: string, maturityDate?: any | null, currency: string, riskLevel: string, growthRate?: number | null }> };
+
 export type LoginUserMutationVariables = Exact<{
   input: UserLoginInput;
 }>;
@@ -161,6 +166,47 @@ export function useCreateAssetMutation(baseOptions?: Apollo.MutationHookOptions<
 export type CreateAssetMutationHookResult = ReturnType<typeof useCreateAssetMutation>;
 export type CreateAssetMutationResult = Apollo.MutationResult<CreateAssetMutation>;
 export type CreateAssetMutationOptions = Apollo.BaseMutationOptions<CreateAssetMutation, CreateAssetMutationVariables>;
+export const GetAssetsDocument = gql`
+    query GetAssets {
+  assets {
+    id
+    name
+    description
+    category
+    maturityDate
+    currency
+    riskLevel
+    growthRate
+  }
+}
+    `;
+
+/**
+ * __useGetAssetsQuery__
+ *
+ * To run a query within a React component, call `useGetAssetsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetAssetsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetAssetsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetAssetsQuery(baseOptions?: Apollo.QueryHookOptions<GetAssetsQuery, GetAssetsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetAssetsQuery, GetAssetsQueryVariables>(GetAssetsDocument, options);
+      }
+export function useGetAssetsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetAssetsQuery, GetAssetsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetAssetsQuery, GetAssetsQueryVariables>(GetAssetsDocument, options);
+        }
+export type GetAssetsQueryHookResult = ReturnType<typeof useGetAssetsQuery>;
+export type GetAssetsLazyQueryHookResult = ReturnType<typeof useGetAssetsLazyQuery>;
+export type GetAssetsQueryResult = Apollo.QueryResult<GetAssetsQuery, GetAssetsQueryVariables>;
 export const LoginUserDocument = gql`
     mutation LoginUser($input: UserLoginInput!) {
   loginUser(input: $input)
