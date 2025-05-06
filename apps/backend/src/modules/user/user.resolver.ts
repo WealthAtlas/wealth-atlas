@@ -1,10 +1,12 @@
-import { Args, Context, Mutation, Resolver } from '@nestjs/graphql';
-import { Public } from '../../public.decorator';
+import { Args, Context, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Context as CustomContext } from '../../context';
+import { UserDTO } from './user.graphql';
 import { UserService } from './user.service';
+import { Public } from '../../public.decorator';
 
-@Resolver()
-export class UserMutationResolver {
-  constructor(private readonly userService: UserService) {}
+@Resolver(() => UserDTO)
+export class UserResolver {
+  constructor(private readonly userService: UserService) { }
 
   @Public()
   @Mutation(() => Boolean)
@@ -28,9 +30,9 @@ export class UserMutationResolver {
     @Args('password') password: string,
     @Context() context: any,
   ): Promise<boolean> {
-    const authData = await this.userService.loginUser(email, password);
-  
-    context.res.cookie('token', authData.token, {
+    const token = await this.userService.loginUser(email, password);
+
+    context.res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
@@ -38,5 +40,11 @@ export class UserMutationResolver {
     });
 
     return true;
+  }
+
+  @Query(() => UserDTO)
+  async user(@Context() context: CustomContext): Promise<UserDTO> {
+    const userId = context.req.user?.userId || '';
+    return this.userService.getUser(userId);
   }
 }

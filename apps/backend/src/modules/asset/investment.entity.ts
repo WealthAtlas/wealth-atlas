@@ -13,9 +13,6 @@ export class InvestmentEntity extends Document {
   valuePerQty!: number;
 
   @Prop({ required: true })
-  currency!: string;
-
-  @Prop({ required: true })
   date!: Date;
 }
 

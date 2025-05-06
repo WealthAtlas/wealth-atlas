@@ -7,7 +7,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { join } from 'path';
-import { JwtAuthGuard } from './modules/user/jwt-auth.guard';
+import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
 import { AssetModule } from './modules/asset/asset.module';
 import { UserModule } from './modules/user/user.module';
 
