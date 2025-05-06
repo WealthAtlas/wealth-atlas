@@ -12,7 +12,8 @@ type AssetDTO {
   riskLevel: String!
   growthRate: Float
   currentValue: Float
-  addInvestment(input: InvestmentDTO!): Boolean
+  addInvestment(input: InvestmentInput!): Boolean!
+  investments: [InvestmentDTO!]!
 }
 
 """
@@ -20,7 +21,12 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
-input InvestmentDTO {
+input InvestmentInput {
+  amount: Float!
+  date: DateTime!
+}
+
+type InvestmentDTO {
   amount: Float!
   date: DateTime!
 }
@@ -31,7 +37,7 @@ type UserDTO {
 }
 
 type Query {
-  getAssets: [AssetDTO!]!
+  assets: [AssetDTO!]!
   user: UserDTO!
 }
 

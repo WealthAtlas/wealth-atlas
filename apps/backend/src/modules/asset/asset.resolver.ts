@@ -18,7 +18,7 @@ export class AssetResolver {
   }
 
   @Query(() => [AssetDTO])
-  async getAssets(@Context() context: CustomContext): Promise<AssetDTO[]> {
+  async assets(@Context() context: CustomContext): Promise<AssetDTO[]> {
     const userId = context.req.user?.userId || '';
     return this.assetService.getAssets(userId);
   }
@@ -26,13 +26,5 @@ export class AssetResolver {
   @ResolveField(() => Float, { nullable: true })
   async currentValue(@Parent() asset: AssetDTO): Promise<number | null> {
     return this.assetService.computeCurrentValue(asset.id);
-  }
-
-  @ResolveField(() => Boolean, { nullable: true })
-  async addInvestment(
-    @Parent() asset: AssetDTO,
-    @Args('input') input: InvestmentDTO
-  ): Promise<InvestmentDTO> {
-    return this.assetService.addInvestment(asset.id, input);
   }
 }

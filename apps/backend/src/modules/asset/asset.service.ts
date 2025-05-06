@@ -60,8 +60,4 @@ export class AssetService {
   async computeCurrentValue(id: number): Promise<number> {
     throw new Error('Method not implemented.');
   }
-
-  async addInvestment(id: number, input: InvestmentDTO): Promise<InvestmentDTO> {
-    throw new Error('Method not implemented.');
-  }
 }
