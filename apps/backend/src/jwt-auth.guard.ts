@@ -33,6 +33,7 @@ export class JwtAuthGuard implements CanActivate {
       ctx.req.user = { userId: decoded.userId };
       return true;
     } catch (error) {
+      ctx.res.clearCookie('token'); 
       throw new UnauthorizedException('Invalid or expired JWT token');
     }
   }
