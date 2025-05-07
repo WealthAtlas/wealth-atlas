@@ -10,10 +10,12 @@ type AssetDTO {
   maturityDate: DateTime
   currency: String!
   riskLevel: String!
-  growthRate: Float
   currentValue: Float
+  growthRate: Float!
   addInvestment(input: InvestmentInput!): Boolean!
   investments: [InvestmentDTO!]!
+  addValue(input: AssetValueInput!): Boolean!
+  values: [AssetValueDTO!]!
 }
 
 """
@@ -22,12 +24,24 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 input InvestmentInput {
-  amount: Float!
+  qty: Float
+  value_per_qty: Float!
+  date: DateTime!
+}
+
+input AssetValueInput {
+  valuePerQty: Float!
   date: DateTime!
 }
 
 type InvestmentDTO {
-  amount: Float!
+  qty: Float
+  value_per_qty: Float!
+  date: DateTime!
+}
+
+type AssetValueDTO {
+  valuePerQty: Float!
   date: DateTime!
 }
 

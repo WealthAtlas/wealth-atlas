@@ -13,11 +13,20 @@ export class InvestmentService {
   ) {
   }
 
-  async addInvestment(id: number, input: InvestmentInput): Promise<InvestmentDTO> {
-    throw new Error('Method not implemented.');
+  async addInvestment(assetId: number, input: InvestmentInput): Promise<InvestmentDTO> {
+    const investment = new this.investmentModel({
+      assetId,
+      ...input
+    });
+    return investment.save();
   }
 
   async getInvestments(assetId: number): Promise<InvestmentDTO[]> {
-    throw new Error('Method not implemented.');
+    const investments = await this.investmentModel.find({ assetId }).exec();
+    return investments.map(investment => ({
+      qty: investment.qty,
+      valuePerQty: investment.valuePerQty,
+      date: investment.date
+    }));
   }
 }

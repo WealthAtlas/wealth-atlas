@@ -27,4 +27,9 @@ export class AssetResolver {
   async currentValue(@Parent() asset: AssetDTO): Promise<number | null> {
     return this.assetService.computeCurrentValue(asset.id);
   }
+
+  @ResolveField(() => Float)
+  async growthRate(@Parent() asset: AssetDTO): Promise<number> {
+    return this.assetService.getGrowthRate(asset.id);
+  }
 }

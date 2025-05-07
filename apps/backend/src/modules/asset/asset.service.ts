@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AssetEntity } from './asset.entity';
 import { AssetDTO, AssetInput } from './asset.graphql';
-import { InvestmentDTO } from './investment.graphql';
 
 @Injectable()
 export class AssetService {
@@ -57,7 +56,11 @@ export class AssetService {
     });
   }
 
-  async computeCurrentValue(id: number): Promise<number> {
+  async computeCurrentValue(assetId: number): Promise<number> {
+    throw new Error('Method not implemented.');
+  }
+
+  getGrowthRate(assetId: number): number | PromiseLike<number> {
     throw new Error('Method not implemented.');
   }
 }

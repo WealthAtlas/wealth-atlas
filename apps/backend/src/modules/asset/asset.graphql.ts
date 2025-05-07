@@ -22,9 +22,6 @@ export class AssetDTO {
 
   @Field()
   riskLevel!: string;
-
-  @Field(() => Float, { nullable: true })
-  growthRate?: number;
 }
 
 @InputType()

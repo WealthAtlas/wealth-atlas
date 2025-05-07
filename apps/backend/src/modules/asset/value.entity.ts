@@ -10,9 +10,6 @@ export class AssetValueEntity extends Document {
   valuePerQty!: number;
 
   @Prop({ required: true })
-  currency!: string;
-
-  @Prop({ required: true })
   date!: Date;
 }
 
