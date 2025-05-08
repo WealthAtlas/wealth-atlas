@@ -10,11 +10,12 @@ type AssetDTO {
   maturityDate: DateTime
   currency: String!
   riskLevel: String!
-  currentValue: Float
+  currentValue: Float!
   growthRate: Float!
-  addInvestment(input: InvestmentInput!): Boolean!
+  qty: Float!
+  addInvestment(input: InvestmentInput!): InvestmentDTO!
   investments: [InvestmentDTO!]!
-  addValue(input: AssetValueInput!): Boolean!
+  addValue(input: AssetValueInput!): AssetValueDTO!
   values: [AssetValueDTO!]!
 }
 

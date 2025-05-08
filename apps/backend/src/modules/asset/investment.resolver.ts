@@ -7,7 +7,7 @@ import { InvestmentService } from './investment.service';
 export class InvestmentResolver {
   constructor(private readonly investmentService: InvestmentService) { }
 
-  @ResolveField(() => Boolean)
+  @ResolveField(() => InvestmentDTO)
   async addInvestment(
     @Parent() asset: AssetDTO,
     @Args('input') input: InvestmentInput

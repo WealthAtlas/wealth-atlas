@@ -12,9 +12,9 @@ export class AssetResolver {
   async createAsset(
     @Context() context: CustomContext,
     @Args('input') input: AssetInput,
-  ): Promise<boolean> {
+  ): Promise<AssetDTO> {
     const userId = context.req.user?.userId || '';
-    return this.assetService.createAsset(userId, input).then(() => true);
+    return this.assetService.createAsset(userId, input);
   }
 
   @Query(() => [AssetDTO])
@@ -23,13 +23,18 @@ export class AssetResolver {
     return this.assetService.getAssets(userId);
   }
 
-  @ResolveField(() => Float, { nullable: true })
-  async currentValue(@Parent() asset: AssetDTO): Promise<number | null> {
+  @ResolveField(() => Float)
+  async currentValue(@Parent() asset: AssetDTO): Promise<number> {
     return this.assetService.computeCurrentValue(asset.id);
   }
 
   @ResolveField(() => Float)
   async growthRate(@Parent() asset: AssetDTO): Promise<number> {
     return this.assetService.getGrowthRate(asset.id);
+  }
+
+  @ResolveField(() => Float)
+  async qty(@Parent() asset: AssetDTO): Promise<number> {
+    return this.assetService.getQty(asset.id);
   }
 }

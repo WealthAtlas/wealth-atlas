@@ -7,7 +7,7 @@ import { AssetValueService } from './value.service';
 export class AssetValueResolver {
   constructor(private readonly valueService: AssetValueService) { }
 
-  @ResolveField(() => Boolean)
+  @ResolveField(() => AssetValueDTO)
   async addValue(
     @Parent() asset: AssetDTO,
     @Args('input') input: AssetValueInput
