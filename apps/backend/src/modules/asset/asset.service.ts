@@ -120,4 +120,9 @@ export class AssetService {
       return total + (investment.qty ?? 1);
     }, 0);
   }
+
+  async deleteAsset(assetId: string): Promise<boolean> {
+    const result = await this.assetModel.deleteOne({ _id: assetId }).exec();
+    return result.deletedCount > 0;
+  }
 }

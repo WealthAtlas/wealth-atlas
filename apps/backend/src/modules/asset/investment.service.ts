@@ -29,4 +29,25 @@ export class InvestmentService {
       date: investment.date
     }));
   }
+
+  async updateInvestment(
+    assetId: number,
+    investmentId: number,
+    input: InvestmentInput
+  ): Promise<InvestmentDTO> {
+    const investment = await this.investmentModel.findOneAndUpdate(
+      { _id: investmentId, assetId },
+      input,
+      { new: true }
+    );
+    if (!investment) {
+      throw new Error('Investment not found');
+    }
+    return investment.toObject();
+  }
+
+  async deleteInvestment(assetId: number, investmentId: number): Promise<boolean> {
+    const result = await this.investmentModel.deleteOne({ _id: investmentId, assetId });
+    return result.deletedCount > 0;
+  }
 }

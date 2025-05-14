@@ -9,6 +9,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { join } from 'path';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AssetModule } from './modules/asset/asset.module';
+import { ExpenseModule } from './modules/expense/expense.module';
+import { GoalModule } from './modules/goals/goal.module';
 import { UserModule } from './modules/user/user.module';
 
 @Module({
@@ -33,8 +35,10 @@ import { UserModule } from './modules/user/user.module';
       context: ({ req, res }: { req: Request; res: Response }) => ({ req, res }),
     }),
     HttpModule,
-    AssetModule,
     UserModule,
+    AssetModule,
+    ExpenseModule,
+    GoalModule
   ],
   providers: [{
     provide: APP_GUARD,
