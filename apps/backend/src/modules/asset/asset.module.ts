@@ -19,6 +19,6 @@ import { AssetValueEntity, AssetValueSchema } from './value.entity';
         ]),
     ],
     providers: [AssetResolver, AssetService, InvestmentResolver, InvestmentService, AssetValueResolver, AssetValueService],
-    exports: [],
+    exports: [AssetService],
 })
 export class AssetModule { }

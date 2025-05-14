@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { AssetService } from '../asset/asset.service';
 import { GoalEntity } from './goal.entity';
-import { GoalDTO, GoalInput } from './goal.graphql';
+import { AllocatedAssetDTO, GoalDTO, GoalInput } from './goal.graphql';
+import { GoalAssetAllocationEntity } from './goal_asset_allocation.entity';
 
 @Injectable()
 export class GoalService {
 
   constructor(
-    @InjectModel(GoalEntity.name) private goalModel: Model<GoalEntity>
+    @InjectModel(GoalEntity.name) private goalModel: Model<GoalEntity>,
+    @InjectModel(GoalAssetAllocationEntity.name) private goalAssetAllocationModel: Model<GoalAssetAllocationEntity>,
+    private readonly assetService: AssetService,
   ) {
   }
 
@@ -43,6 +47,17 @@ export class GoalService {
           targetDate: goal.targetDate
         };
       });
+    });
+  }
+
+  async getAllocatedAssets(goalId: number): Promise<AllocatedAssetDTO[]> {
+    return this.goalAssetAllocationModel.find({ goalId }).exec().then((allocations) => {
+      return Promise.all(allocations.map(async (allocation) => {
+        return {
+          asset: await this.assetService.getAsset(allocation.assetId),
+          percentage: allocation.percentageOfAsset
+        };
+      }));
     });
   }
 }

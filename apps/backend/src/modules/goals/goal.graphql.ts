@@ -1,4 +1,5 @@
 import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
+import { AssetDTO } from '../asset/asset.graphql';
 
 @ObjectType()
 export class GoalDTO {
@@ -16,6 +17,15 @@ export class GoalDTO {
 
   @Field()
   targetDate!: Date;
+}
+
+@ObjectType()
+export class AllocatedAssetDTO {
+  @Field()
+  asset!: AssetDTO;
+
+  @Field(() => Float)
+  percentage!: number;
 }
 
 @InputType()

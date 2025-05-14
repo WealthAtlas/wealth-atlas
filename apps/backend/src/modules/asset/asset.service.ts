@@ -60,6 +60,24 @@ export class AssetService {
     });
   }
 
+  async getAsset(assetId: string): Promise<AssetDTO> {
+    return this.assetModel.findById(assetId).exec().then((asset) => {
+      if (!asset) {
+        throw new Error('Asset not found');
+      }
+      return {
+        id: asset._id,
+        name: asset.name,
+        description: asset.description,
+        category: asset.category,
+        maturityDate: asset.maturityDate,
+        currency: asset.currency,
+        riskLevel: asset.riskLevel,
+        growthRate: asset.growthRate,
+      };
+    });
+  }
+
   async computeCurrentValue(assetId: number): Promise<number> {
     const asset = await this.assetModel.findById(assetId).exec();
     if (!asset) {

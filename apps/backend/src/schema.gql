@@ -48,6 +48,20 @@ type AssetValueDTO {
   date: DateTime!
 }
 
+type GoalDTO {
+  id: Float!
+  name: String!
+  targetAmount: Float!
+  inflationRate: Float!
+  targetDate: DateTime!
+  allocatedAssets: [AllocatedAssetDTO!]!
+}
+
+type AllocatedAssetDTO {
+  asset: AssetDTO!
+  percentage: Float!
+}
+
 type UserDTO {
   name: String!
   email: String!
@@ -56,6 +70,7 @@ type UserDTO {
 type Query {
   user: UserDTO!
   assets: [AssetDTO!]!
+  goals: [GoalDTO!]!
 }
 
 type Mutation {

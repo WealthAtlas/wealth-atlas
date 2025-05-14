@@ -10,10 +10,7 @@ export class GoalAssetAllocationEntity extends Document {
     assetId!: string;
 
     @Prop({ required: true })
-    allocationPercentage!: number;
-
-    @Prop({ required: true })
-    allocatedValue!: number;
+    percentageOfAsset!: number;
 }
 
 export const GoalAssetAllocationSchema = SchemaFactory.createForClass(GoalAssetAllocationEntity);
