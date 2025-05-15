@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-@Schema({ collection: 'asset' })
+@Schema({ collection: 'assets' })
 export class AssetEntity extends Document {
   @Prop({ required: true })
-  userId!: number;
+  userId!: string;
 
   @Prop({ required: true })
   name!: string;

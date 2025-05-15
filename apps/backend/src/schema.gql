@@ -3,7 +3,7 @@
 # ------------------------------------------------------
 
 type AssetDTO {
-  id: Float!
+  id: String!
   name: String!
   description: String!
   category: String!
@@ -15,8 +15,8 @@ type AssetDTO {
   qty: Float!
   addInvestment(input: InvestmentInput!): InvestmentDTO!
   investments: [InvestmentDTO!]!
-  updateInvestment(id: Float!, input: InvestmentInput!): [InvestmentDTO!]!
-  deleteInvestment(id: Float!): Boolean!
+  updateInvestment(id: String!, input: InvestmentInput!): [InvestmentDTO!]!
+  deleteInvestment(id: String!): Boolean!
   addValue(input: AssetValueInput!): AssetValueDTO!
   values: [AssetValueDTO!]!
 }

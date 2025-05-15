@@ -12,7 +12,7 @@ export class AssetValueService {
   ) {
   }
 
-  async addValue(assetId: number, input: AssetValueInput): Promise<AssetValueDTO> {
+  async addValue(assetId: string, input: AssetValueInput): Promise<AssetValueDTO> {
     const value = new this.valueModel({
       assetId,
       ...input
@@ -20,7 +20,7 @@ export class AssetValueService {
     return value.save();
   }
 
-  async getValues(assetId: number): Promise<AssetValueDTO[]> {
+  async getValues(assetId: string): Promise<AssetValueDTO[]> {
     const values = await this.valueModel.find({ assetId }).exec();
     return values.map(value => ({
       valuePerQty: value.valuePerQty,

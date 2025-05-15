@@ -3,7 +3,7 @@ import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
 @ObjectType()
 export class AssetDTO {
   @Field()
-  id!: number;
+  id!: string;
 
   @Field()
   name!: string;

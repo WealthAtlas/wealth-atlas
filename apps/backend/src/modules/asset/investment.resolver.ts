@@ -25,7 +25,7 @@ export class InvestmentResolver {
   @ResolveField(() => [InvestmentDTO])
   async updateInvestment(
     @Parent() asset: AssetDTO,
-    @Args('id', { type: () => Float }) id: number,
+    @Args('id') id: string,
     @Args('input') input: InvestmentInput
   ): Promise<InvestmentDTO> {
     return this.investmentService.updateInvestment(asset.id, id, input);
@@ -34,7 +34,7 @@ export class InvestmentResolver {
   @ResolveField(() => Boolean)
   async deleteInvestment(
     @Parent() asset: AssetDTO,
-    @Args('id', { type: () => Float }) id: number
+    @Args('id') id: string
   ): Promise<boolean> {
     return this.investmentService.deleteInvestment(asset.id, id);
   }

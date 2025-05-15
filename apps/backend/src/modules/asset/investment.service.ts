@@ -13,7 +13,7 @@ export class InvestmentService {
   ) {
   }
 
-  async addInvestment(assetId: number, input: InvestmentInput): Promise<InvestmentDTO> {
+  async addInvestment(assetId: string, input: InvestmentInput): Promise<InvestmentDTO> {
     const investment = new this.investmentModel({
       assetId,
       ...input
@@ -21,7 +21,7 @@ export class InvestmentService {
     return investment.save();
   }
 
-  async getInvestments(assetId: number): Promise<InvestmentDTO[]> {
+  async getInvestments(assetId: string): Promise<InvestmentDTO[]> {
     const investments = await this.investmentModel.find({ assetId }).exec();
     return investments.map(investment => ({
       qty: investment.qty,
@@ -31,8 +31,8 @@ export class InvestmentService {
   }
 
   async updateInvestment(
-    assetId: number,
-    investmentId: number,
+    assetId: string,
+    investmentId: string,
     input: InvestmentInput
   ): Promise<InvestmentDTO> {
     const investment = await this.investmentModel.findOneAndUpdate(
@@ -46,7 +46,7 @@ export class InvestmentService {
     return investment.toObject();
   }
 
-  async deleteInvestment(assetId: number, investmentId: number): Promise<boolean> {
+  async deleteInvestment(assetId: string, investmentId: string): Promise<boolean> {
     const result = await this.investmentModel.deleteOne({ _id: investmentId, assetId });
     return result.deletedCount > 0;
   }

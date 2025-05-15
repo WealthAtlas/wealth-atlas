@@ -78,7 +78,7 @@ export class AssetService {
     });
   }
 
-  async computeCurrentValue(assetId: number): Promise<number> {
+  async computeCurrentValue(assetId: string): Promise<number> {
     const asset = await this.assetModel.findById(assetId).exec();
     if (!asset) {
       throw new Error('Asset not found');
@@ -91,14 +91,12 @@ export class AssetService {
     return latestValue;
   }
 
-  async getGrowthRate(assetId: number): Promise<number> {
-    // Fetch the asset
+  async getGrowthRate(assetId: string): Promise<number> {
     const asset = await this.assetModel.findById(assetId).exec();
     if (!asset) {
       throw new Error('Asset not found');
     }
 
-    // Fetch intermediate values and investments
     const values = await this.assetValueModel.find({ assetId }).exec();
     const investments = await this.investmentModel.find({ assetId }).exec();
 
@@ -106,7 +104,6 @@ export class AssetService {
       throw new Error('Insufficient data to calculate growth rate');
     }
 
-    // Calculate total investment and total quantity
     let totalInvestment = 0;
     let totalQuantity = 0;
 
@@ -115,24 +112,20 @@ export class AssetService {
       totalQuantity += investment.qty ?? 1;
     });
 
-    // Get the latest value of the asset
     const latestValue = values.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].valuePerQty;
 
-    // Calculate current total value of the asset
     const currentValue = latestValue * totalQuantity;
 
-    // Calculate the time period in years
     const firstInvestmentDate = new Date(investments[0].date);
     const latestValueDate = new Date(values[0].date);
     const timePeriod = (latestValueDate.getTime() - firstInvestmentDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
 
-    // Calculate CAGR
     const cagr = ((currentValue / totalInvestment) ** (1 / timePeriod)) - 1;
 
-    return cagr * 100; // Return as percentage
+    return cagr * 100;
   }
 
-  async getQty(assetID: number): Promise<number> {
+  async getQty(assetID: string): Promise<number> {
     const investments = await this.investmentModel.find({ assetId: assetID }).exec();
     return investments.reduce((total, investment) => {
       return total + (investment.qty ?? 1);

@@ -20,7 +20,6 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
 
-    // Handle GraphQL context
     const ctx = GqlExecutionContext.create(context).getContext();
     const token = this.extractTokenFromCookie(ctx.req);
 
@@ -30,7 +29,7 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const decoded = this.jwtService.verify(token);
-      ctx.req.user = { userId: decoded.userId };
+      ctx.req.user = { userId: decoded.sub };
       return true;
     } catch (error) {
       ctx.res.clearCookie('token'); 
