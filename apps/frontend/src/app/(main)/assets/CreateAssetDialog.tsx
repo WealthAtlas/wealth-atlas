@@ -8,20 +8,24 @@ interface CreateAssetDialogProps {
     onSuccess: () => void;
 }
 
+const initialFormData = {
+    name: '',
+    description: '',
+    category: '',
+    riskLevel: '',
+    growthRate: '',
+    maturityDate: '',
+    currency: '',
+};
+
 const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, onSuccess }) => {
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        category: '',
-        riskLevel: '',
-        growthRate: '',
-        maturityDate: '',
-    });
+    const [formData, setFormData] = useState(initialFormData);
 
     const [errors, setErrors] = useState({
         name: false,
         category: false,
         riskLevel: false,
+        currency: false,
     });
 
     const [createAsset, { loading }] = useCreateAssetMutation();
@@ -42,6 +46,7 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
             name: !formData.name.trim(),
             category: !formData.category,
             riskLevel: !formData.riskLevel,
+            currency: !formData.currency,
         };
         setErrors(newErrors);
         return !Object.values(newErrors).some((error) => error);
@@ -58,7 +63,7 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
                         maturityDate: formData.maturityDate
                             ? new Date(formData.maturityDate).toISOString()
                             : null,
-                        currency: 'USD',
+                        currency: formData.currency,
                         growthRate: formData.growthRate
                             ? parseFloat(formData.growthRate)
                             : null,
@@ -66,14 +71,25 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
                 },
             });
             onSuccess(); // Trigger the callback to refresh the asset list
-            onClose(); // Close the dialog
+            handleClose(); // Close the dialog
         } catch (err) {
             console.error('Error creating asset:', err);
         }
     };
 
+    const handleClose = () => {
+        setFormData(initialFormData);
+        setErrors({
+            name: false,
+            category: false,
+            riskLevel: false,
+            currency: false,
+        });
+        onClose();
+    };
+
     return (
-        <Dialog open={open} onClose={onClose}>
+        <Dialog open={open} onClose={handleClose}>
             <DialogTitle>Add Asset</DialogTitle>
             <DialogContent>
                 <TextField
@@ -126,6 +142,23 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
                 </TextField>
                 <TextField
                     margin="dense"
+                    label="Currency"
+                    name="currency"
+                    select
+                    fullWidth
+                    value={formData.currency}
+                    onChange={handleInputChange}
+                    error={errors.currency}
+                    helperText={errors.currency ? 'Currency is required' : ''}
+                >
+                    <MenuItem value="USD">USD</MenuItem>
+                    <MenuItem value="EUR">EUR</MenuItem>
+                    <MenuItem value="INR">INR</MenuItem>
+                    <MenuItem value="GBP">GBP</MenuItem>
+                    <MenuItem value="JPY">JPY</MenuItem>
+                </TextField>
+                <TextField
+                    margin="dense"
                     label="Growth Rate"
                     name="growthRate"
                     fullWidth
@@ -139,13 +172,12 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
                     name="maturityDate"
                     type="date"
                     fullWidth
-                    InputLabelProps={{ shrink: true }}
                     value={formData.maturityDate}
                     onChange={handleInputChange}
                 />
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose} disabled={loading}>
+                <Button onClick={handleClose} disabled={loading}>
                     Cancel
                 </Button>
                 <Button onClick={handleFormSubmit} color="primary" disabled={loading}>

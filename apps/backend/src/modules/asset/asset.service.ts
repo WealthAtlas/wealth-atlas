@@ -101,7 +101,7 @@ export class AssetService {
     const investments = await this.investmentModel.find({ assetId }).exec();
 
     if (!values.length || !investments.length) {
-      throw new Error('Insufficient data to calculate growth rate');
+      return 0;
     }
 
     let totalInvestment = 0;
