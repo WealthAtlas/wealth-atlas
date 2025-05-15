@@ -55,6 +55,8 @@ type GoalDTO {
   inflationRate: Float!
   targetDate: DateTime!
   allocatedAssets: [AllocatedAssetDTO!]!
+  allocateAsset(assetId: String!, percentage: Float!): AllocatedAssetDTO!
+  removeAsset(assetId: String!): Boolean!
 }
 
 type AllocatedAssetDTO {
@@ -79,7 +81,8 @@ type Mutation {
   logoutUser: Boolean!
   createAsset(input: AssetInput!): Boolean!
   createExpense(input: ExpenseInput!): Boolean!
-  createGoal(input: GoalInput!): Boolean!
+  createGoal(input: GoalInput!): GoalDTO!
+  updateGoal(goalId: Float!, input: GoalInput!): GoalDTO!
 }
 
 input UserRegisterInput {

@@ -60,8 +60,8 @@ export class AssetService {
     });
   }
 
-  async getAsset(assetId: string): Promise<AssetDTO> {
-    return this.assetModel.findById(assetId).exec().then((asset) => {
+  async getAsset(userId: string, assetId: string): Promise<AssetDTO> {
+    return this.assetModel.findOne({ userId, _id: assetId }).exec().then((asset) => {
       if (!asset) {
         throw new Error('Asset not found');
       }
