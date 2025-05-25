@@ -11,6 +11,7 @@ export const GET_ASSETS_QUERY = gql`
       currency
       riskLevel
       growthRate
+      investedAmount
     }
   }
 `;

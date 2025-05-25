@@ -5,14 +5,12 @@ import React from 'react';
 interface AssetRowProps {
     asset: AssetDto;
     onAddInvestment: () => void;
+    onViewInvestments: () => void;
+    onCreateSIP: () => void;
+    onViewSIPs: () => void;
 }
 
-const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment }) => {
-    // Helper: calculate invested amount
-    const getInvestedAmount = (asset: AssetDto) => {
-        if (!asset.investments) return 0;
-        return asset.investments.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0);
-    };
+const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInvestments, onCreateSIP, onViewSIPs }) => {
     return (
         <Card
             sx={{
@@ -55,17 +53,25 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment }) => {
                         Maturity: {new Date(asset.maturityDate).toLocaleDateString()}
                     </Typography>
                 )}
+                <Button
+                    variant="outlined"
+                    size="small"
+                    sx={{ mt: 1, borderRadius: 2, textTransform: 'none', fontWeight: 500 }}
+                    onClick={onViewInvestments}
+                >
+                    View Investments
+                </Button>
             </Box>
             {/* Right: Amounts & Action */}
             <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
             <Box sx={{ flex: 2, textAlign: 'right', minWidth: 200 }}>
-                <Stack direction="row" spacing={4} justifyContent="flex-end" alignItems="center">
+                <Stack direction="row" spacing={2} justifyContent="flex-end" alignItems="center">
                     <Box>
                         <Typography variant="caption" color="text.secondary">
                             Invested
                         </Typography>
                         <Typography variant="subtitle1" fontWeight={600}>
-                            {asset.currency} {getInvestedAmount(asset).toLocaleString()}
+                            {asset.currency} {asset.investedAmount.toLocaleString()}
                         </Typography>
                     </Box>
                     <Box>
@@ -76,14 +82,32 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment }) => {
                             {asset.currency} {asset.currentValue ? asset.currentValue.toLocaleString() : '-'}
                         </Typography>
                     </Box>
-                    <Button
-                        variant="contained"
-                        size="small"
-                        sx={{ ml: 2, borderRadius: 2, textTransform: 'none', fontWeight: 500 }}
-                        onClick={onAddInvestment}
-                    >
-                        + Add Investment
-                    </Button>
+                    <Stack direction="column" spacing={1}>
+                        <Button
+                            variant="contained"
+                            size="small"
+                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 500 }}
+                            onClick={onAddInvestment}
+                        >
+                            + Add Investment
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 500 }}
+                            onClick={onCreateSIP}
+                        >
+                            + Create SIP
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 500 }}
+                            onClick={onViewSIPs}
+                        >
+                            View SIPs
+                        </Button>
+                    </Stack>
                 </Stack>
             </Box>
         </Card>

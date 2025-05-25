@@ -16,23 +16,51 @@ export type Scalars = {
   DateTime: any;
 };
 
+export type AllocatedAssetDto = {
+  __typename?: 'AllocatedAssetDTO';
+  asset: AssetDto;
+  percentage: Scalars['Float'];
+};
+
 export type AssetDto = {
   __typename?: 'AssetDTO';
-  addInvestment: Scalars['Boolean'];
+  addInvestment: InvestmentDto;
+  addValue: AssetValueDto;
   category: Scalars['String'];
   currency: Scalars['String'];
-  currentValue?: Maybe<Scalars['Float']>;
+  currentValue: Scalars['Float'];
+  deleteInvestment: Scalars['Boolean'];
   description: Scalars['String'];
-  growthRate?: Maybe<Scalars['Float']>;
-  id: Scalars['Float'];
+  growthRate: Scalars['Float'];
+  id: Scalars['String'];
+  investedAmount: Scalars['Float'];
   investments: Array<InvestmentDto>;
   maturityDate?: Maybe<Scalars['DateTime']>;
   name: Scalars['String'];
+  qty: Scalars['Float'];
   riskLevel: Scalars['String'];
+  updateInvestment: Array<InvestmentDto>;
+  values: Array<AssetValueDto>;
 };
 
 
 export type AssetDtoAddInvestmentArgs = {
+  input: InvestmentInput;
+};
+
+
+export type AssetDtoAddValueArgs = {
+  input: AssetValueInput;
+};
+
+
+export type AssetDtoDeleteInvestmentArgs = {
+  id: Scalars['String'];
+};
+
+
+export type AssetDtoUpdateInvestmentArgs = {
+  id: Scalars['String'];
   input: InvestmentInput;
 };
 
@@ -46,28 +74,94 @@ export type AssetInput = {
   riskLevel: Scalars['String'];
 };
 
+export type AssetValueDto = {
+  __typename?: 'AssetValueDTO';
+  date: Scalars['DateTime'];
+  valuePerQty: Scalars['Float'];
+};
+
+export type AssetValueInput = {
+  date: Scalars['DateTime'];
+  valuePerQty: Scalars['Float'];
+};
+
+export type ExpenseInput = {
+  amount: Scalars['Float'];
+  category: Scalars['String'];
+  currency: Scalars['String'];
+  date: Scalars['DateTime'];
+  description: Scalars['String'];
+  tags: Array<Scalars['String']>;
+};
+
+export type GoalDto = {
+  __typename?: 'GoalDTO';
+  allocateAsset: AllocatedAssetDto;
+  allocatedAssets: Array<AllocatedAssetDto>;
+  id: Scalars['Float'];
+  inflationRate: Scalars['Float'];
+  name: Scalars['String'];
+  removeAsset: Scalars['Boolean'];
+  targetAmount: Scalars['Float'];
+  targetDate: Scalars['DateTime'];
+};
+
+
+export type GoalDtoAllocateAssetArgs = {
+  assetId: Scalars['String'];
+  percentage: Scalars['Float'];
+};
+
+
+export type GoalDtoRemoveAssetArgs = {
+  assetId: Scalars['String'];
+};
+
+export type GoalInput = {
+  inflationRate: Scalars['Float'];
+  name: Scalars['String'];
+  targetAmount: Scalars['Float'];
+  targetDate: Scalars['DateTime'];
+};
+
 export type InvestmentDto = {
   __typename?: 'InvestmentDTO';
   amount: Scalars['Float'];
   date: Scalars['DateTime'];
+  qty?: Maybe<Scalars['Float']>;
+  value_per_qty: Scalars['Float'];
 };
 
 export type InvestmentInput = {
-  amount: Scalars['Float'];
   date: Scalars['DateTime'];
+  qty?: InputMaybe<Scalars['Float']>;
+  value_per_qty: Scalars['Float'];
 };
 
 export type Mutation = {
   __typename?: 'Mutation';
   createAsset: Scalars['Boolean'];
+  createExpense: Scalars['Boolean'];
+  createGoal: GoalDto;
   loginUser: Scalars['Boolean'];
   logoutUser: Scalars['Boolean'];
   registerUser: Scalars['Boolean'];
+  updateGoal: GoalDto;
 };
 
 
 export type MutationCreateAssetArgs = {
   input: AssetInput;
+};
+
+
+export type MutationCreateExpenseArgs = {
+  input: ExpenseInput;
+};
+
+
+export type MutationCreateGoalArgs = {
+  input: GoalInput;
 };
 
 
@@ -80,9 +174,16 @@ export type MutationRegisterUserArgs = {
   input: UserRegisterInput;
 };
 
+
+export type MutationUpdateGoalArgs = {
+  goalId: Scalars['Float'];
+  input: GoalInput;
+};
+
 export type Query = {
   __typename?: 'Query';
   assets: Array<AssetDto>;
+  goals: Array<GoalDto>;
   user: UserDto;
 };
 
@@ -113,7 +214,7 @@ export type CreateAssetMutation = { __typename?: 'Mutation', createAsset: boolea
 export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAssetsQuery = { __typename?: 'Query', assets: Array<{ __typename?: 'AssetDTO', id: number, name: string, description: string, category: string, maturityDate?: any | null, currency: string, riskLevel: string, growthRate?: number | null }> };
+export type GetAssetsQuery = { __typename?: 'Query', assets: Array<{ __typename?: 'AssetDTO', id: string, name: string, description: string, category: string, maturityDate?: any | null, currency: string, riskLevel: string, growthRate: number, investedAmount: number }> };
 
 export type LoginUserMutationVariables = Exact<{
   input: UserLoginInput;
@@ -177,6 +278,7 @@ export const GetAssetsDocument = gql`
     currency
     riskLevel
     growthRate
+    investedAmount
   }
 }
     `;
