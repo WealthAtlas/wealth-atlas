@@ -18,16 +18,14 @@ export class InvestmentService {
       assetId,
       ...input
     });
-    return investment.save();
+    return investment.save().then((savedInvestment) => {
+      return InvestmentDTO.fromData(savedInvestment.toObject());
+    });
   }
 
   async getInvestments(assetId: string): Promise<InvestmentDTO[]> {
     const investments = await this.investmentModel.find({ assetId }).exec();
-    return investments.map(investment => ({
-      qty: investment.qty,
-      valuePerQty: investment.valuePerQty,
-      date: investment.date
-    }));
+    return investments.map(investment => InvestmentDTO.fromData(investment.toObject()));
   }
 
   async updateInvestment(

@@ -1,5 +1,5 @@
 import { Args, Float, Parent, ResolveField, Resolver } from '@nestjs/graphql';
-import { AssetDTO } from './asset.graphql';
+import { AssetDTO } from '../asset/asset.graphql';
 import { InvestmentDTO, InvestmentInput } from './investment.graphql';
 import { InvestmentService } from './investment.service';
 

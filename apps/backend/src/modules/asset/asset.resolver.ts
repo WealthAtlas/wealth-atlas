@@ -2,7 +2,7 @@ import { Args, Context, Float, Mutation, Parent, Query, ResolveField, Resolver }
 import { Context as CustomContext } from '../../context';
 import { AssetService } from './asset.service';
 import { AssetDTO, AssetInput } from './asset.graphql';
-import { InvestmentDTO } from './investment.graphql';
+import { InvestmentDTO } from '../investment/investment.graphql';
 
 @Resolver(() => AssetDTO)
 export class AssetResolver {
@@ -36,5 +36,10 @@ export class AssetResolver {
   @ResolveField(() => Float)
   async qty(@Parent() asset: AssetDTO): Promise<number> {
     return this.assetService.getQty(asset.id);
+  }
+
+  @ResolveField(() => Float)
+  async investedAmount(@Parent() asset: AssetDTO): Promise<number> {
+    return this.assetService.getInvestedAmount(asset.id);
   }
 }

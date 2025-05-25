@@ -3,16 +3,18 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AssetEntity } from './asset.entity';
 import { AssetDTO, AssetInput } from './asset.graphql';
-import { InvestmentEntity } from './investment.entity';
+import { InvestmentEntity } from '../investment/investment.entity';
 import { AssetValueEntity } from './value.entity';
+import { InvestmentService } from '../investment/investment.service';
+import { InvestmentDTO } from '../investment/investment.graphql';
 
 @Injectable()
 export class AssetService {
 
   constructor(
     @InjectModel(AssetEntity.name) private assetModel: Model<AssetEntity>,
-    @InjectModel(InvestmentEntity.name) private investmentModel: Model<InvestmentEntity>,
-    @InjectModel(AssetValueEntity.name) private assetValueModel: Model<AssetValueEntity>
+    @InjectModel(AssetValueEntity.name) private assetValueModel: Model<AssetValueEntity>,
+    private investmentService: InvestmentService
   ) {
   }
 
@@ -98,7 +100,7 @@ export class AssetService {
     }
 
     const values = await this.assetValueModel.find({ assetId }).exec();
-    const investments = await this.investmentModel.find({ assetId }).exec();
+    const investments = await this.investmentService.getInvestments(assetId);
 
     if (!values.length || !investments.length) {
       return 0;
@@ -107,8 +109,8 @@ export class AssetService {
     let totalInvestment = 0;
     let totalQuantity = 0;
 
-    investments.forEach((investment) => {
-      totalInvestment += investment.qty ?? 1 * investment.valuePerQty;
+    investments.forEach((investment: any) => {
+      totalInvestment += (investment.qty ?? 1) * investment.valuePerQty;
       totalQuantity += investment.qty ?? 1;
     });
 
@@ -126,8 +128,8 @@ export class AssetService {
   }
 
   async getQty(assetID: string): Promise<number> {
-    const investments = await this.investmentModel.find({ assetId: assetID }).exec();
-    return investments.reduce((total, investment) => {
+    const investments = await this.investmentService.getInvestments(assetID);
+    return investments.reduce((total: number, investment: any) => {
       return total + (investment.qty ?? 1);
     }, 0);
   }
@@ -135,5 +137,16 @@ export class AssetService {
   async deleteAsset(assetId: string): Promise<boolean> {
     const result = await this.assetModel.deleteOne({ _id: assetId }).exec();
     return result.deletedCount > 0;
+  }
+
+  getInvestedAmount(id: string): number | PromiseLike<number> {
+    return this.investmentService.getInvestments(id).then((investments: any[]) => {
+      if (!investments || investments.length === 0) {
+        return 0;
+      }
+      return investments.reduce((total: number, investment: InvestmentDTO) => {
+        return total + (investment.amount);
+      }, 0);
+    });
   }
 }

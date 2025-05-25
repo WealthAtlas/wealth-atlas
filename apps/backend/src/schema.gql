@@ -2,6 +2,18 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type InvestmentDTO {
+  qty: Float
+  value_per_qty: Float!
+  date: DateTime!
+  amount: Float!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 type AssetDTO {
   id: String!
   name: String!
@@ -13,23 +25,13 @@ type AssetDTO {
   currentValue: Float!
   growthRate: Float!
   qty: Float!
+  investedAmount: Float!
+  addValue(input: AssetValueInput!): AssetValueDTO!
+  values: [AssetValueDTO!]!
   addInvestment(input: InvestmentInput!): InvestmentDTO!
   investments: [InvestmentDTO!]!
   updateInvestment(id: String!, input: InvestmentInput!): [InvestmentDTO!]!
   deleteInvestment(id: String!): Boolean!
-  addValue(input: AssetValueInput!): AssetValueDTO!
-  values: [AssetValueDTO!]!
-}
-
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
-
-input InvestmentInput {
-  qty: Float
-  value_per_qty: Float!
-  date: DateTime!
 }
 
 input AssetValueInput {
@@ -37,7 +39,7 @@ input AssetValueInput {
   date: DateTime!
 }
 
-type InvestmentDTO {
+input InvestmentInput {
   qty: Float
   value_per_qty: Float!
   date: DateTime!
