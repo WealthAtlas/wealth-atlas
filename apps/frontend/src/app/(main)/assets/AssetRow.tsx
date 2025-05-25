@@ -1,9 +1,9 @@
-import { AssetDto } from '@/graphql/models/generated';
+import { AssetDTO } from '@/graphql/models/generated';
 import { Card, Box, Typography, Stack, Divider, Button } from '@mui/material';
 import React from 'react';
 
 interface AssetRowProps {
-    asset: AssetDto;
+    asset: AssetDTO;
     onAddInvestment: () => void;
     onViewInvestments: () => void;
     onCreateSIP: () => void;

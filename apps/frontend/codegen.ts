@@ -15,6 +15,12 @@ const config: CodegenConfig = {
         withHooks: true,
         withHOC: false,
         withComponent: false,
+        preResolveTypes: true,
+        avoidOptionals: true,
+        immutableTypes: true,
+        namingConvention: 'keep',
+        dedupeOperationSuffix: true,
+        nonOptionalTypename: true,
       },
     }
   }

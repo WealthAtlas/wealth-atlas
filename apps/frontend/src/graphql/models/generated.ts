@@ -16,192 +16,192 @@ export type Scalars = {
   DateTime: any;
 };
 
-export type AllocatedAssetDto = {
-  __typename?: 'AllocatedAssetDTO';
-  asset: AssetDto;
-  percentage: Scalars['Float'];
+export type AllocatedAssetDTO = {
+  readonly __typename: 'AllocatedAssetDTO';
+  readonly asset: AssetDTO;
+  readonly percentage: Scalars['Float'];
 };
 
-export type AssetDto = {
-  __typename?: 'AssetDTO';
-  addInvestment: InvestmentDto;
-  addValue: AssetValueDto;
-  category: Scalars['String'];
-  currency: Scalars['String'];
-  currentValue: Scalars['Float'];
-  deleteInvestment: Scalars['Boolean'];
-  description: Scalars['String'];
-  growthRate: Scalars['Float'];
-  id: Scalars['String'];
-  investedAmount: Scalars['Float'];
-  investments: Array<InvestmentDto>;
-  maturityDate?: Maybe<Scalars['DateTime']>;
-  name: Scalars['String'];
-  qty: Scalars['Float'];
-  riskLevel: Scalars['String'];
-  updateInvestment: Array<InvestmentDto>;
-  values: Array<AssetValueDto>;
+export type AssetDTO = {
+  readonly __typename: 'AssetDTO';
+  readonly addInvestment: InvestmentDTO;
+  readonly addValue: AssetValueDTO;
+  readonly category: Scalars['String'];
+  readonly currency: Scalars['String'];
+  readonly currentValue: Scalars['Float'];
+  readonly deleteInvestment: Scalars['Boolean'];
+  readonly description: Scalars['String'];
+  readonly growthRate: Scalars['Float'];
+  readonly id: Scalars['String'];
+  readonly investedAmount: Scalars['Float'];
+  readonly investments: ReadonlyArray<InvestmentDTO>;
+  readonly maturityDate: Maybe<Scalars['DateTime']>;
+  readonly name: Scalars['String'];
+  readonly qty: Scalars['Float'];
+  readonly riskLevel: Scalars['String'];
+  readonly updateInvestment: ReadonlyArray<InvestmentDTO>;
+  readonly values: ReadonlyArray<AssetValueDTO>;
 };
 
 
-export type AssetDtoAddInvestmentArgs = {
+export type AssetDTOaddInvestmentArgs = {
   input: InvestmentInput;
 };
 
 
-export type AssetDtoAddValueArgs = {
+export type AssetDTOaddValueArgs = {
   input: AssetValueInput;
 };
 
 
-export type AssetDtoDeleteInvestmentArgs = {
+export type AssetDTOdeleteInvestmentArgs = {
   id: Scalars['String'];
 };
 
 
-export type AssetDtoUpdateInvestmentArgs = {
+export type AssetDTOupdateInvestmentArgs = {
   id: Scalars['String'];
   input: InvestmentInput;
 };
 
 export type AssetInput = {
-  category: Scalars['String'];
-  currency: Scalars['String'];
-  description: Scalars['String'];
-  growthRate?: InputMaybe<Scalars['Float']>;
-  maturityDate?: InputMaybe<Scalars['DateTime']>;
-  name: Scalars['String'];
-  riskLevel: Scalars['String'];
+  readonly category: Scalars['String'];
+  readonly currency: Scalars['String'];
+  readonly description: Scalars['String'];
+  readonly growthRate: InputMaybe<Scalars['Float']>;
+  readonly maturityDate: InputMaybe<Scalars['DateTime']>;
+  readonly name: Scalars['String'];
+  readonly riskLevel: Scalars['String'];
 };
 
-export type AssetValueDto = {
-  __typename?: 'AssetValueDTO';
-  date: Scalars['DateTime'];
-  valuePerQty: Scalars['Float'];
+export type AssetValueDTO = {
+  readonly __typename: 'AssetValueDTO';
+  readonly date: Scalars['DateTime'];
+  readonly valuePerQty: Scalars['Float'];
 };
 
 export type AssetValueInput = {
-  date: Scalars['DateTime'];
-  valuePerQty: Scalars['Float'];
+  readonly date: Scalars['DateTime'];
+  readonly valuePerQty: Scalars['Float'];
 };
 
 export type ExpenseInput = {
-  amount: Scalars['Float'];
-  category: Scalars['String'];
-  currency: Scalars['String'];
-  date: Scalars['DateTime'];
-  description: Scalars['String'];
-  tags: Array<Scalars['String']>;
+  readonly amount: Scalars['Float'];
+  readonly category: Scalars['String'];
+  readonly currency: Scalars['String'];
+  readonly date: Scalars['DateTime'];
+  readonly description: Scalars['String'];
+  readonly tags: ReadonlyArray<Scalars['String']>;
 };
 
-export type GoalDto = {
-  __typename?: 'GoalDTO';
-  allocateAsset: AllocatedAssetDto;
-  allocatedAssets: Array<AllocatedAssetDto>;
-  id: Scalars['Float'];
-  inflationRate: Scalars['Float'];
-  name: Scalars['String'];
-  removeAsset: Scalars['Boolean'];
-  targetAmount: Scalars['Float'];
-  targetDate: Scalars['DateTime'];
+export type GoalDTO = {
+  readonly __typename: 'GoalDTO';
+  readonly allocateAsset: AllocatedAssetDTO;
+  readonly allocatedAssets: ReadonlyArray<AllocatedAssetDTO>;
+  readonly id: Scalars['Float'];
+  readonly inflationRate: Scalars['Float'];
+  readonly name: Scalars['String'];
+  readonly removeAsset: Scalars['Boolean'];
+  readonly targetAmount: Scalars['Float'];
+  readonly targetDate: Scalars['DateTime'];
 };
 
 
-export type GoalDtoAllocateAssetArgs = {
+export type GoalDTOallocateAssetArgs = {
   assetId: Scalars['String'];
   percentage: Scalars['Float'];
 };
 
 
-export type GoalDtoRemoveAssetArgs = {
+export type GoalDTOremoveAssetArgs = {
   assetId: Scalars['String'];
 };
 
 export type GoalInput = {
-  inflationRate: Scalars['Float'];
-  name: Scalars['String'];
-  targetAmount: Scalars['Float'];
-  targetDate: Scalars['DateTime'];
+  readonly inflationRate: Scalars['Float'];
+  readonly name: Scalars['String'];
+  readonly targetAmount: Scalars['Float'];
+  readonly targetDate: Scalars['DateTime'];
 };
 
-export type InvestmentDto = {
-  __typename?: 'InvestmentDTO';
-  amount: Scalars['Float'];
-  date: Scalars['DateTime'];
-  qty?: Maybe<Scalars['Float']>;
-  value_per_qty: Scalars['Float'];
+export type InvestmentDTO = {
+  readonly __typename: 'InvestmentDTO';
+  readonly amount: Scalars['Float'];
+  readonly date: Scalars['DateTime'];
+  readonly qty: Maybe<Scalars['Float']>;
+  readonly value_per_qty: Scalars['Float'];
 };
 
 export type InvestmentInput = {
-  date: Scalars['DateTime'];
-  qty?: InputMaybe<Scalars['Float']>;
-  value_per_qty: Scalars['Float'];
+  readonly date: Scalars['DateTime'];
+  readonly qty: InputMaybe<Scalars['Float']>;
+  readonly value_per_qty: Scalars['Float'];
 };
 
 export type Mutation = {
-  __typename?: 'Mutation';
-  createAsset: Scalars['Boolean'];
-  createExpense: Scalars['Boolean'];
-  createGoal: GoalDto;
-  loginUser: Scalars['Boolean'];
-  logoutUser: Scalars['Boolean'];
-  registerUser: Scalars['Boolean'];
-  updateGoal: GoalDto;
+  readonly __typename: 'Mutation';
+  readonly createAsset: Scalars['Boolean'];
+  readonly createExpense: Scalars['Boolean'];
+  readonly createGoal: GoalDTO;
+  readonly loginUser: Scalars['Boolean'];
+  readonly logoutUser: Scalars['Boolean'];
+  readonly registerUser: Scalars['Boolean'];
+  readonly updateGoal: GoalDTO;
 };
 
 
-export type MutationCreateAssetArgs = {
+export type MutationcreateAssetArgs = {
   input: AssetInput;
 };
 
 
-export type MutationCreateExpenseArgs = {
+export type MutationcreateExpenseArgs = {
   input: ExpenseInput;
 };
 
 
-export type MutationCreateGoalArgs = {
+export type MutationcreateGoalArgs = {
   input: GoalInput;
 };
 
 
-export type MutationLoginUserArgs = {
+export type MutationloginUserArgs = {
   input: UserLoginInput;
 };
 
 
-export type MutationRegisterUserArgs = {
+export type MutationregisterUserArgs = {
   input: UserRegisterInput;
 };
 
 
-export type MutationUpdateGoalArgs = {
+export type MutationupdateGoalArgs = {
   goalId: Scalars['Float'];
   input: GoalInput;
 };
 
 export type Query = {
-  __typename?: 'Query';
-  assets: Array<AssetDto>;
-  goals: Array<GoalDto>;
-  user: UserDto;
+  readonly __typename: 'Query';
+  readonly assets: ReadonlyArray<AssetDTO>;
+  readonly goals: ReadonlyArray<GoalDTO>;
+  readonly user: UserDTO;
 };
 
-export type UserDto = {
-  __typename?: 'UserDTO';
-  email: Scalars['String'];
-  name: Scalars['String'];
+export type UserDTO = {
+  readonly __typename: 'UserDTO';
+  readonly email: Scalars['String'];
+  readonly name: Scalars['String'];
 };
 
 export type UserLoginInput = {
-  email: Scalars['String'];
-  password: Scalars['String'];
+  readonly email: Scalars['String'];
+  readonly password: Scalars['String'];
 };
 
 export type UserRegisterInput = {
-  email: Scalars['String'];
-  name: Scalars['String'];
-  password: Scalars['String'];
+  readonly email: Scalars['String'];
+  readonly name: Scalars['String'];
+  readonly password: Scalars['String'];
 };
 
 export type CreateAssetMutationVariables = Exact<{
@@ -209,31 +209,31 @@ export type CreateAssetMutationVariables = Exact<{
 }>;
 
 
-export type CreateAssetMutation = { __typename?: 'Mutation', createAsset: boolean };
+export type CreateAssetMutation = { readonly __typename: 'Mutation', readonly createAsset: boolean };
 
 export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAssetsQuery = { __typename?: 'Query', assets: Array<{ __typename?: 'AssetDTO', id: string, name: string, description: string, category: string, maturityDate?: any | null, currency: string, riskLevel: string, growthRate: number, investedAmount: number }> };
+export type GetAssetsQuery = { readonly __typename: 'Query', readonly assets: ReadonlyArray<{ readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly growthRate: number, readonly investedAmount: number }> };
 
 export type LoginUserMutationVariables = Exact<{
   input: UserLoginInput;
 }>;
 
 
-export type LoginUserMutation = { __typename?: 'Mutation', loginUser: boolean };
+export type LoginUserMutation = { readonly __typename: 'Mutation', readonly loginUser: boolean };
 
 export type LogoutUserMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type LogoutUserMutation = { __typename?: 'Mutation', logoutUser: boolean };
+export type LogoutUserMutation = { readonly __typename: 'Mutation', readonly logoutUser: boolean };
 
 export type RegisterUserMutationVariables = Exact<{
   input: UserRegisterInput;
 }>;
 
 
-export type RegisterUserMutation = { __typename?: 'Mutation', registerUser: boolean };
+export type RegisterUserMutation = { readonly __typename: 'Mutation', readonly registerUser: boolean };
 
 
 export const CreateAssetDocument = gql`
