@@ -18,6 +18,29 @@ export class AssetService {
   }
 
   async createAsset(userId: string, input: AssetInput): Promise<AssetDTO> {
+    // Determine the value strategy based on input
+    let valueStrategy;
+
+    if (input.fixedValueStrategy) {
+      valueStrategy = {
+        type: 'fixed',
+        growthRate: input.fixedValueStrategy.growthRate
+      };
+    } else if (input.dynamicValueStrategy) {
+      valueStrategy = {
+        type: 'dynamic',
+        apiSource: input.dynamicValueStrategy.apiSource,
+        value: input.dynamicValueStrategy.value,
+        updatedAt: new Date()
+      };
+    } else if (input.manualValueStrategy) {
+      valueStrategy = {
+        type: 'manual',
+        value: input.manualValueStrategy.value,
+        updatedAt: new Date()
+      };
+    }
+
     const asset = new this.assetModel({
       userId: userId,
       name: input.name,
@@ -26,7 +49,7 @@ export class AssetService {
       maturityDate: input.maturityDate,
       currency: input.currency,
       riskLevel: input.riskLevel,
-      growthRate: input.growthRate,
+      valueStrategy: valueStrategy,
     });
 
     return asset.save().then((savedAsset) => {

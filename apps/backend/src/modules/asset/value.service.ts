@@ -57,6 +57,10 @@ export class ValueService {
     let totalInvestment = 0;
     let totalQuantity = 0;
 
+    if(!investments || investments.length === 0) {
+      return 0;
+    }
+
     investments.forEach((investment: any) => {
       totalInvestment += (investment.qty ?? 1) * investment.valuePerQty;
       totalQuantity += investment.qty ?? 1;

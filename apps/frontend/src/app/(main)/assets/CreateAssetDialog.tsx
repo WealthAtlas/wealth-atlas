@@ -70,31 +70,44 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
 
     const handleFormSubmit = async () => {
         if (!validateForm()) return;
-        // AssetInput only supports growthRate, not valueStrategy directly
-        let growthRate: number | null = null;
-        
+
+        const assetInput: any = {
+            name: formData.name,
+            description: formData.description,
+            category: formData.category,
+            riskLevel: formData.riskLevel,
+            currency: formData.currency,
+            maturityDate: formData.maturityDate
+                ? new Date(formData.maturityDate).toISOString()
+                : null,
+        };
+
+        // Set the correct value strategy based on the type
         if (formData.valueStrategyType === 'fixed') {
-            growthRate = parseFloat(formData.growthRate);
+            assetInput.fixedValueStrategy = {
+                type: 'fixed',
+                growthRate: parseFloat(formData.growthRate)
+            };
+        } else if (formData.valueStrategyType === 'dynamic') {
+            assetInput.dynamicValueStrategy = {
+                type: 'dynamic',
+                apiSource: formData.apiSource
+            };
+        } else if (formData.valueStrategyType === 'manual') {
+            assetInput.manualValueStrategy = {
+                type: 'manual',
+                value: parseFloat(formData.manualValue)
+            };
         }
-        
+
         try {
-            // Create the asset first
+            // Create the asset
             const assetResult = await createAsset({
                 variables: {
-                    input: {
-                        name: formData.name,
-                        description: formData.description,
-                        category: formData.category,
-                        riskLevel: formData.riskLevel,
-                        currency: formData.currency,
-                        maturityDate: formData.maturityDate
-                            ? new Date(formData.maturityDate).toISOString()
-                            : null,
-                        growthRate: growthRate,
-                    },
+                    input: assetInput
                 },
             });
-        
+
             onSuccess();
             handleClose();
         } catch (err) {

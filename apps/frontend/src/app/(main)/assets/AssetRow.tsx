@@ -39,9 +39,24 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInves
                     </Typography>
                 </Stack>
             </Box>
-            {/* Center: Investments & Maturity */}
+            {/* Center: Value Strategy & Maturity */}
             <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
             <Box sx={{ flex: 1, textAlign: 'center', minWidth: 120 }}>
+                {/* Display value strategy information if available */}
+                {(asset as any).valueStrategy && (
+                    <Typography variant="caption" color="info.main" sx={{ display: 'block', fontWeight: 500 }}>
+                        {(asset as any).valueStrategy.type === 'fixed' && (
+                            <>Growth Rate: {(asset as any).valueStrategy.growthRate}%</>
+                        )}
+                        {(asset as any).valueStrategy.type === 'dynamic' && (
+                            <>Dynamic API Source</>
+                        )}
+                        {(asset as any).valueStrategy.type === 'manual' && (
+                            <>Manual Value</>
+                        )}
+                    </Typography>
+                )}
+                
                 {asset.maturityDate && (
                     <Typography variant="caption" color="text.secondary">
                         Maturity: {new Date(asset.maturityDate).toLocaleDateString()}

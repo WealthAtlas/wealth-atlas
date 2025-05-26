@@ -1,4 +1,4 @@
-import {gql} from '@apollo/client';
+import { gql } from '@apollo/client';
 
 export const CREATE_ASSETS_MUTATION = gql`
     mutation CreateAsset($input: AssetInput!) {
@@ -10,6 +10,8 @@ export const CREATE_ASSETS_MUTATION = gql`
             maturityDate
             currency
             riskLevel
+            growthRate
+            currentValue
         }
     }
 `;

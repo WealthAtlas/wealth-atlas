@@ -12,6 +12,22 @@ export const GET_ASSETS_QUERY = gql`
       riskLevel
       growthRate
       investedAmount
+      valueStrategy {
+        ... on FixedValueStrategy {
+          type
+          growthRate
+        }
+        ... on DynamicValueStrategy {
+          type
+          apiSource
+          updatetAt
+        }
+        ... on ManualValueStrategy {
+          type
+          updatedAt
+        }
+      }
+      currentValue
     }
   }
 `;

@@ -23,10 +23,31 @@ type AssetDTO {
   maturityDate: DateTime
   currency: String!
   riskLevel: String!
+  valueStrategy: ValueStrategy!
   currentValue: Float!
   growthRate: Float!
   qty: Float!
   investedAmount: Float!
+}
+
+union ValueStrategy = FixedValueStrategy | DynamicValueStrategy | ManualValueStrategy
+
+type FixedValueStrategy {
+  type: String!
+  growthRate: Float!
+}
+
+type DynamicValueStrategy {
+  type: String!
+  apiSource: String!
+  value: Float
+  updatedAt: DateTime
+}
+
+type ManualValueStrategy {
+  type: String!
+  value: Float!
+  updatedAt: DateTime!
 }
 
 type GoalDTO {
@@ -87,7 +108,25 @@ input AssetInput {
   maturityDate: DateTime
   currency: String!
   riskLevel: String!
-  growthRate: Float
+  fixedValueStrategy: FixedValueStrategyInput
+  dynamicValueStrategy: DynamicValueStrategyInput
+  manualValueStrategy: ManualValueStrategyInput
+}
+
+input FixedValueStrategyInput {
+  type: String!
+  growthRate: Float!
+}
+
+input DynamicValueStrategyInput {
+  type: String!
+  apiSource: String!
+  value: Float
+}
+
+input ManualValueStrategyInput {
+  type: String!
+  value: Float!
 }
 
 input InvestmentInput {

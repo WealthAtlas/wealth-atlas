@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Box, Typography, Fab, Stack } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { AssetDTO, useGetAssetsQuery} from '@/graphql/models/generated';
+import { AssetDTO, useGetAssetsQuery } from '@/graphql/models/generated';
 import CreateAssetDialog from './CreateAssetDialog';
 import AssetRow from './AssetRow';
 import AddInvestmentDialog from './AddInvestmentDialog';
@@ -61,7 +61,7 @@ const AssetsPage = () => {
                 {assets.map((asset) => (
                     <AssetRow
                         key={asset.id}
-                        asset={asset}
+                        asset={asset as any}
                         onAddInvestment={() => setAddInvestmentAssetId(asset.id)}
                         onViewInvestments={() => {/* TODO: implement view investments */}}
                         onCreateSIP={() => {/* TODO: implement create SIP */}}
