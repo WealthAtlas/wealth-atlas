@@ -42,12 +42,6 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInves
             {/* Center: Investments & Maturity */}
             <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
             <Box sx={{ flex: 1, textAlign: 'center', minWidth: 120 }}>
-                <Typography variant="caption" color="text.secondary">
-                    Investments
-                </Typography>
-                <Typography variant="h6" fontWeight={600}>
-                    {asset.investments ? asset.investments.length : 0}
-                </Typography>
                 {asset.maturityDate && (
                     <Typography variant="caption" color="text.secondary">
                         Maturity: {new Date(asset.maturityDate).toLocaleDateString()}

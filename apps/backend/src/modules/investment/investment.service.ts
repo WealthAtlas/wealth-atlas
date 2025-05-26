@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { AssetService } from '../asset/asset.service';
 import { InvestmentEntity } from './investment.entity';
 import { InvestmentDTO, InvestmentInput } from './investment.graphql';
 
@@ -9,26 +10,29 @@ export class InvestmentService {
 
 
   constructor(
-    @InjectModel(InvestmentEntity.name) private investmentModel: Model<InvestmentEntity>
+    @InjectModel(InvestmentEntity.name) private investmentModel: Model<InvestmentEntity>,
+    @Inject(forwardRef(() => AssetService)) private assetService: AssetService,
   ) {
   }
 
-  async addInvestment(assetId: string, input: InvestmentInput): Promise<InvestmentDTO> {
-    const investment = new this.investmentModel({
-      assetId,
-      ...input
-    });
-    return investment.save().then((savedInvestment) => {
-      return InvestmentDTO.fromData(savedInvestment.toObject());
-    });
-  }
+  async addInvestment(userId: string, assetId: string, input: InvestmentInput): Promise<InvestmentDTO> {
+    return this.assetService.getAsset(userId, assetId).then(asset => {
+      if (!asset) {
+        throw new Error('Asset not found');
+      }
 
-  async getInvestments(assetId: string): Promise<InvestmentDTO[]> {
-    const investments = await this.investmentModel.find({ assetId }).exec();
-    return investments.map(investment => InvestmentDTO.fromData(investment.toObject()));
+      const investment = new this.investmentModel({
+        assetId,
+        ...input
+      });
+      return investment.save().then((savedInvestment) => {
+        return InvestmentDTO.fromData(savedInvestment.toObject());
+      });
+    });
   }
 
   async updateInvestment(
+    userId: string,
     assetId: string,
     investmentId: string,
     input: InvestmentInput
@@ -44,8 +48,13 @@ export class InvestmentService {
     return investment.toObject();
   }
 
-  async deleteInvestment(assetId: string, investmentId: string): Promise<boolean> {
+  async deleteInvestment(userId: string, assetId: string, investmentId: string): Promise<boolean> {
     const result = await this.investmentModel.deleteOne({ _id: investmentId, assetId });
     return result.deletedCount > 0;
+  }
+
+  async getInvestments(assetId: string): Promise<InvestmentDTO[]> {
+    const investments = await this.investmentModel.find({ assetId }).exec();
+    return investments.map(investment => InvestmentDTO.fromData(investment.toObject()));
   }
 }

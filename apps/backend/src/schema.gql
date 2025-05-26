@@ -3,6 +3,7 @@
 # ------------------------------------------------------
 
 type InvestmentDTO {
+  id: String!
   qty: Float
   value_per_qty: Float!
   date: DateTime!
@@ -26,28 +27,6 @@ type AssetDTO {
   growthRate: Float!
   qty: Float!
   investedAmount: Float!
-  addValue(input: AssetValueInput!): AssetValueDTO!
-  values: [AssetValueDTO!]!
-  addInvestment(input: InvestmentInput!): InvestmentDTO!
-  investments: [InvestmentDTO!]!
-  updateInvestment(id: String!, input: InvestmentInput!): [InvestmentDTO!]!
-  deleteInvestment(id: String!): Boolean!
-}
-
-input AssetValueInput {
-  valuePerQty: Float!
-  date: DateTime!
-}
-
-input InvestmentInput {
-  qty: Float
-  value_per_qty: Float!
-  date: DateTime!
-}
-
-type AssetValueDTO {
-  valuePerQty: Float!
-  date: DateTime!
 }
 
 type GoalDTO {
@@ -81,7 +60,10 @@ type Mutation {
   registerUser(input: UserRegisterInput!): Boolean!
   loginUser(input: UserLoginInput!): Boolean!
   logoutUser: Boolean!
-  createAsset(input: AssetInput!): Boolean!
+  createAsset(input: AssetInput!): AssetDTO!
+  addInvestment(assetId: String!, input: InvestmentInput!): InvestmentDTO!
+  updateInvestment(assetId: String!, investmentId: String!, input: InvestmentInput!): [InvestmentDTO!]!
+  deleteInvestment(assetId: String!, investmentId: String!): Boolean!
   createExpense(input: ExpenseInput!): Boolean!
   createGoal(input: GoalInput!): GoalDTO!
   updateGoal(goalId: Float!, input: GoalInput!): GoalDTO!
@@ -106,6 +88,12 @@ input AssetInput {
   currency: String!
   riskLevel: String!
   growthRate: Float
+}
+
+input InvestmentInput {
+  qty: Float
+  value_per_qty: Float!
+  date: DateTime!
 }
 
 input ExpenseInput {

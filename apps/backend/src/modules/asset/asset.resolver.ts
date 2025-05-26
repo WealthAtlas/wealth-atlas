@@ -2,13 +2,12 @@ import { Args, Context, Float, Mutation, Parent, Query, ResolveField, Resolver }
 import { Context as CustomContext } from '../../context';
 import { AssetService } from './asset.service';
 import { AssetDTO, AssetInput } from './asset.graphql';
-import { InvestmentDTO } from '../investment/investment.graphql';
 
 @Resolver(() => AssetDTO)
 export class AssetResolver {
   constructor(private readonly assetService: AssetService) { }
 
-  @Mutation(() => Boolean)
+  @Mutation(() => AssetDTO)
   async createAsset(
     @Context() context: CustomContext,
     @Args('input') input: AssetInput,

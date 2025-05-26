@@ -1,20 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { InvestmentDTO } from '../investment/investment.graphql';
+import { InvestmentService } from '../investment/investment.service';
 import { AssetEntity } from './asset.entity';
 import { AssetDTO, AssetInput } from './asset.graphql';
-import { InvestmentEntity } from '../investment/investment.entity';
-import { AssetValueEntity } from './value.entity';
-import { InvestmentService } from '../investment/investment.service';
-import { InvestmentDTO } from '../investment/investment.graphql';
+import { ValueService } from './value.service';
 
 @Injectable()
 export class AssetService {
 
   constructor(
     @InjectModel(AssetEntity.name) private assetModel: Model<AssetEntity>,
-    @InjectModel(AssetValueEntity.name) private assetValueModel: Model<AssetValueEntity>,
-    private investmentService: InvestmentService
+    @Inject(forwardRef(() => InvestmentService)) private investmentService: InvestmentService,
+    private valueService: ValueService
   ) {
   }
 
@@ -31,34 +30,14 @@ export class AssetService {
     });
 
     return asset.save().then((savedAsset) => {
-      return {
-        id: savedAsset._id,
-        name: savedAsset.name,
-        description: savedAsset.description,
-        category: savedAsset.category,
-        maturityDate: savedAsset.maturityDate,
-        currency: savedAsset.currency,
-        riskLevel: savedAsset.riskLevel,
-        growthRate: savedAsset.growthRate,
-      };
+      return AssetDTO.fromData(savedAsset.toObject());
     });
   }
 
 
   async getAssets(userId: string): Promise<AssetDTO[]> {
     return this.assetModel.find({ userId }).exec().then((assets) => {
-      return assets.map((asset) => {
-        return {
-          id: asset._id,
-          name: asset.name,
-          description: asset.description,
-          category: asset.category,
-          maturityDate: asset.maturityDate,
-          currency: asset.currency,
-          riskLevel: asset.riskLevel,
-          growthRate: asset.growthRate,
-        };
-      });
+      return assets.map((asset) => AssetDTO.fromData(asset.toObject()));
     });
   }
 
@@ -67,64 +46,16 @@ export class AssetService {
       if (!asset) {
         throw new Error('Asset not found');
       }
-      return {
-        id: asset._id,
-        name: asset.name,
-        description: asset.description,
-        category: asset.category,
-        maturityDate: asset.maturityDate,
-        currency: asset.currency,
-        riskLevel: asset.riskLevel,
-        growthRate: asset.growthRate,
-      };
+      return AssetDTO.fromData(asset.toObject());
     });
   }
 
   async computeCurrentValue(assetId: string): Promise<number> {
-    const asset = await this.assetModel.findById(assetId).exec();
-    if (!asset) {
-      throw new Error('Asset not found');
-    }
-    const values = await this.assetValueModel.find({ assetId }).exec();
-    if (!values.length) {
-      throw new Error('No values found for this asset');
-    }
-    const latestValue = values.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].valuePerQty;
-    return latestValue;
+    return this.valueService.getCurrentValue(assetId);
   }
 
   async getGrowthRate(assetId: string): Promise<number> {
-    const asset = await this.assetModel.findById(assetId).exec();
-    if (!asset) {
-      throw new Error('Asset not found');
-    }
-
-    const values = await this.assetValueModel.find({ assetId }).exec();
-    const investments = await this.investmentService.getInvestments(assetId);
-
-    if (!values.length || !investments.length) {
-      return 0;
-    }
-
-    let totalInvestment = 0;
-    let totalQuantity = 0;
-
-    investments.forEach((investment: any) => {
-      totalInvestment += (investment.qty ?? 1) * investment.valuePerQty;
-      totalQuantity += investment.qty ?? 1;
-    });
-
-    const latestValue = values.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].valuePerQty;
-
-    const currentValue = latestValue * totalQuantity;
-
-    const firstInvestmentDate = new Date(investments[0].date);
-    const latestValueDate = new Date(values[0].date);
-    const timePeriod = (latestValueDate.getTime() - firstInvestmentDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
-
-    const cagr = ((currentValue / totalInvestment) ** (1 / timePeriod)) - 1;
-
-    return cagr * 100;
+    return this.valueService.getGrowthRate(assetId);
   }
 
   async getQty(assetID: string): Promise<number> {
@@ -139,7 +70,7 @@ export class AssetService {
     return result.deletedCount > 0;
   }
 
-  getInvestedAmount(id: string): number | PromiseLike<number> {
+  async getInvestedAmount(id: string): Promise<number> {
     return this.investmentService.getInvestments(id).then((investments: any[]) => {
       if (!investments || investments.length === 0) {
         return 0;

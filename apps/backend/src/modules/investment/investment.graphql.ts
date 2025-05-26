@@ -2,6 +2,9 @@ import { Field, InputType, ObjectType } from "@nestjs/graphql";
 
 @ObjectType()
 export class InvestmentDTO {
+    @Field()
+    id!: string;
+
     @Field({ nullable: true })
     qty?: number;
 
@@ -24,6 +27,7 @@ export class InvestmentDTO {
             throw new Error('date is required');
         }
         const dto = new InvestmentDTO();
+        dto.id = data.id!;
         dto.qty = data.qty;
         dto.valuePerQty = data.valuePerQty;
         dto.date = data.date;

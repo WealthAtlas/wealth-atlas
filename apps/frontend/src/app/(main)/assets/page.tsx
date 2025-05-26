@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { Box, Typography, Fab, Stack } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { AssetDTO, useGetAssetsQuery } from '@/graphql/models/generated';
+import { AssetDTO, useGetAssetsQuery} from '@/graphql/models/generated';
 import CreateAssetDialog from './CreateAssetDialog';
 import AssetRow from './AssetRow';
+import AddInvestmentDialog from './AddInvestmentDialog';
 
 const AssetsPage = () => {
     const { data, loading, error, refetch } = useGetAssetsQuery();
@@ -19,8 +20,8 @@ const AssetsPage = () => {
     const handleDialogOpen = () => setDialogOpen(true);
     const handleDialogClose = () => setDialogOpen(false);
 
-    const handleAssetCreated = async () => {
-        await refetch();
+    const handleAssetCreated = () => {
+        refetch();
     };
 
     const assets = data?.assets as AssetDTO[] | undefined;
@@ -85,6 +86,15 @@ const AssetsPage = () => {
                 open={dialogOpen}
                 onClose={handleDialogClose}
                 onSuccess={handleAssetCreated}
+            />
+            <AddInvestmentDialog
+                open={!!addInvestmentAssetId}
+                assetId={addInvestmentAssetId || ''}
+                onClose={() => setAddInvestmentAssetId(null)}
+                onSuccess={async () => {
+                    await refetch();
+                    setAddInvestmentAssetId(null);
+                }}
             />
         </Box>
     );

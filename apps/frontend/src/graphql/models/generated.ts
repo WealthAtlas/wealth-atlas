@@ -24,44 +24,17 @@ export type AllocatedAssetDTO = {
 
 export type AssetDTO = {
   readonly __typename: 'AssetDTO';
-  readonly addInvestment: InvestmentDTO;
-  readonly addValue: AssetValueDTO;
   readonly category: Scalars['String'];
   readonly currency: Scalars['String'];
   readonly currentValue: Scalars['Float'];
-  readonly deleteInvestment: Scalars['Boolean'];
   readonly description: Scalars['String'];
   readonly growthRate: Scalars['Float'];
   readonly id: Scalars['String'];
   readonly investedAmount: Scalars['Float'];
-  readonly investments: ReadonlyArray<InvestmentDTO>;
   readonly maturityDate: Maybe<Scalars['DateTime']>;
   readonly name: Scalars['String'];
   readonly qty: Scalars['Float'];
   readonly riskLevel: Scalars['String'];
-  readonly updateInvestment: ReadonlyArray<InvestmentDTO>;
-  readonly values: ReadonlyArray<AssetValueDTO>;
-};
-
-
-export type AssetDTOaddInvestmentArgs = {
-  input: InvestmentInput;
-};
-
-
-export type AssetDTOaddValueArgs = {
-  input: AssetValueInput;
-};
-
-
-export type AssetDTOdeleteInvestmentArgs = {
-  id: Scalars['String'];
-};
-
-
-export type AssetDTOupdateInvestmentArgs = {
-  id: Scalars['String'];
-  input: InvestmentInput;
 };
 
 export type AssetInput = {
@@ -72,17 +45,6 @@ export type AssetInput = {
   readonly maturityDate: InputMaybe<Scalars['DateTime']>;
   readonly name: Scalars['String'];
   readonly riskLevel: Scalars['String'];
-};
-
-export type AssetValueDTO = {
-  readonly __typename: 'AssetValueDTO';
-  readonly date: Scalars['DateTime'];
-  readonly valuePerQty: Scalars['Float'];
-};
-
-export type AssetValueInput = {
-  readonly date: Scalars['DateTime'];
-  readonly valuePerQty: Scalars['Float'];
 };
 
 export type ExpenseInput = {
@@ -128,6 +90,7 @@ export type InvestmentDTO = {
   readonly __typename: 'InvestmentDTO';
   readonly amount: Scalars['Float'];
   readonly date: Scalars['DateTime'];
+  readonly id: Scalars['String'];
   readonly qty: Maybe<Scalars['Float']>;
   readonly value_per_qty: Scalars['Float'];
 };
@@ -140,13 +103,22 @@ export type InvestmentInput = {
 
 export type Mutation = {
   readonly __typename: 'Mutation';
-  readonly createAsset: Scalars['Boolean'];
+  readonly addInvestment: InvestmentDTO;
+  readonly createAsset: AssetDTO;
   readonly createExpense: Scalars['Boolean'];
   readonly createGoal: GoalDTO;
+  readonly deleteInvestment: Scalars['Boolean'];
   readonly loginUser: Scalars['Boolean'];
   readonly logoutUser: Scalars['Boolean'];
   readonly registerUser: Scalars['Boolean'];
   readonly updateGoal: GoalDTO;
+  readonly updateInvestment: ReadonlyArray<InvestmentDTO>;
+};
+
+
+export type MutationaddInvestmentArgs = {
+  assetId: Scalars['String'];
+  input: InvestmentInput;
 };
 
 
@@ -165,6 +137,12 @@ export type MutationcreateGoalArgs = {
 };
 
 
+export type MutationdeleteInvestmentArgs = {
+  assetId: Scalars['String'];
+  investmentId: Scalars['String'];
+};
+
+
 export type MutationloginUserArgs = {
   input: UserLoginInput;
 };
@@ -178,6 +156,13 @@ export type MutationregisterUserArgs = {
 export type MutationupdateGoalArgs = {
   goalId: Scalars['Float'];
   input: GoalInput;
+};
+
+
+export type MutationupdateInvestmentArgs = {
+  assetId: Scalars['String'];
+  input: InvestmentInput;
+  investmentId: Scalars['String'];
 };
 
 export type Query = {
@@ -204,12 +189,20 @@ export type UserRegisterInput = {
   readonly password: Scalars['String'];
 };
 
+export type AddInvestmentMutationVariables = Exact<{
+  assetId: Scalars['String'];
+  input: InvestmentInput;
+}>;
+
+
+export type AddInvestmentMutation = { readonly __typename: 'Mutation', readonly addInvestment: { readonly __typename: 'InvestmentDTO', readonly id: string, readonly date: any, readonly amount: number } };
+
 export type CreateAssetMutationVariables = Exact<{
   input: AssetInput;
 }>;
 
 
-export type CreateAssetMutation = { readonly __typename: 'Mutation', readonly createAsset: boolean };
+export type CreateAssetMutation = { readonly __typename: 'Mutation', readonly createAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string } };
 
 export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -236,9 +229,53 @@ export type RegisterUserMutationVariables = Exact<{
 export type RegisterUserMutation = { readonly __typename: 'Mutation', readonly registerUser: boolean };
 
 
+export const AddInvestmentDocument = gql`
+    mutation AddInvestment($assetId: String!, $input: InvestmentInput!) {
+  addInvestment(assetId: $assetId, input: $input) {
+    id
+    date
+    amount
+  }
+}
+    `;
+export type AddInvestmentMutationFn = Apollo.MutationFunction<AddInvestmentMutation, AddInvestmentMutationVariables>;
+
+/**
+ * __useAddInvestmentMutation__
+ *
+ * To run a mutation, you first call `useAddInvestmentMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useAddInvestmentMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [addInvestmentMutation, { data, loading, error }] = useAddInvestmentMutation({
+ *   variables: {
+ *      assetId: // value for 'assetId'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useAddInvestmentMutation(baseOptions?: Apollo.MutationHookOptions<AddInvestmentMutation, AddInvestmentMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<AddInvestmentMutation, AddInvestmentMutationVariables>(AddInvestmentDocument, options);
+      }
+export type AddInvestmentMutationHookResult = ReturnType<typeof useAddInvestmentMutation>;
+export type AddInvestmentMutationResult = Apollo.MutationResult<AddInvestmentMutation>;
+export type AddInvestmentMutationOptions = Apollo.BaseMutationOptions<AddInvestmentMutation, AddInvestmentMutationVariables>;
 export const CreateAssetDocument = gql`
     mutation CreateAsset($input: AssetInput!) {
-  createAsset(input: $input)
+  createAsset(input: $input) {
+    id
+    name
+    description
+    category
+    maturityDate
+    currency
+    riskLevel
+  }
 }
     `;
 export type CreateAssetMutationFn = Apollo.MutationFunction<CreateAssetMutation, CreateAssetMutationVariables>;

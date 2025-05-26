@@ -1,41 +1,40 @@
-import { Args, Float, Parent, ResolveField, Resolver } from '@nestjs/graphql';
-import { AssetDTO } from '../asset/asset.graphql';
+import { Args, Context, Mutation, Resolver } from '@nestjs/graphql';
 import { InvestmentDTO, InvestmentInput } from './investment.graphql';
 import { InvestmentService } from './investment.service';
+import { Context as CustomContext } from '../../context';
 
-@Resolver(() => AssetDTO)
+@Resolver(() => InvestmentDTO)
 export class InvestmentResolver {
   constructor(private readonly investmentService: InvestmentService) { }
 
-  @ResolveField(() => InvestmentDTO)
+  @Mutation(() => InvestmentDTO)
   async addInvestment(
-    @Parent() asset: AssetDTO,
+    @Context() context: CustomContext,
+    @Args('assetId') assetId: string,
     @Args('input') input: InvestmentInput
   ): Promise<InvestmentDTO> {
-    return this.investmentService.addInvestment(asset.id, input);
+    const userId = context.req.user?.userId || '';
+    return this.investmentService.addInvestment(userId, assetId, input);
   }
 
-  @ResolveField(() => [InvestmentDTO])
-  async investments(
-    @Parent() asset: AssetDTO,
-  ): Promise<InvestmentDTO[]> {
-    return this.investmentService.getInvestments(asset.id);
-  }
-
-  @ResolveField(() => [InvestmentDTO])
+  @Mutation(() => [InvestmentDTO])
   async updateInvestment(
-    @Parent() asset: AssetDTO,
-    @Args('id') id: string,
+    @Context() context: CustomContext,
+    @Args('assetId') assetId: string,
+    @Args('investmentId') investmentId: string,
     @Args('input') input: InvestmentInput
   ): Promise<InvestmentDTO> {
-    return this.investmentService.updateInvestment(asset.id, id, input);
+    const userId = context.req.user?.userId || '';
+    return this.investmentService.updateInvestment(userId, assetId, investmentId, input);
   }
 
-  @ResolveField(() => Boolean)
+  @Mutation(() => Boolean)
   async deleteInvestment(
-    @Parent() asset: AssetDTO,
-    @Args('id') id: string
+    @Context() context: CustomContext,
+    @Args('assetId') assetId: string,
+    @Args('investmentId') investmentID: string,
   ): Promise<boolean> {
-    return this.investmentService.deleteInvestment(asset.id, id);
+    const userId = context.req.user?.userId || '';
+    return this.investmentService.deleteInvestment(userId, assetId, investmentID);
   }
 }

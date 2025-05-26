@@ -5,7 +5,7 @@ import { useCreateAssetMutation } from '@/graphql/models/generated';
 interface CreateAssetDialogProps {
     open: boolean;
     onClose: () => void;
-    onSuccess: () => void;
+    onSuccess: (manualValueData?: { assetId: string, manualValue: number }) => void;
 }
 
 const initialFormData = {
@@ -13,31 +13,34 @@ const initialFormData = {
     description: '',
     category: '',
     riskLevel: '',
-    growthRate: '',
-    maturityDate: '',
     currency: '',
+    maturityDate: '',
+    valueStrategyType: '', // 'fixed', 'dynamic', 'manual'
+    growthRate: '', // for fixed
+    apiSource: '', // for dynamic
+    manualValue: '', // for manual
 };
 
 const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, onSuccess }) => {
     const [formData, setFormData] = useState(initialFormData);
-
     const [errors, setErrors] = useState({
         name: false,
         category: false,
         riskLevel: false,
         currency: false,
+        valueStrategyType: false,
+        growthRate: false,
+        apiSource: false,
+        manualValue: false,
     });
-
     const [createAsset, { loading }] = useCreateAssetMutation();
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-
-        if (name === 'growthRate' && value) {
+        if ((name === 'growthRate' || name === 'manualValue') && value) {
             const regex = /^\d*\.?\d{0,2}$/;
             if (!regex.test(value)) return;
         }
-
         setFormData({ ...formData, [name]: value });
     };
 
@@ -47,31 +50,60 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
             category: !formData.category,
             riskLevel: !formData.riskLevel,
             currency: !formData.currency,
+            valueStrategyType: !formData.valueStrategyType,
+            growthRate: false,
+            apiSource: false,
+            manualValue: false,
         };
+        if (formData.valueStrategyType === 'fixed') {
+            newErrors.growthRate = !formData.growthRate;
+        }
+        if (formData.valueStrategyType === 'dynamic') {
+            newErrors.apiSource = !formData.apiSource;
+        }
+        if (formData.valueStrategyType === 'manual') {
+            newErrors.manualValue = !formData.manualValue;
+        }
         setErrors(newErrors);
         return !Object.values(newErrors).some((error) => error);
     };
 
     const handleFormSubmit = async () => {
         if (!validateForm()) return;
-
+        // AssetInput only supports growthRate, not valueStrategy directly
+        let growthRate: number | null = null;
+        
+        if (formData.valueStrategyType === 'fixed') {
+            growthRate = parseFloat(formData.growthRate);
+        }
+        
         try {
-            await createAsset({
+            // Create the asset first
+            const assetResult = await createAsset({
                 variables: {
                     input: {
-                        ...formData,
+                        name: formData.name,
+                        description: formData.description,
+                        category: formData.category,
+                        riskLevel: formData.riskLevel,
+                        currency: formData.currency,
                         maturityDate: formData.maturityDate
                             ? new Date(formData.maturityDate).toISOString()
                             : null,
-                        currency: formData.currency,
-                        growthRate: formData.growthRate
-                            ? parseFloat(formData.growthRate)
-                            : null,
+                        growthRate: growthRate,
                     },
                 },
             });
-            onSuccess(); // Trigger the callback to refresh the asset list
-            handleClose(); // Close the dialog
+            
+            // For manual strategy, we'll need to add a supplementary request
+            // but we can't do that from here since AddInvestment mutation isn't imported
+            // We'll need to inform the parent component
+            onSuccess(formData.valueStrategyType === 'manual' ? {
+                assetId: assetResult.data?.createAsset?.id || '',
+                manualValue: parseFloat(formData.manualValue),
+            } : undefined);
+            
+            handleClose();
         } catch (err) {
             console.error('Error creating asset:', err);
         }
@@ -84,6 +116,10 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
             category: false,
             riskLevel: false,
             currency: false,
+            valueStrategyType: false,
+            growthRate: false,
+            apiSource: false,
+            manualValue: false,
         });
         onClose();
     };
@@ -157,15 +193,62 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
                     <MenuItem value="GBP">GBP</MenuItem>
                     <MenuItem value="JPY">JPY</MenuItem>
                 </TextField>
+                {/* Value Strategy Type */}
                 <TextField
                     margin="dense"
-                    label="Growth Rate"
-                    name="growthRate"
+                    label="Value Strategy"
+                    name="valueStrategyType"
+                    select
                     fullWidth
-                    value={formData.growthRate}
+                    value={formData.valueStrategyType}
                     onChange={handleInputChange}
-                    placeholder="e.g., 5.25"
-                />
+                    error={errors.valueStrategyType}
+                    helperText={errors.valueStrategyType ? 'Value Strategy is required' : ''}
+                >
+                    <MenuItem value="fixed">Fixed</MenuItem>
+                    <MenuItem value="dynamic">Dynamic</MenuItem>
+                    <MenuItem value="manual">Manual</MenuItem>
+                </TextField>
+                {/* Show fields based on value strategy */}
+                {formData.valueStrategyType === 'fixed' && (
+                    <TextField
+                        margin="dense"
+                        label="Growth Rate (%)"
+                        name="growthRate"
+                        fullWidth
+                        value={formData.growthRate}
+                        onChange={handleInputChange}
+                        error={errors.growthRate}
+                        helperText={errors.growthRate ? 'Growth Rate is required' : ''}
+                        placeholder="e.g., 5.25"
+                    />
+                )}
+                {formData.valueStrategyType === 'dynamic' && (
+                    <TextField
+                        margin="dense"
+                        label="API Source"
+                        name="apiSource"
+                        fullWidth
+                        value={formData.apiSource}
+                        onChange={handleInputChange}
+                        error={errors.apiSource}
+                        helperText={errors.apiSource ? 'API Source is required' : ''}
+                        placeholder="e.g., https://api.example.com/value"
+                    />
+                )}
+                {formData.valueStrategyType === 'manual' && (
+                    <TextField
+                        margin="dense"
+                        label="Initial Value"
+                        name="manualValue"
+                        fullWidth
+                        value={formData.manualValue}
+                        onChange={handleInputChange}
+                        error={errors.manualValue}
+                        helperText={errors.manualValue ? 'Initial Value is required' : ''}
+                        placeholder="e.g., 5000.00"
+                    />
+                )}
                 <TextField
                     margin="dense"
                     label="Maturity Date"
@@ -174,6 +257,7 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
                     fullWidth
                     value={formData.maturityDate}
                     onChange={handleInputChange}
+                    InputLabelProps={{ shrink: true }}
                 />
             </DialogContent>
             <DialogActions>
