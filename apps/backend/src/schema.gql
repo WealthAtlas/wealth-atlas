@@ -131,7 +131,7 @@ input ManualValueStrategyInput {
 
 input InvestmentInput {
   qty: Float
-  value_per_qty: Float!
+  valuePerQty: Float!
   date: DateTime!
 }
 

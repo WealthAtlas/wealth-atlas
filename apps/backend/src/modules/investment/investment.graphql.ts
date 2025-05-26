@@ -19,18 +19,18 @@ export class InvestmentDTO {
         return (this.qty ?? 0) * (this.valuePerQty ?? 0);
     }
 
-    static fromData(data: Partial<InvestmentDTO>): InvestmentDTO {
-        if (data.valuePerQty === undefined) {
+    static fromData(document: any): InvestmentDTO {
+        if (document.valuePerQty === undefined) {
             throw new Error('valuePerQty is required');
         }
-        if (data.date === undefined) {
+        if (document.date === undefined) {
             throw new Error('date is required');
         }
         const dto = new InvestmentDTO();
-        dto.id = data.id!;
-        dto.qty = data.qty;
-        dto.valuePerQty = data.valuePerQty;
-        dto.date = data.date;
+        dto.id = document._id!;
+        dto.qty = document.qty;
+        dto.valuePerQty = document.valuePerQty;
+        dto.date = document.date;
         return dto;
     }
 }
@@ -40,7 +40,7 @@ export class InvestmentInput {
     @Field({ nullable: true })
     qty?: number;
 
-    @Field({ name: 'value_per_qty' })
+    @Field()
     valuePerQty!: number;
 
     @Field()

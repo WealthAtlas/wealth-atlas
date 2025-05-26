@@ -44,7 +44,7 @@ const AddInvestmentDialog: React.FC<AddInvestmentDialogProps> = ({ open, onClose
                 variables: {
                     assetId,
                     input: {
-                        value_per_qty: parseFloat(formData.amount),
+                        valuePerQty: parseFloat(formData.amount),
                         date: new Date(formData.date),
                         qty: 1
                     },

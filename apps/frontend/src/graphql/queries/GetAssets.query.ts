@@ -20,11 +20,10 @@ export const GET_ASSETS_QUERY = gql`
         ... on DynamicValueStrategy {
           type
           apiSource
-          updatetAt
+          updatedAt
         }
         ... on ManualValueStrategy {
           type
-          updatedAt
         }
       }
       currentValue
