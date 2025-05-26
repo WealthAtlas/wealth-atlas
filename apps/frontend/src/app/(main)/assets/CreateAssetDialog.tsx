@@ -94,15 +94,8 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
                     },
                 },
             });
-            
-            // For manual strategy, we'll need to add a supplementary request
-            // but we can't do that from here since AddInvestment mutation isn't imported
-            // We'll need to inform the parent component
-            onSuccess(formData.valueStrategyType === 'manual' ? {
-                assetId: assetResult.data?.createAsset?.id || '',
-                manualValue: parseFloat(formData.manualValue),
-            } : undefined);
-            
+        
+            onSuccess();
             handleClose();
         } catch (err) {
             console.error('Error creating asset:', err);
