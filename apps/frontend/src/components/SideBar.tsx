@@ -38,7 +38,7 @@ const openedMixin = (theme: Theme): CSSObject => ({
     duration: theme.transitions.duration.enteringScreen,
   }),
   overflowX: 'hidden',
-  borderRight: `1px solid ${theme.palette.divider}`,
+  // Removed borderRight to prevent double border
 });
 
 const closedMixin = (theme: Theme): CSSObject => ({
@@ -48,7 +48,7 @@ const closedMixin = (theme: Theme): CSSObject => ({
   }),
   overflowX: 'hidden',
   width: collapsedWidth,
-  borderRight: `1px solid ${theme.palette.divider}`,
+  // Removed borderRight to prevent double border
 });
 
 const StyledDrawer = styled(Drawer, {
