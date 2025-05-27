@@ -1,6 +1,5 @@
 # Node.js dependencies
 node_modules/
-.pnpm-debug.log*
 
 # Turborepo cache and outputs
 .turbo/

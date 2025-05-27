@@ -18,6 +18,8 @@ We have several documents to help you deploy this application in a cost-effectiv
 3. [MongoDB Setup Guide](./docs/MONGODB_SETUP.md) - How to set up MongoDB Atlas
 4. [CI/CD Setup Guide](./docs/CICD_SETUP.md) - Setting up GitHub Actions for automated deployment
 5. [AWS Cost Estimation](./docs/COST_ESTIMATION.md) - Breakdown of expected AWS costs
+6. [Monorepo Guide](./docs/MONOREPO.md) - Working with the npm workspace monorepo structure
+7. [npm Migration](./docs/NPM_MIGRATION.md) - Details about migration from pnpm to npm
 
 ## Quick Start
 
@@ -39,20 +41,20 @@ We have several documents to help you deploy this application in a cost-effectiv
 
 ### Prerequisites
 - Node.js 18+
-- pnpm
+- npm (included with Node.js)
 - MongoDB (local or Atlas)
 
 ### Local Setup
 1. Clone the repository
-2. Install dependencies: `pnpm install`
+2. Install dependencies: `npm install`
 3. Create a `.env` file with the following variables:
    ```
    MONGODB_URI=mongodb://localhost:27017/wealth-atlas
    JWT_SECRET=your-secret-key
    ```
-4. Start the backend: `pnpm --filter backend start:dev`
-5. Start the frontend: `pnpm --filter frontend dev`
-6. Generate frontend GraphQL types: `cd apps/frontend && pnpm run codegen`
+4. Start the backend: `npm run dev:backend`
+5. Start the frontend: `npm run dev:frontend` 
+6. Generate frontend GraphQL types: `npm run -w apps/frontend codegen`
 
 ## Contributing
 

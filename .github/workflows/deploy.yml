@@ -99,11 +99,14 @@ jobs:
       with:
         node-version: '18'
         
-    - name: Install pnpm
-      run: npm install -g pnpm
+    - name: Setup Node.js with cache
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
       
     - name: Install dependencies
-      run: pnpm install
+      run: npm ci
     
     - name: Setup Backend URL
       env:
@@ -114,8 +117,7 @@ jobs:
     
     - name: Build frontend
       run: |
-        cd apps/frontend
-        pnpm build
+        npm run build:frontend
     
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
