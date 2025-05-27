@@ -103,4 +103,56 @@ export class AssetService {
       }, 0);
     });
   }
+
+  async updateAsset(userId: string, assetId: string, input: AssetInput): Promise<AssetDTO> {
+    // First check if the asset exists and belongs to the user
+    const existingAsset = await this.assetModel.findOne({ userId, _id: assetId }).exec();
+    if (!existingAsset) {
+      throw new Error('Asset not found or you do not have permission to update it');
+    }
+    
+    // Determine the value strategy based on input
+    let valueStrategy;
+
+    if (input.fixedValueStrategy) {
+      valueStrategy = {
+        type: 'fixed',
+        growthRate: input.fixedValueStrategy.growthRate
+      };
+    } else if (input.dynamicValueStrategy) {
+      valueStrategy = {
+        type: 'dynamic',
+        apiSource: input.dynamicValueStrategy.apiSource,
+        value: input.dynamicValueStrategy.value,
+        updatedAt: new Date()
+      };
+    } else if (input.manualValueStrategy) {
+      valueStrategy = {
+        type: 'manual',
+        value: input.manualValueStrategy.value,
+        updatedAt: new Date()
+      };
+    }
+
+    // Update the asset
+    const updatedAsset = await this.assetModel.findByIdAndUpdate(
+      assetId,
+      {
+        name: input.name,
+        description: input.description,
+        category: input.category,
+        maturityDate: input.maturityDate,
+        currency: input.currency,
+        riskLevel: input.riskLevel,
+        valueStrategy: valueStrategy,
+      },
+      { new: true }
+    ).exec();
+
+    if (!updatedAsset) {
+      throw new Error('Failed to update asset');
+    }
+
+    return AssetDTO.fromData(updatedAsset.toObject());
+  }
 }

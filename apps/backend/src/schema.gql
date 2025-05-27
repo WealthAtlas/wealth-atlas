@@ -74,6 +74,7 @@ type UserDTO {
 type Query {
   user: UserDTO!
   assets: [AssetDTO!]!
+  asset(id: String!): AssetDTO!
   goals: [GoalDTO!]!
 }
 
@@ -82,6 +83,7 @@ type Mutation {
   loginUser(input: UserLoginInput!): Boolean!
   logoutUser: Boolean!
   createAsset(input: AssetInput!): AssetDTO!
+  updateAsset(id: String!, input: AssetInput!): AssetDTO!
   addInvestment(assetId: String!, input: InvestmentInput!): InvestmentDTO!
   updateInvestment(assetId: String!, investmentId: String!, input: InvestmentInput!): [InvestmentDTO!]!
   deleteInvestment(assetId: String!, investmentId: String!): Boolean!

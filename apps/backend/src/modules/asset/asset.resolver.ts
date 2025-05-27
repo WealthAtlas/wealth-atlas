@@ -15,11 +15,30 @@ export class AssetResolver {
     const userId = context.req.user?.userId || '';
     return this.assetService.createAsset(userId, input);
   }
+  
+  @Mutation(() => AssetDTO)
+  async updateAsset(
+    @Context() context: CustomContext,
+    @Args('id') id: string,
+    @Args('input') input: AssetInput,
+  ): Promise<AssetDTO> {
+    const userId = context.req.user?.userId || '';
+    return this.assetService.updateAsset(userId, id, input);
+  }
 
   @Query(() => [AssetDTO])
   async assets(@Context() context: CustomContext): Promise<AssetDTO[]> {
     const userId = context.req.user?.userId || '';
     return this.assetService.getAssets(userId);
+  }
+  
+  @Query(() => AssetDTO)
+  async asset(
+    @Context() context: CustomContext,
+    @Args('id') id: string,
+  ): Promise<AssetDTO> {
+    const userId = context.req.user?.userId || '';
+    return this.assetService.getAsset(userId, id);
   }
 
   @ResolveField(() => Float)
