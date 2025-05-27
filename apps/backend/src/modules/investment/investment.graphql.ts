@@ -8,7 +8,7 @@ export class InvestmentDTO {
     @Field({ nullable: true })
     qty?: number;
 
-    @Field({ name: 'value_per_qty' })
+    @Field()
     valuePerQty!: number;
 
     @Field()

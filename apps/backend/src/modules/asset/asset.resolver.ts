@@ -2,6 +2,8 @@ import { Args, Context, Float, Mutation, Parent, Query, ResolveField, Resolver }
 import { Context as CustomContext } from '../../context';
 import { AssetService } from './asset.service';
 import { AssetDTO, AssetInput } from './asset.graphql';
+import { Res } from '@nestjs/common';
+import { InvestmentDTO } from '../investment/investment.graphql';
 
 @Resolver(() => AssetDTO)
 export class AssetResolver {
@@ -59,5 +61,12 @@ export class AssetResolver {
   @ResolveField(() => Float)
   async investedAmount(@Parent() asset: AssetDTO): Promise<number> {
     return this.assetService.getInvestedAmount(asset.id);
+  }
+
+  @ResolveField(() => [InvestmentDTO])
+  async investments(
+    @Parent() asset: AssetDTO,
+  ): Promise<InvestmentDTO[]> {
+    return this.assetService.getInvestments(asset.id);
   }
 }

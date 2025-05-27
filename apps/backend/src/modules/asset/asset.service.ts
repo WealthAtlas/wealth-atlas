@@ -155,4 +155,8 @@ export class AssetService {
 
     return AssetDTO.fromData(updatedAsset.toObject());
   }
+
+  async getInvestments(id: string): Promise<InvestmentDTO[]> {
+    return this.investmentService.getInvestments(id);
+  }
 }

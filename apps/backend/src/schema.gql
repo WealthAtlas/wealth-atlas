@@ -5,7 +5,7 @@
 type InvestmentDTO {
   id: String!
   qty: Float
-  value_per_qty: Float!
+  valuePerQty: Float!
   date: DateTime!
   amount: Float!
 }
@@ -28,6 +28,7 @@ type AssetDTO {
   growthRate: Float!
   qty: Float!
   investedAmount: Float!
+  investments: [InvestmentDTO!]!
 }
 
 union ValueStrategy = FixedValueStrategy | DynamicValueStrategy | ManualValueStrategy

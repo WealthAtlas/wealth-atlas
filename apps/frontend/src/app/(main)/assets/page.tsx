@@ -26,6 +26,7 @@ import CreateAssetDialog from './CreateAssetDialog';
 import AssetRow from './AssetRow';
 import AddInvestmentDialog from './AddInvestmentDialog';
 import EditAssetDialog from './EditAssetDialog';
+import InvestmentsListDialog from './InvestmentsListDialog';
 
 const AssetsPage = () => {
     const { data, loading, error, refetch } = useGetAssetsQuery();
@@ -34,6 +35,8 @@ const AssetsPage = () => {
     const [addInvestmentAssetId, setAddInvestmentAssetId] = useState<string | null>(null);
     // For edit asset dialog
     const [editAssetId, setEditAssetId] = useState<string | null>(null);
+    // For view investments dialog
+    const [viewInvestmentsAsset, setViewInvestmentsAsset] = useState<AssetDTO | null>(null);
 
     // Search and filter states
     const [searchQuery, setSearchQuery] = useState('');
@@ -328,7 +331,7 @@ const AssetsPage = () => {
                             key={asset.id}
                             asset={asset as any}
                             onAddInvestment={() => setAddInvestmentAssetId(asset.id)}
-                            onViewInvestments={() => {/* TODO: implement view investments */ }}
+                            onViewInvestments={() => setViewInvestmentsAsset(asset)}
                             onCreateSIP={() => {/* TODO: implement create SIP */ }}
                             onViewSIPs={() => {/* TODO: implement view SIPs */ }}
                             onEdit={() => setEditAssetId(asset.id)}
@@ -371,6 +374,11 @@ const AssetsPage = () => {
                     await refetch();
                     setEditAssetId(null);
                 }}
+            />
+            <InvestmentsListDialog
+                open={!!viewInvestmentsAsset}
+                asset={viewInvestmentsAsset}
+                onClose={() => setViewInvestmentsAsset(null)}
             />
         </Box>
     );

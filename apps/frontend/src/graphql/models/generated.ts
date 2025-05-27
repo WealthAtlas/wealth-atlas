@@ -31,6 +31,7 @@ export type AssetDTO = {
   readonly growthRate: Scalars['Float'];
   readonly id: Scalars['String'];
   readonly investedAmount: Scalars['Float'];
+  readonly investments: ReadonlyArray<InvestmentDTO>;
   readonly maturityDate: Maybe<Scalars['DateTime']>;
   readonly name: Scalars['String'];
   readonly qty: Scalars['Float'];
@@ -120,7 +121,7 @@ export type InvestmentDTO = {
   readonly date: Scalars['DateTime'];
   readonly id: Scalars['String'];
   readonly qty: Maybe<Scalars['Float']>;
-  readonly value_per_qty: Scalars['Float'];
+  readonly valuePerQty: Scalars['Float'];
 };
 
 export type InvestmentInput = {
@@ -265,6 +266,13 @@ export type GetAssetByIdQueryVariables = Exact<{
 
 
 export type GetAssetByIdQuery = { readonly __typename: 'Query', readonly asset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly apiSource: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
+
+export type GetAssetInvestmentsQueryVariables = Exact<{
+  assetId: Scalars['String'];
+}>;
+
+
+export type GetAssetInvestmentsQuery = { readonly __typename: 'Query', readonly asset: { readonly __typename: 'AssetDTO', readonly investments: ReadonlyArray<{ readonly __typename: 'InvestmentDTO', readonly id: string, readonly qty: number | null, readonly valuePerQty: number, readonly date: any }> } };
 
 export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -435,6 +443,46 @@ export function useGetAssetByIdLazyQuery(baseOptions?: Apollo.LazyQueryHookOptio
 export type GetAssetByIdQueryHookResult = ReturnType<typeof useGetAssetByIdQuery>;
 export type GetAssetByIdLazyQueryHookResult = ReturnType<typeof useGetAssetByIdLazyQuery>;
 export type GetAssetByIdQueryResult = Apollo.QueryResult<GetAssetByIdQuery, GetAssetByIdQueryVariables>;
+export const GetAssetInvestmentsDocument = gql`
+    query GetAssetInvestments($assetId: String!) {
+  asset(id: $assetId) {
+    investments {
+      id
+      qty
+      valuePerQty
+      date
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetAssetInvestmentsQuery__
+ *
+ * To run a query within a React component, call `useGetAssetInvestmentsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetAssetInvestmentsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetAssetInvestmentsQuery({
+ *   variables: {
+ *      assetId: // value for 'assetId'
+ *   },
+ * });
+ */
+export function useGetAssetInvestmentsQuery(baseOptions: Apollo.QueryHookOptions<GetAssetInvestmentsQuery, GetAssetInvestmentsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetAssetInvestmentsQuery, GetAssetInvestmentsQueryVariables>(GetAssetInvestmentsDocument, options);
+      }
+export function useGetAssetInvestmentsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetAssetInvestmentsQuery, GetAssetInvestmentsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetAssetInvestmentsQuery, GetAssetInvestmentsQueryVariables>(GetAssetInvestmentsDocument, options);
+        }
+export type GetAssetInvestmentsQueryHookResult = ReturnType<typeof useGetAssetInvestmentsQuery>;
+export type GetAssetInvestmentsLazyQueryHookResult = ReturnType<typeof useGetAssetInvestmentsLazyQuery>;
+export type GetAssetInvestmentsQueryResult = Apollo.QueryResult<GetAssetInvestmentsQuery, GetAssetInvestmentsQueryVariables>;
 export const GetAssetsDocument = gql`
     query GetAssets {
   assets {
