@@ -37,6 +37,10 @@ export class InvestmentService {
     investmentId: string,
     input: InvestmentInput
   ): Promise<InvestmentDTO> {
+    const asset = await this.assetService.getAsset(userId, assetId);
+    if (!asset) {
+      throw new Error('Asset not found');
+    }
     const investment = await this.investmentModel.findOneAndUpdate(
       { _id: investmentId, assetId },
       input,
@@ -49,6 +53,10 @@ export class InvestmentService {
   }
 
   async deleteInvestment(userId: string, assetId: string, investmentId: string): Promise<boolean> {
+    const asset = await this.assetService.getAsset(userId, assetId);
+    if (!asset) {
+      throw new Error('Asset not found');
+    }
     const result = await this.investmentModel.deleteOne({ _id: investmentId, assetId });
     return result.deletedCount > 0;
   }

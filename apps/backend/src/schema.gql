@@ -72,6 +72,28 @@ type UserDTO {
   email: String!
 }
 
+type SIPDTO {
+  id: String!
+  assetId: String!
+  name: String!
+  amount: Float!
+  frequency: FrequencyType!
+  startDate: DateTime!
+  endDate: DateTime
+  lastExecutedDate: DateTime
+  description: String
+  asset: AssetDTO!
+}
+
+"""The frequency of SIP investment"""
+enum FrequencyType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 type Query {
   user: UserDTO!
   assets: [AssetDTO!]!
@@ -91,6 +113,10 @@ type Mutation {
   createExpense(input: ExpenseInput!): Boolean!
   createGoal(input: GoalInput!): GoalDTO!
   updateGoal(goalId: Float!, input: GoalInput!): GoalDTO!
+  createSIP(assetId: String!, input: SIPInput!): SIPDTO!
+  updateSIP(sipId: String!, input: SIPInput!): SIPDTO!
+  deleteSIP(sipId: String!): Boolean!
+  executeSIP(sipId: String!): Boolean!
 }
 
 input UserRegisterInput {
@@ -152,4 +178,13 @@ input GoalInput {
   targetAmount: Float!
   inflationRate: Float!
   targetDate: DateTime!
+}
+
+input SIPInput {
+  name: String!
+  amount: Float!
+  frequency: FrequencyType!
+  startDate: DateTime!
+  endDate: DateTime
+  description: String
 }

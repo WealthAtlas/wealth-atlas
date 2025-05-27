@@ -12,6 +12,8 @@ import { AssetModule } from './modules/asset/asset.module';
 import { ExpenseModule } from './modules/expense/expense.module';
 import { GoalModule } from './modules/goal/goal.module';
 import { UserModule } from './modules/user/user.module';
+import { SIPModule } from './modules/sip/sip.module';
+import { InvestmentModule } from './modules/investment/investment.module';
 
 @Module({
   imports: [
@@ -38,7 +40,9 @@ import { UserModule } from './modules/user/user.module';
     UserModule,
     AssetModule,
     ExpenseModule,
-    GoalModule
+    GoalModule,
+    InvestmentModule,
+    SIPModule
   ],
   providers: [{
     provide: APP_GUARD,
