@@ -5,7 +5,6 @@ import { InvestmentModule } from '../investment/investment.module';
 import { SIPEntity, SIPSchema } from './sip.entity';
 import { SIPResolver } from './sip.resolver';
 import { SIPService } from './sip.service';
-import { SIPTaskService } from './sip.task.service';
 
 @Module({
   imports: [
@@ -15,7 +14,7 @@ import { SIPTaskService } from './sip.task.service';
     AssetModule,
     InvestmentModule,
   ],
-  providers: [SIPResolver, SIPService, SIPTaskService],
+  providers: [SIPResolver, SIPService],
   exports: [SIPService],
 })
 export class SIPModule {}

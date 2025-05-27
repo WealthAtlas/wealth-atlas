@@ -6,6 +6,7 @@ import { SIPEntity } from './sip.entity';
 import { SIPDTO, SIPInput } from './sip.graphql';
 import { InvestmentInput } from '../investment/investment.graphql';
 import { InvestmentService } from '../investment/investment.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class SIPService {
@@ -77,6 +78,7 @@ export class SIPService {
     return sips.map(sip => SIPDTO.fromData(sip.toObject()));
   }
 
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async executePendingSIPs(): Promise<void> {
     const now = new Date();
     const sips = await this.sipModel.find({
