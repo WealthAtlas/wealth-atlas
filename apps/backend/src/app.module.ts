@@ -6,6 +6,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AssetModule } from './modules/asset/asset.module';
@@ -18,6 +19,7 @@ import { InvestmentModule } from './modules/investment/investment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => ({

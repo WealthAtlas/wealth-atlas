@@ -116,7 +116,6 @@ type Mutation {
   createSIP(assetId: String!, input: SIPInput!): SIPDTO!
   updateSIP(sipId: String!, input: SIPInput!): SIPDTO!
   deleteSIP(sipId: String!): Boolean!
-  executeSIP(sipId: String!): Boolean!
 }
 
 input UserRegisterInput {

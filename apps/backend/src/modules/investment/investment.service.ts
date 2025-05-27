@@ -31,6 +31,16 @@ export class InvestmentService {
     });
   }
 
+   async addInvestmentBySystem(assetId: string, input: InvestmentInput): Promise<InvestmentDTO> {
+    const investment = new this.investmentModel({
+        assetId,
+        ...input
+      });
+      return investment.save().then((savedInvestment) => {
+        return InvestmentDTO.fromData(savedInvestment.toObject());
+      });
+  }
+
   async updateInvestment(
     userId: string,
     assetId: string,

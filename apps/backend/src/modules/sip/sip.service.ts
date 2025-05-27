@@ -23,7 +23,6 @@ export class SIPService {
     }
 
     const sip = new this.sipModel({
-      userId,
       assetId,
       ...input,
     });
@@ -33,7 +32,7 @@ export class SIPService {
   }
 
   async updateSIP(userId: string, sipId: string, input: SIPInput): Promise<SIPDTO> {
-    const sip = await this.sipModel.findOne({ _id: sipId, userId }).exec();
+    const sip = await this.sipModel.findOne({ _id: sipId }).exec();
     if (!sip) {
       throw new Error('SIP not found');
     }
@@ -58,8 +57,8 @@ export class SIPService {
   }
 
   async deleteSIP(userId: string, sipId: string): Promise<boolean> {
-    // Find SIP and verify ownership
-    const sip = await this.sipModel.findOne({ _id: sipId, userId }).exec();
+    // Find SIP
+    const sip = await this.sipModel.findOne({ _id: sipId }).exec();
     if (!sip) {
       throw new Error('SIP not found');
     }
@@ -77,16 +76,67 @@ export class SIPService {
     const sips = await this.sipModel.find({ assetId }).exec();
     return sips.map(sip => SIPDTO.fromData(sip.toObject()));
   }
+
+  async executePendingSIPs(): Promise<void> {
+    const now = new Date();
+    const sips = await this.sipModel.find({
+      active: true,
+      startDate: { $lte: now },
+      $or: [
+        { endDate: { $exists: false } },
+        { endDate: { $gte: now } }
+      ]
+    }).exec();
+
+    for (const sip of sips) {
+      try {
+        const lastExecutedDate = sip.lastExecutedDate || sip.startDate;
+        const shouldExecute = this.shouldExecuteSIP(sip.frequency, lastExecutedDate, now);
+        
+        if (shouldExecute) {
+          await this.executeSIP(sip._id);
+        }
+      } catch (error) {
+        console.error(`Failed to execute SIP ${sip._id}:`, error);
+      }
+    }
+  }
   
-  async executeSIP(userId: string, sipId: string): Promise<boolean> {
+  private shouldExecuteSIP(frequency: string, lastExecutedDate: Date, currentDate: Date): boolean {
+    if (!lastExecutedDate) return true;
+    
+    const daysSinceLastExecution = Math.floor(
+      (currentDate.getTime() - lastExecutedDate.getTime()) / (24 * 60 * 60 * 1000)
+    );
+    
+    switch (frequency) {
+      case 'daily':
+        return daysSinceLastExecution >= 1;
+      case 'weekly':
+        return daysSinceLastExecution >= 7;
+      case 'monthly':
+        // Check if we're in a new month compared to last execution
+        return (
+          currentDate.getMonth() !== lastExecutedDate.getMonth() ||
+          currentDate.getFullYear() !== lastExecutedDate.getFullYear()
+        );
+      case 'quarterly':
+        // Check if at least 3 months have passed
+        const monthsDiff = 
+          (currentDate.getFullYear() - lastExecutedDate.getFullYear()) * 12 + 
+          (currentDate.getMonth() - lastExecutedDate.getMonth());
+        return monthsDiff >= 3;
+      case 'yearly':
+        return currentDate.getFullYear() > lastExecutedDate.getFullYear();
+      default:
+        return false;
+    }
+  }
+  
+  async executeSIP(sipId: string): Promise<boolean> {
     const sip = await this.sipModel.findOne({ _id: sipId }).exec();
     if (!sip) {
       throw new Error('SIP not found');
-    }
-
-    const asset = await this.assetService.getAsset(userId, sip.assetId);
-    if (!asset) {
-      throw new Error('User does not own the asset for this SIP');
     }
     
     // Create a new investment for this SIP execution
@@ -96,7 +146,7 @@ export class SIPService {
       date: new Date()
     };
     
-    await this.investmentService.addInvestment(userId, sip.assetId, investmentInput);
+    await this.investmentService.addInvestmentBySystem(sip.assetId, investmentInput);
     
     // Update the lastExecutedDate of the SIP
     sip.lastExecutedDate = new Date();

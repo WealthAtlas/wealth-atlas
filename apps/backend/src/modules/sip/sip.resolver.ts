@@ -40,15 +40,6 @@ export class SIPResolver {
     const userId = context.req.user?.userId || '';
     return this.sipService.deleteSIP(userId, sipId);
   }
-  
-  @Mutation(() => Boolean)
-  async executeSIP(
-    @Context() context: CustomContext,
-    @Args('sipId') sipId: string,
-  ): Promise<boolean> {
-    const userId = context.req.user?.userId || '';
-    return this.sipService.executeSIP(userId, sipId);
-  }
 
   @ResolveField(() => AssetDTO)
   async asset(
