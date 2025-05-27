@@ -97,6 +97,6 @@ If you want to create shared libraries/packages between apps, you can add them t
 
 ### Common Issues
 
-1. **Missing dependencies**: Make sure you've run `pnpm install` after pulling new changes
-2. **Build errors**: Clear the build cache with `pnpm --filter <app-name> exec -- rm -rf .next` or `pnpm --filter backend exec -- rm -rf dist`
+1. **Missing dependencies**: Make sure you've run `npm install` after pulling new changes
+2. **Build errors**: Clear the build cache with `npm run -w apps/frontend -- rm -rf .next` or `npm run -w apps/backend -- rm -rf dist`
 3. **Node version**: Ensure your Node.js version matches the one specified in the engines field of package.json

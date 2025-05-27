@@ -19,7 +19,6 @@ We have several documents to help you deploy this application in a cost-effectiv
 4. [CI/CD Setup Guide](./docs/CICD_SETUP.md) - Setting up GitHub Actions for automated deployment
 5. [AWS Cost Estimation](./docs/COST_ESTIMATION.md) - Breakdown of expected AWS costs
 6. [Monorepo Guide](./docs/MONOREPO.md) - Working with the npm workspace monorepo structure
-7. [npm Migration](./docs/NPM_MIGRATION.md) - Details about migration from pnpm to npm
 
 ## Quick Start
 
