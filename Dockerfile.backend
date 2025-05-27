@@ -1,0 +1,58 @@
+FROM node:18-alpine AS build
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
+
+# Copy app source
+COPY apps/backend ./apps/backend
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Build backend
+WORKDIR /app/apps/backend
+RUN pnpm build
+
+# Production image
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files and build
+COPY --from=build /app/package.json ./
+COPY --from=build /app/pnpm-lock.yaml ./
+COPY --from=build /app/pnpm-workspace.yaml ./
+COPY --from=build /app/apps/backend ./apps/backend
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Install production dependencies only
+WORKDIR /app
+RUN pnpm install --prod --frozen-lockfile
+
+# Set working directory to backend
+WORKDIR /app/apps/backend
+
+# Expose port
+EXPOSE 3000
+
+# Create healthcheck script for MongoDB connection
+RUN echo '#!/bin/sh\n\
+if [ -z "$MONGODB_URI" ]; then\n\
+  echo "MONGODB_URI is not set"\n\
+  exit 1\n\
+fi\n\
+node -e "const mongoose = require(\"mongoose\"); mongoose.connect(process.env.MONGODB_URI).then(() => { console.log(\"MongoDB connected\"); process.exit(0); }).catch(err => { console.error(\"MongoDB connection error:\", err); process.exit(1); })"\n\
+' > /app/healthcheck.sh && chmod +x /app/healthcheck.sh
+
+# Start app
+CMD ["node", "dist/main"]
