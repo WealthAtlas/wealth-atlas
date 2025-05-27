@@ -1,5 +1,8 @@
 import { AssetDTO } from '@/graphql/models/generated';
-import { Card, Box, Typography, Stack, Divider, Button } from '@mui/material';
+import { Card, Box, Typography, Stack, Divider, Button, Tooltip, Chip } from '@mui/material';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import React from 'react';
 
 interface AssetRowProps {
@@ -29,9 +32,34 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInves
             {/* Left: Asset Info */}
             <Box sx={{ flex: 2, minWidth: 200 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                        {asset.name}
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                            {asset.name}
+                        </Typography>
+                        
+                        {/* Growth indicator */}
+                        {asset.currentValue && (
+                            <Tooltip title={
+                                asset.currentValue > asset.investedAmount 
+                                    ? "Asset is growing" 
+                                    : asset.currentValue < asset.investedAmount 
+                                        ? "Asset is decreasing" 
+                                        : "No change"
+                            }>
+                                <Box component="span">
+                                    {asset.currentValue > asset.investedAmount && (
+                                        <TrendingUpIcon color="success" fontSize="small" />
+                                    )}
+                                    {asset.currentValue < asset.investedAmount && (
+                                        <TrendingDownIcon color="error" fontSize="small" />
+                                    )}
+                                    {asset.currentValue === asset.investedAmount && (
+                                        <TrendingFlatIcon color="info" fontSize="small" />
+                                    )}
+                                </Box>
+                            </Tooltip>
+                        )}
+                    </Box>
                     <Button 
                         size="small" 
                         color="primary"
@@ -41,13 +69,22 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInves
                         Edit
                     </Button>
                 </Box>
-                <Stack direction="row" spacing={2}>
-                    <Typography variant="body2" color="text.secondary">
-                        {asset.category}
-                    </Typography>
-                    <Typography variant="body2" color="warning.main" fontWeight={500}>
-                        {asset.riskLevel}
-                    </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Chip 
+                        label={asset.category} 
+                        size="small" 
+                        variant="outlined" 
+                        sx={{ fontSize: '0.75rem' }} 
+                    />
+                    <Chip 
+                        label={asset.riskLevel} 
+                        size="small" 
+                        color={
+                            asset.riskLevel?.toLowerCase().includes('high') ? 'error' :
+                            asset.riskLevel?.toLowerCase().includes('medium') ? 'warning' : 'success'
+                        }
+                        sx={{ fontSize: '0.75rem' }} 
+                    />
                 </Stack>
             </Box>
             {/* Center: Value Strategy & Maturity */}
@@ -86,22 +123,62 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInves
             <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
             <Box sx={{ flex: 2, textAlign: 'right', minWidth: 200 }}>
                 <Stack direction="row" spacing={2} justifyContent="flex-end" alignItems="center">
+                    {/* Financial metrics */}
                     <Box>
-                        <Typography variant="caption" color="text.secondary">
-                            Invested
-                        </Typography>
-                        <Typography variant="subtitle1" fontWeight={600}>
-                            {asset.currency} {asset.investedAmount.toLocaleString()}
-                        </Typography>
+                        <Stack spacing={1}>
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                    Invested
+                                </Typography>
+                                <Typography variant="subtitle1" fontWeight={600}>
+                                    {asset.currency} {asset.investedAmount.toLocaleString()}
+                                </Typography>
+                            </Box>
+                            
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                    Current
+                                </Typography>
+                                <Typography variant="subtitle1" fontWeight={600} color={
+                                    !asset.currentValue ? 'text.secondary' :
+                                    asset.currentValue > asset.investedAmount ? 'success.main' : 
+                                    asset.currentValue < asset.investedAmount ? 'error.main' : 'info.main'
+                                }>
+                                    {asset.currency} {asset.currentValue ? asset.currentValue.toLocaleString() : '-'}
+                                </Typography>
+                            </Box>
+                            
+                            {/* Growth amount and percentage */}
+                            {asset.currentValue && (
+                                <Box sx={{ mt: 0.5 }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Growth
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                                        <Typography variant="subtitle2" fontWeight={600} color={
+                                            asset.currentValue > asset.investedAmount ? 'success.main' : 
+                                            asset.currentValue < asset.investedAmount ? 'error.main' : 'info.main'
+                                        }>
+                                            {asset.currentValue > asset.investedAmount ? '+' : ''}
+                                            {asset.currency} {(asset.currentValue - asset.investedAmount).toLocaleString()}
+                                        </Typography>
+                                        
+                                        <Chip
+                                            label={`${((asset.currentValue - asset.investedAmount) / asset.investedAmount * 100).toFixed(2)}%`}
+                                            size="small"
+                                            color={
+                                                asset.currentValue > asset.investedAmount ? 'success' : 
+                                                asset.currentValue < asset.investedAmount ? 'error' : 'default'
+                                            }
+                                            sx={{ height: '20px', fontSize: '0.7rem' }}
+                                        />
+                                    </Stack>
+                                </Box>
+                            )}
+                        </Stack>
                     </Box>
-                    <Box>
-                        <Typography variant="caption" color="text.secondary">
-                            Current
-                        </Typography>
-                        <Typography variant="subtitle1" fontWeight={600} color="success.main">
-                            {asset.currency} {asset.currentValue ? asset.currentValue.toLocaleString() : '-'}
-                        </Typography>
-                    </Box>
+                    
+                    {/* Action buttons */}
                     <Stack direction="column" spacing={1}>
                         <Button
                             variant="contained"

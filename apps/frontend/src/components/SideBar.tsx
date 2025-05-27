@@ -1,10 +1,28 @@
 'use client';
 
 import { useLogoutUserMutation } from '@/graphql/models/generated';
-import { ChevronLeft, Dashboard, Money, Settings } from '@mui/icons-material';
-import { Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Dashboard, 
+  Money, 
+  LogoutRounded,
+  AccountBalanceWalletRounded
+} from '@mui/icons-material';
+import { 
+  Box, 
+  Drawer, 
+  List, 
+  ListItemButton, 
+  ListItemIcon, 
+  ListItemText, 
+  Tooltip, 
+  Divider,
+  Typography,
+  useTheme
+} from '@mui/material';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { FC, JSX, useState } from 'react';
 
 
@@ -22,8 +40,8 @@ const navItems: NavItem[] = [
 ];
 
 const NavItem: FC<{ item: NavItem; isCollapsed: boolean }> = ({ item, isCollapsed }) => (
-    <Link href={item.href} passHref legacyBehavior>
-        <ListItemButton component="a">
+    <Link href={item.href} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <ListItemButton>
             <ListItemIcon>{item.icon}</ListItemIcon>
             {!isCollapsed && <ListItemText primary={item.label} />}
         </ListItemButton>
