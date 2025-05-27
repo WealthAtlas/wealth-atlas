@@ -28,9 +28,6 @@ export class SIPEntity extends Document {
 
   @Prop({ required: false })
   description?: string;
-  
-  @Prop({ required: true, default: true })
-  active!: boolean;
 }
 
 export const SIPSchema = SchemaFactory.createForClass(SIPEntity);

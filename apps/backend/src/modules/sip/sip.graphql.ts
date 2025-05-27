@@ -41,9 +41,6 @@ export class SIPDTO {
 
   @Field({ nullable: true })
   description?: string;
-  
-  @Field()
-  active!: boolean;
 
   static fromData(document: any): SIPDTO {
     if (!document) {
@@ -78,7 +75,6 @@ export class SIPDTO {
     dto.endDate = document.endDate;
     dto.lastExecutedDate = document.lastExecutedDate;
     dto.description = document.description;
-    dto.active = document.active || true; // Default to true if not specified
     return dto;
   }
 }
