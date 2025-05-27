@@ -7,12 +7,15 @@ import { AssetDTO, useGetAssetsQuery } from '@/graphql/models/generated';
 import CreateAssetDialog from './CreateAssetDialog';
 import AssetRow from './AssetRow';
 import AddInvestmentDialog from './AddInvestmentDialog';
+import EditAssetDialog from './EditAssetDialog';
 
 const AssetsPage = () => {
     const { data, loading, error, refetch } = useGetAssetsQuery();
     const [dialogOpen, setDialogOpen] = useState(false);
-    // For add investment dialog per asset (future extension)
+    // For add investment dialog per asset
     const [addInvestmentAssetId, setAddInvestmentAssetId] = useState<string | null>(null);
+    // For edit asset dialog
+    const [editAssetId, setEditAssetId] = useState<string | null>(null);
 
     if (loading) return <p>Loading...</p>;
     if (error) return <p>Error: {error.message}</p>;
@@ -66,6 +69,7 @@ const AssetsPage = () => {
                         onViewInvestments={() => {/* TODO: implement view investments */}}
                         onCreateSIP={() => {/* TODO: implement create SIP */}}
                         onViewSIPs={() => {/* TODO: implement view SIPs */}}
+                        onEdit={() => setEditAssetId(asset.id)}
                     />
                 ))}
             </Stack>
@@ -94,6 +98,15 @@ const AssetsPage = () => {
                 onSuccess={async () => {
                     await refetch();
                     setAddInvestmentAssetId(null);
+                }}
+            />
+            <EditAssetDialog
+                open={!!editAssetId}
+                assetId={editAssetId}
+                onClose={() => setEditAssetId(null)}
+                onSuccess={async () => {
+                    await refetch();
+                    setEditAssetId(null);
                 }}
             />
         </Box>

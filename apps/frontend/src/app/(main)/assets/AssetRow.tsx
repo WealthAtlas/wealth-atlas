@@ -8,9 +8,10 @@ interface AssetRowProps {
     onViewInvestments: () => void;
     onCreateSIP: () => void;
     onViewSIPs: () => void;
+    onEdit: () => void;
 }
 
-const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInvestments, onCreateSIP, onViewSIPs }) => {
+const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInvestments, onCreateSIP, onViewSIPs, onEdit }) => {
     return (
         <Card
             sx={{
@@ -27,9 +28,19 @@ const AssetRow: React.FC<AssetRowProps> = ({ asset, onAddInvestment, onViewInves
         >
             {/* Left: Asset Info */}
             <Box sx={{ flex: 2, minWidth: 200 }}>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                    {asset.name}
-                </Typography>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                        {asset.name}
+                    </Typography>
+                    <Button 
+                        size="small" 
+                        color="primary"
+                        onClick={onEdit}
+                        sx={{ minWidth: 32, height: 32, padding: '4px 8px' }}
+                    >
+                        Edit
+                    </Button>
+                </Box>
                 <Stack direction="row" spacing={2}>
                     <Typography variant="body2" color="text.secondary">
                         {asset.category}

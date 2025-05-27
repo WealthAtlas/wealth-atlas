@@ -151,6 +151,7 @@ export type Mutation = {
   readonly loginUser: Scalars['Boolean'];
   readonly logoutUser: Scalars['Boolean'];
   readonly registerUser: Scalars['Boolean'];
+  readonly updateAsset: AssetDTO;
   readonly updateGoal: GoalDTO;
   readonly updateInvestment: ReadonlyArray<InvestmentDTO>;
 };
@@ -193,6 +194,12 @@ export type MutationregisterUserArgs = {
 };
 
 
+export type MutationupdateAssetArgs = {
+  id: Scalars['String'];
+  input: AssetInput;
+};
+
+
 export type MutationupdateGoalArgs = {
   goalId: Scalars['Float'];
   input: GoalInput;
@@ -207,9 +214,15 @@ export type MutationupdateInvestmentArgs = {
 
 export type Query = {
   readonly __typename: 'Query';
+  readonly asset: AssetDTO;
   readonly assets: ReadonlyArray<AssetDTO>;
   readonly goals: ReadonlyArray<GoalDTO>;
   readonly user: UserDTO;
+};
+
+
+export type QueryassetArgs = {
+  id: Scalars['String'];
 };
 
 export type UserDTO = {
@@ -246,6 +259,13 @@ export type CreateAssetMutationVariables = Exact<{
 
 export type CreateAssetMutation = { readonly __typename: 'Mutation', readonly createAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly growthRate: number, readonly currentValue: number } };
 
+export type GetAssetByIdQueryVariables = Exact<{
+  id: Scalars['String'];
+}>;
+
+
+export type GetAssetByIdQuery = { readonly __typename: 'Query', readonly asset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly apiSource: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
+
 export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -269,6 +289,14 @@ export type RegisterUserMutationVariables = Exact<{
 
 
 export type RegisterUserMutation = { readonly __typename: 'Mutation', readonly registerUser: boolean };
+
+export type UpdateAssetMutationVariables = Exact<{
+  id: Scalars['String'];
+  input: AssetInput;
+}>;
+
+
+export type UpdateAssetMutation = { readonly __typename: 'Mutation', readonly updateAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly apiSource: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
 
 
 export const AddInvestmentDocument = gql`
@@ -348,6 +376,65 @@ export function useCreateAssetMutation(baseOptions?: Apollo.MutationHookOptions<
 export type CreateAssetMutationHookResult = ReturnType<typeof useCreateAssetMutation>;
 export type CreateAssetMutationResult = Apollo.MutationResult<CreateAssetMutation>;
 export type CreateAssetMutationOptions = Apollo.BaseMutationOptions<CreateAssetMutation, CreateAssetMutationVariables>;
+export const GetAssetByIdDocument = gql`
+    query GetAssetById($id: String!) {
+  asset(id: $id) {
+    id
+    name
+    description
+    category
+    maturityDate
+    currency
+    riskLevel
+    valueStrategy {
+      __typename
+      ... on FixedValueStrategy {
+        type
+        growthRate
+      }
+      ... on DynamicValueStrategy {
+        type
+        apiSource
+        dynamicUpdatedAt: updatedAt
+      }
+      ... on ManualValueStrategy {
+        type
+        value
+        manualUpdatedAt: updatedAt
+      }
+    }
+    currentValue
+  }
+}
+    `;
+
+/**
+ * __useGetAssetByIdQuery__
+ *
+ * To run a query within a React component, call `useGetAssetByIdQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetAssetByIdQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetAssetByIdQuery({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useGetAssetByIdQuery(baseOptions: Apollo.QueryHookOptions<GetAssetByIdQuery, GetAssetByIdQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetAssetByIdQuery, GetAssetByIdQueryVariables>(GetAssetByIdDocument, options);
+      }
+export function useGetAssetByIdLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetAssetByIdQuery, GetAssetByIdQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetAssetByIdQuery, GetAssetByIdQueryVariables>(GetAssetByIdDocument, options);
+        }
+export type GetAssetByIdQueryHookResult = ReturnType<typeof useGetAssetByIdQuery>;
+export type GetAssetByIdLazyQueryHookResult = ReturnType<typeof useGetAssetByIdLazyQuery>;
+export type GetAssetByIdQueryResult = Apollo.QueryResult<GetAssetByIdQuery, GetAssetByIdQueryVariables>;
 export const GetAssetsDocument = gql`
     query GetAssets {
   assets {
@@ -497,3 +584,60 @@ export function useRegisterUserMutation(baseOptions?: Apollo.MutationHookOptions
 export type RegisterUserMutationHookResult = ReturnType<typeof useRegisterUserMutation>;
 export type RegisterUserMutationResult = Apollo.MutationResult<RegisterUserMutation>;
 export type RegisterUserMutationOptions = Apollo.BaseMutationOptions<RegisterUserMutation, RegisterUserMutationVariables>;
+export const UpdateAssetDocument = gql`
+    mutation UpdateAsset($id: String!, $input: AssetInput!) {
+  updateAsset(id: $id, input: $input) {
+    id
+    name
+    description
+    category
+    maturityDate
+    currency
+    riskLevel
+    valueStrategy {
+      ... on FixedValueStrategy {
+        type
+        growthRate
+      }
+      ... on DynamicValueStrategy {
+        type
+        apiSource
+        dynamicUpdatedAt: updatedAt
+      }
+      ... on ManualValueStrategy {
+        type
+        value
+        manualUpdatedAt: updatedAt
+      }
+    }
+    currentValue
+  }
+}
+    `;
+export type UpdateAssetMutationFn = Apollo.MutationFunction<UpdateAssetMutation, UpdateAssetMutationVariables>;
+
+/**
+ * __useUpdateAssetMutation__
+ *
+ * To run a mutation, you first call `useUpdateAssetMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateAssetMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateAssetMutation, { data, loading, error }] = useUpdateAssetMutation({
+ *   variables: {
+ *      id: // value for 'id'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdateAssetMutation(baseOptions?: Apollo.MutationHookOptions<UpdateAssetMutation, UpdateAssetMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdateAssetMutation, UpdateAssetMutationVariables>(UpdateAssetDocument, options);
+      }
+export type UpdateAssetMutationHookResult = ReturnType<typeof useUpdateAssetMutation>;
+export type UpdateAssetMutationResult = Apollo.MutationResult<UpdateAssetMutation>;
+export type UpdateAssetMutationOptions = Apollo.BaseMutationOptions<UpdateAssetMutation, UpdateAssetMutationVariables>;
