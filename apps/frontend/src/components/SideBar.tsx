@@ -5,7 +5,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Dashboard, 
-  Money, 
   LogoutRounded,
   AccountBalanceWalletRounded
 } from '@mui/icons-material';
@@ -19,15 +18,55 @@ import {
   Tooltip, 
   Divider,
   Typography,
-  useTheme
+  useTheme,
+  styled,
+  Theme,
+  CSSObject
 } from '@mui/material';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { FC, JSX, useState } from 'react';
 
-
 const drawerWidth = 240;
 const collapsedWidth = 68;
+
+// Styled components and helpers for cleaner code
+const openedMixin = (theme: Theme): CSSObject => ({
+  width: drawerWidth,
+  transition: theme.transitions.create('width', {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.enteringScreen,
+  }),
+  overflowX: 'hidden',
+  borderRight: `1px solid ${theme.palette.divider}`,
+});
+
+const closedMixin = (theme: Theme): CSSObject => ({
+  transition: theme.transitions.create('width', {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  overflowX: 'hidden',
+  width: collapsedWidth,
+  borderRight: `1px solid ${theme.palette.divider}`,
+});
+
+const StyledDrawer = styled(Drawer, {
+  shouldForwardProp: (prop) => prop !== 'open',
+})(({ theme, open }) => ({
+  width: open ? drawerWidth : collapsedWidth,
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
+  boxSizing: 'border-box',
+  ...(open && {
+    ...openedMixin(theme),
+    '& .MuiDrawer-paper': openedMixin(theme),
+  }),
+  ...(!open && {
+    ...closedMixin(theme),
+    '& .MuiDrawer-paper': closedMixin(theme),
+  }),
+}));
 
 interface NavItem {
     label: string;
@@ -40,6 +79,30 @@ const navItems: NavItem[] = [
     { label: 'Assets', href: '/assets', icon: <AccountBalanceWalletRounded /> },
 ];
 
+// Define prop types for custom components
+interface NavItemProps {
+    active?: boolean;
+}
+
+// Styled list item for nav items with consistent styling
+const StyledNavItem = styled(ListItemButton, {
+    shouldForwardProp: (prop) => prop !== 'active',
+})<NavItemProps>(({ theme, active }) => ({
+    minHeight: 48,
+    borderRadius: 8,
+    margin: theme.spacing(0.5, 1),
+    padding: theme.spacing(0, 2.5),
+    backgroundColor: active ? 
+        theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' : 
+        'transparent',
+    '&:hover': {
+        backgroundColor: active ? 
+            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)' : 
+            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+    },
+    position: 'relative',
+}));
+
 const NavItem: FC<{ item: NavItem; isCollapsed: boolean }> = ({ item, isCollapsed }) => {
     const pathname = usePathname();
     const theme = useTheme();
@@ -48,22 +111,10 @@ const NavItem: FC<{ item: NavItem; isCollapsed: boolean }> = ({ item, isCollapse
     return (
         <Tooltip title={isCollapsed ? item.label : ""} placement="right" arrow>
             <Link href={item.href} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <ListItemButton 
+                <StyledNavItem
+                    active={isActive}
                     sx={{
-                        minHeight: 48,
                         justifyContent: isCollapsed ? 'center' : 'initial',
-                        px: 2.5,
-                        borderRadius: '8px',
-                        mx: 1,
-                        my: 0.5,
-                        backgroundColor: isActive ? 
-                            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' : 
-                            'transparent',
-                        '&:hover': {
-                            backgroundColor: isActive ? 
-                                theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)' : 
-                                theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                        }
                     }}
                 >
                     <ListItemIcon 
@@ -80,7 +131,6 @@ const NavItem: FC<{ item: NavItem; isCollapsed: boolean }> = ({ item, isCollapse
                         <ListItemText 
                             primary={item.label} 
                             sx={{ 
-                                opacity: 1,
                                 color: isActive ? theme.palette.primary.main : 'inherit',
                                 fontWeight: isActive ? 500 : 400
                             }} 
@@ -98,7 +148,7 @@ const NavItem: FC<{ item: NavItem; isCollapsed: boolean }> = ({ item, isCollapse
                             }} 
                         />
                     )}
-                </ListItemButton>
+                </StyledNavItem>
             </Link>
         </Tooltip>
     );
@@ -117,25 +167,22 @@ const Sidebar: FC = () => {
             });
     };
 
+    // Action buttons for the bottom section
+    const actionItems = [
+        {
+            label: isCollapsed ? "Expand" : "Collapse",
+            icon: isCollapsed ? <ChevronRight /> : <ChevronLeft />,
+            onClick: () => setIsCollapsed(!isCollapsed),
+        },
+        {
+            label: "Logout",
+            icon: <LogoutRounded />,
+            onClick: handleLogout,
+        }
+    ];
+
     return (
-        <Drawer
-            variant="permanent"
-            sx={{
-                width: isCollapsed ? collapsedWidth : drawerWidth,
-                flexShrink: 0,
-                [`& .MuiDrawer-paper`]: {
-                    width: isCollapsed ? collapsedWidth : drawerWidth,
-                    boxSizing: 'border-box',
-                    borderRight: `1px solid ${theme.palette.divider}`,
-                    backgroundColor: theme.palette.background.paper,
-                    overflowX: 'hidden',
-                    transition: theme.transitions.create('width', {
-                        easing: theme.transitions.easing.sharp,
-                        duration: theme.transitions.duration.enteringScreen,
-                    }),
-                },
-            }}
-        >
+        <StyledDrawer variant="permanent" open={!isCollapsed}>
             {/* Logo Section */}
             <Box
                 sx={{
@@ -147,21 +194,20 @@ const Sidebar: FC = () => {
                     minHeight: 64,
                 }}
             >
-                {!isCollapsed ? (
-                    <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
-                        WealthAtlas
-                    </Typography>
-                ) : (
-                    <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 700 }}>
-                        WA
-                    </Typography>
-                )}
+                <Typography 
+                    variant="h6" 
+                    noWrap 
+                    component="div" 
+                    sx={{ fontWeight: isCollapsed ? 700 : 600 }}
+                >
+                    {!isCollapsed ? 'WealthAtlas' : 'WA'}
+                </Typography>
             </Box>
 
             <Divider />
 
             {/* Nav Items */}
-            <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', my: 1 }}>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto', my: 1 }}>
                 <List component="nav" disablePadding>
                     {navItems.map((item) => (
                         <NavItem key={item.href} item={item} isCollapsed={isCollapsed} />
@@ -173,59 +219,29 @@ const Sidebar: FC = () => {
 
             {/* Bottom Actions */}
             <Box sx={{ p: 1 }}>
-                {/* Collapse/Expand Button */}
-                <Tooltip title={isCollapsed ? "Expand" : "Collapse"} placement="right" arrow>
-                    <ListItemButton
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: isCollapsed ? 'center' : 'initial',
-                            px: 2.5,
-                            borderRadius: '8px',
-                            mx: 1,
-                            my: 0.5,
-                        }}
-                    >
-                        <ListItemIcon
+                {actionItems.map((item) => (
+                    <Tooltip key={item.label} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                        <StyledNavItem
+                            onClick={item.onClick}
                             sx={{
-                                minWidth: 0,
-                                mr: isCollapsed ? 'auto' : 3,
-                                justifyContent: 'center',
+                                justifyContent: isCollapsed ? 'center' : 'initial',
                             }}
                         >
-                            {isCollapsed ? <ChevronRight /> : <ChevronLeft />}
-                        </ListItemIcon>
-                        {!isCollapsed && <ListItemText primary="Collapse" />}
-                    </ListItemButton>
-                </Tooltip>
-
-                {/* Logout Button */}
-                <Tooltip title={isCollapsed ? "Logout" : ""} placement="right" arrow>
-                    <ListItemButton
-                        onClick={handleLogout}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: isCollapsed ? 'center' : 'initial',
-                            px: 2.5,
-                            borderRadius: '8px',
-                            mx: 1,
-                            my: 0.5,
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: isCollapsed ? 'auto' : 3,
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <LogoutRounded />
-                        </ListItemIcon>
-                        {!isCollapsed && <ListItemText primary="Logout" />}
-                    </ListItemButton>
-                </Tooltip>
+                            <ListItemIcon
+                                sx={{
+                                    minWidth: 0,
+                                    mr: isCollapsed ? 'auto' : 3,
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                {item.icon}
+                            </ListItemIcon>
+                            {!isCollapsed && <ListItemText primary={item.label} />}
+                        </StyledNavItem>
+                    </Tooltip>
+                ))}
             </Box>
-        </Drawer>
+        </StyledDrawer>
     );
 };
 
