@@ -15,8 +15,8 @@ env:
   AWS_REGION: ${{ github.event.inputs.region || 'us-east-2' }}
 
 jobs:
-  terraform:
-    name: 'Deploy Infrastructure'
+  deploy:
+    name: 'Deploy Application'
     runs-on: ubuntu-latest
     
     steps:
@@ -37,136 +37,37 @@ jobs:
         cd terraform
         terraform init
       
-    - name: Import Existing ECR Repository
-      run: |
-        cd terraform
-        # Try to import the ECR repository if it exists
-        terraform import module.backend.aws_ecr_repository.backend_repo wealth-atlas-backend || echo "Repository not found or already imported"
-      
     - name: Terraform Plan
       run: |
         cd terraform
-        terraform plan -var="mongodb_uri=${{ secrets.MONGODB_URI }}"
+        terraform plan \
+          -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
+          -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+          -var="github_repo=${{ github.repository }}"
       
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main'
+    - name: Provision Infrastructure (First Run Only)
+      if: github.event_name == 'workflow_dispatch'
       run: |
         cd terraform
-        terraform apply -auto-approve -var="mongodb_uri=${{ secrets.MONGODB_URI }}"
-        
-    - name: Export Terraform Outputs
-      if: github.ref == 'refs/heads/main'
+        terraform apply -auto-approve \
+          -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
+          -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+          -var="github_repo=${{ github.repository }}"
+      
+    - name: Get Infrastructure Outputs
       id: terraform-output
       run: |
         cd terraform
-        echo "ECR_REPO=$(terraform output -raw ecr_repository_url)" >> $GITHUB_OUTPUT
-        echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
-        echo "FRONTEND_URL=$(terraform output -raw frontend_url)" >> $GITHUB_OUTPUT
-        echo "BACKEND_URL=$(terraform output -raw backend_url)" >> $GITHUB_OUTPUT
+        echo "APP_URL=$(terraform output -raw app_url)" >> $GITHUB_OUTPUT
+        echo "SERVER_IP=$(terraform output -raw app_url | sed 's#http://##')" >> $GITHUB_OUTPUT
         
-  build_and_deploy_backend:
-    name: 'Build and Deploy Backend'
-    needs: terraform
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-    
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-    
-    - name: Build and push Docker image
-      env:
-        ECR_REPOSITORY: ${{ needs.terraform.outputs.ECR_REPO }}
+    - name: Deploy Code Changes
+      if: github.ref == 'refs/heads/main'
       run: |
-        docker build -t $ECR_REPOSITORY:latest -f Dockerfile.backend .
-        docker push $ECR_REPOSITORY:latest
+        chmod +x ./scripts/deploy.sh
+        ./scripts/deploy.sh "${{ steps.terraform-output.outputs.SERVER_IP }}" "${{ secrets.SSH_PRIVATE_KEY }}"
         
-  build_and_deploy_frontend:
-    name: 'Build and Deploy Frontend'
-    needs: [terraform, build_and_deploy_backend]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        
-    - name: Setup Node.js with cache
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'npm'
-      
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Setup Backend URL
-      env:
-        BACKEND_URL: ${{ needs.terraform.outputs.BACKEND_URL }}
+    - name: Output Application URL
       run: |
-        echo "NEXT_PUBLIC_API_URL=$BACKEND_URL/graphql" > apps/frontend/.env.production
-        cat apps/frontend/.env.production
-    
-    - name: Build frontend
-      run: |
-        npm run build:frontend
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-    
-    - name: Deploy to S3
-      env:
-        S3_BUCKET: ${{ needs.terraform.outputs.S3_BUCKET }}
-      run: |
-        aws s3 sync ./apps/frontend/out/ s3://$S3_BUCKET/ --delete
-    
-    - name: Get CloudFront distribution ID
-      id: cloudfront
-      run: |
-        cd terraform
-        DISTRIBUTION_ID=$(terraform output -raw frontend_distribution_id || echo "")
-        echo "DISTRIBUTION_ID=$DISTRIBUTION_ID" >> $GITHUB_OUTPUT
-    
-    - name: Invalidate CloudFront cache
-      if: steps.cloudfront.outputs.DISTRIBUTION_ID != ''
-      run: |
-        aws cloudfront create-invalidation --distribution-id ${{ steps.cloudfront.outputs.DISTRIBUTION_ID }} --paths "/*"
-
-  setup_mongodb:
-    name: 'Setup MongoDB Collections'
-    needs: [terraform, build_and_deploy_backend]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Install MongoDB Tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y mongodb-database-tools mongodb-mongosh
-        
-    - name: Setup MongoDB Collections
-      env:
-        MONGODB_URI: ${{ secrets.MONGODB_URI }}
-      run: |
-        chmod +x ./scripts/mongodb_setup.sh
-        ./scripts/mongodb_setup.sh
+        echo "🚀 Application deployed successfully!"
+        echo "📱 You can access your application at: ${{ steps.terraform-output.outputs.APP_URL }}"

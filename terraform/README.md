@@ -1,66 +1,73 @@
-# WealthAtlas AWS Terraform Deployment
+# WealthAtlas Minimal Deployment
 
-This directory contains Terraform configurations to deploy the WealthAtlas application on AWS.
+This directory contains a minimal Terraform configuration for deploying WealthAtlas on a single EC2 instance.
 
 ## Architecture
 
-- **Frontend**: AWS S3 + CloudFront static website hosting
-- **Backend**: AWS ECS Fargate for containerized NestJS API
-- **Database**: External MongoDB (MongoDB Atlas recommended)
-- **Networking**: VPC with public and private subnets across multiple AZs
-- **Security**: IAM roles with least privilege, security groups, and secrets management
+- **Single EC2 instance** hosting both frontend and backend
+- **Nginx** serving the frontend static files and proxying API requests
+- **PM2** managing the Node.js backend process
+- **External MongoDB** (e.g., MongoDB Atlas) for the database
 
 ## Prerequisites
 
-- Terraform v1.2.0 or newer
-- AWS CLI configured with appropriate permissions
-- MongoDB instance with connection string
+1. AWS account with permissions to create EC2 instances and security groups
+2. MongoDB instance (e.g., MongoDB Atlas)
+3. SSH key pair created in AWS
+4. GitHub repository with your code
 
-## Usage
+## Setup Instructions
 
-1. Initialize Terraform:
-   ```
-   terraform init
-   ```
+### 1. Update Variables
 
-2. Set your MongoDB URI:
-   ```
-   export TF_VAR_mongodb_uri="your_mongodb_connection_string"
-   ```
+Update the variables in `variables.tf` to match your environment:
 
-3. Plan your deployment:
-   ```
-   terraform plan
-   ```
+- `ec2_ami_id`: Update with the correct Amazon Linux 2 AMI for your region
+- `ssh_key_name`: Set to the name of your SSH key in AWS
+- `github_repo`: Set to your GitHub repository name (username/repo)
 
-4. Apply the configuration:
-   ```
-   terraform apply
-   ```
+### 2. Set up GitHub Secrets
 
-5. When deployment is complete, the outputs will show:
-   - Frontend URL (CloudFront distribution)
-   - Backend URL (ALB endpoint)
-   - ECR Repository URL for Docker images
-   - S3 bucket name for frontend files
+In your GitHub repository, add these secrets:
 
-## Variables
+- `AWS_ACCESS_KEY_ID`: Your AWS access key
+- `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
+- `MONGODB_URI`: Your MongoDB connection string
+- `JWT_SECRET`: A secret for JWT authentication
+- `SSH_PRIVATE_KEY`: The private key content (from your SSH key pair)
 
-| Name | Description | Default |
-|------|-------------|---------|
-| aws_region | AWS region to deploy resources | "us-east-1" |
-| app_name | Application name | "wealth-atlas" |
-| backend_image_tag | Backend Docker image tag | "latest" |
-| mongodb_uri | MongoDB connection URI | none (required) |
+### 3. Initial Deployment
 
-## Modules
+Run the GitHub Actions workflow manually from the Actions tab in your GitHub repository.
 
-- **vpc**: Creates network infrastructure
-- **frontend**: Hosts NextJS application on S3 with CloudFront
-- **backend**: Runs NestJS API in ECS Fargate
-- **security**: Configures security groups and permissions
+This will:
+1. Create the EC2 instance and security group
+2. Set up the server with Node.js, Nginx, and PM2
+3. Deploy your application
 
-## Notes
+### 4. Subsequent Deployments
 
-- This deployment is optimized for cost while maintaining reliability
-- The MongoDB connection should be secured and not committed to version control
+Any push to the `main` branch will automatically:
+1. Pull the latest code on the server
+2. Build the frontend and backend
+3. Deploy the updated code
+4. Restart services as needed
+
+## Manual Access
+
+You can SSH into your instance using:
+
+```
+ssh -i ~/.ssh/your-key.pem ec2-user@<server-ip>
+```
+
+Replace `<server-ip>` with the IP address output by the Terraform deployment.
+
+## Cleanup
+
+To remove all resources:
+
+```bash
+cd terraform/minimal
+terraform destroy -var="mongodb_uri=your_mongodb_uri" -var="jwt_secret=your_jwt_secret"
+```

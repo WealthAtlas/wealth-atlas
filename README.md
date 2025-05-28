@@ -7,9 +7,18 @@ A full-stack application for tracking your financial assets, investments, and fi
 - **Frontend**: NextJS application
 - **Backend**: NestJS GraphQL API
 - **Database**: MongoDB
-- **Deployment**: AWS via Terraform
+- **Deployment**: Single EC2 instance on AWS via Terraform
 - **CI/CD**: GitHub Actions
 
+## Deployment
+
+WealthAtlas uses a minimalist deployment approach optimized for 1-2 users:
+- Single EC2 instance hosting both frontend and backend
+- Nginx for serving frontend and proxying API requests
+- PM2 for managing the Node.js backend process
+- External MongoDB database (e.g., MongoDB Atlas)
+
+See `terraform/` directory for the deployment configuration.
 
 ## Quick Start
 

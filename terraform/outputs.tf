@@ -1,24 +1,9 @@
-output "frontend_url" {
-  description = "URL to access the frontend"
-  value       = module.frontend.website_url
+output "app_url" {
+  description = "URL to access the application"
+  value       = "http://${aws_eip.app_ip.public_ip}"
 }
 
-output "backend_url" {
-  description = "URL to access the backend API"
-  value       = module.backend.backend_url
-}
-
-output "ecr_repository_url" {
-  description = "ECR repository URL for backend Docker image"
-  value       = module.backend.ecr_repository_url
-}
-
-output "s3_bucket_name" {
-  description = "S3 bucket name for frontend static files"
-  value       = module.frontend.s3_bucket_name
-}
-
-output "frontend_distribution_id" {
-  description = "CloudFront distribution ID for frontend"
-  value       = module.frontend.cloudfront_distribution_id
+output "ssh_command" {
+  description = "SSH command to connect to the server"
+  value       = "ssh -i ~/.ssh/${var.ssh_key_name}.pem ec2-user@${aws_eip.app_ip.public_ip}"
 }

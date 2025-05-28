@@ -1,14 +1,15 @@
 # WealthAtlas Deployment Guide
 
-This document provides instructions for deploying the WealthAtlas application on AWS.
+This document provides instructions for deploying the WealthAtlas application on AWS using a minimalist approach.
 
 ## Architecture
 
 The architecture consists of:
 
-1. **Frontend**: NextJS application hosted on S3 + CloudFront for global distribution
-2. **Backend**: NestJS application running in AWS ECS Fargate in us-east-2 (Ohio) region for cost efficiency
-3. **Database**: MongoDB Atlas free tier (see docs/MONGODB_SETUP.md for configuration details)
+1. **Single EC2 Instance**: Hosts both frontend and backend applications
+2. **Frontend**: NextJS application served by Nginx
+3. **Backend**: NestJS application running via PM2 process manager
+4. **Database**: MongoDB Atlas (external service, see docs/MONGODB_SETUP.md for configuration details)
 
 ## Prerequisites
 
@@ -17,8 +18,8 @@ Before deployment, ensure you have:
 1. AWS account with appropriate permissions
 2. Terraform installed (version 1.2.0 or later)
 3. AWS CLI configured
-4. Docker installed (for local testing)
-5. MongoDB instance with connection URI
+4. MongoDB instance with connection URI
+5. SSH key pair created in AWS
 
 ## Deployment Steps
 
@@ -32,20 +33,24 @@ cd terraform
 cat > terraform.tfvars <<EOF
 aws_region = "us-east-1"  # Change if needed
 app_name = "wealth-atlas"
-backend_image_tag = "latest"
 mongodb_uri = "mongodb+srv://your-connection-string"  # Replace with your MongoDB URI
+jwt_secret = "your-jwt-secret-key"  # Create a secure secret
+ssh_key_name = "your-aws-ssh-key-name"  # Must exist in AWS
+github_repo = "username/wealth-atlas"  # Your GitHub repository name
 EOF
 ```
 
 ### 2. Using GitHub Actions (Recommended)
 
 1. Add the following secrets to your GitHub repository:
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_REGION`
-   - `MONGODB_URI`
+   - `AWS_ACCESS_KEY_ID`: Your AWS access key
+   - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
+   - `MONGODB_URI`: Your MongoDB connection string
+   - `JWT_SECRET`: A secure secret for JWT authentication
+   - `SSH_PRIVATE_KEY`: The content of your private SSH key (corresponding to the key_name in AWS)
 
-2. Push to the main branch to trigger the deployment workflow.
+2. Manually trigger the workflow from the GitHub Actions tab for the initial deployment
+3. Subsequent pushes to the main branch will automatically update the application
 
 ### 3. Manual Deployment
 
@@ -63,16 +68,33 @@ terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars -auto-approve
 
 # Get the outputs
-echo "Frontend URL: $(terraform output -raw frontend_url)"
-echo "Backend URL: $(terraform output -raw backend_url)"
-echo "ECR Repository: $(terraform output -raw ecr_repository_url)"
+echo "Application URL: $(terraform output -raw app_url)"
+echo "SSH command: $(terraform output -raw ssh_command)"
 ```
 
-#### Build and Push Backend Docker Image:
+#### Manual Code Deployment:
+
+The initial server setup automatically clones your repository and sets up the application. For subsequent manual deployments:
 
 ```bash
-# Login to ECR
-aws ecr get-login-password --region $(terraform output -raw aws_region) | docker login --username AWS --password-stdin $(terraform output -raw ecr_repository_url)
+# SSH into the server
+$(terraform output -raw ssh_command)
+
+# Once connected, update the code
+cd ~/app
+git pull
+npm install
+npm run build:backend
+npm run build:frontend
+
+# Copy frontend files to Nginx
+sudo cp -r apps/frontend/out/* /usr/share/nginx/html/
+
+# Restart backend
+pm2 restart backend
+
+# Exit the server
+exit
 
 # Build and push Docker image
 docker build -t $(terraform output -raw ecr_repository_url):latest -f Dockerfile.backend .
