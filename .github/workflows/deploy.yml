@@ -37,6 +37,12 @@ jobs:
         cd terraform
         terraform init
       
+    - name: Import Existing ECR Repository
+      run: |
+        cd terraform
+        # Try to import the ECR repository if it exists
+        terraform import module.backend.aws_ecr_repository.backend_repo wealth-atlas-backend || echo "Repository not found or already imported"
+      
     - name: Terraform Plan
       run: |
         cd terraform
