@@ -85,7 +85,7 @@ docker push $(terraform output -raw ecr_repository_url):latest
 # Build the NextJS app
 cd apps/frontend
 echo "NEXT_PUBLIC_API_URL=$(terraform output -raw backend_url)/graphql" > .env.production
-npm run build
+pnpm run build
 
 # Deploy to S3
 aws s3 sync ./out/ s3://$(terraform output -raw s3_bucket_name)/ --delete

@@ -1,15 +1,15 @@
 {
-    "name": "wealth-atlas",
-    "private": true,
-    "workspaces": [
-      "apps/*"
-    ],
-    "scripts": {
-      "dev:backend": "npm run -w apps/backend dev",
-      "dev:frontend": "npm run -w apps/frontend dev",
-      "dev": "npm run --workspaces --if-present dev",
-      "build:backend": "npm run -w apps/backend build",
-      "build:frontend": "npm run -w apps/frontend build",
-      "build": "npm run --workspaces --if-present build"
-    }
+  "name": "wealth-atlas",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "pnpm --filter apps/backend dev",
+    "dev:frontend": "pnpm --filter apps/frontend dev",
+    "dev": "pnpm -r run dev",
+    "build:backend": "pnpm --filter apps/backend build",
+    "build:frontend": "pnpm --filter apps/frontend build",
+    "build": "pnpm -r run build"
   }
+}
