@@ -5,11 +5,11 @@
     "apps/*"
   ],
   "scripts": {
-    "dev:backend": "pnpm --filter apps/backend dev",
-    "dev:frontend": "pnpm --filter apps/frontend dev",
+    "dev:backend": "pnpm --filter atlas-backend dev",
+    "dev:frontend": "pnpm --filter atlas-frontend dev",
     "dev": "pnpm -r run dev",
-    "build:backend": "pnpm --filter apps/backend build",
-    "build:frontend": "pnpm --filter apps/frontend build",
+    "build:backend": "pnpm --filter atlas-backend build",
+    "build:frontend": "pnpm --filter atlas-frontend build",
     "build": "pnpm -r run build"
   }
 }

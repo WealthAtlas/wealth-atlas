@@ -10,12 +10,12 @@ COPY package-lock.json ./
 # Copy app source
 COPY apps/backend ./apps/backend
 
-# Install dependencies using npm workspaces
-RUN npm ci
+# Install dependencies using pnpm workspaces
+RUN pnpm install
 
-# Build backend using npm workspace
+# Build backend using pnpm workspace
 WORKDIR /app
-RUN npm run build:backend
+RUN pnpm run build:backend
 
 # Production image
 FROM node:slim
@@ -28,7 +28,7 @@ COPY --from=build /app/package-lock.json ./
 COPY --from=build /app/apps/backend ./apps/backend
 
 # Install production dependencies only
-RUN npm ci --only=production --workspace=apps/backend
+RUN pnpm install --prod --filter ./apps/backend
 
 # Set working directory to backend
 WORKDIR /app/apps/backend
