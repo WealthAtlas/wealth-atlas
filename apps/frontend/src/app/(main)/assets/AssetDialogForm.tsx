@@ -11,7 +11,7 @@ export interface AssetFormData {
     maturityDate: string;
     valueStrategyType: string; // 'fixed', 'dynamic', 'manual'
     growthRate: string; // for fixed
-    apiSource: string; // for dynamic
+    scriptCode: string; // for dynamic - JavaScript code as string
     manualValue: string; // for manual
 }
 
@@ -22,7 +22,7 @@ export interface AssetFormErrors {
     currency: boolean;
     valueStrategyType: boolean;
     growthRate: boolean;
-    apiSource: boolean;
+    scriptCode: boolean;
     manualValue: boolean;
 }
 
@@ -35,7 +35,7 @@ export const initialFormData: AssetFormData = {
     maturityDate: '',
     valueStrategyType: '',
     growthRate: '',
-    apiSource: '',
+    scriptCode: '',
     manualValue: '',
 };
 
@@ -46,7 +46,7 @@ export const initialFormErrors: AssetFormErrors = {
     currency: false,
     valueStrategyType: false,
     growthRate: false,
-    apiSource: false,
+    scriptCode: false,
     manualValue: false,
 };
 
@@ -187,17 +187,51 @@ const AssetDialogForm: React.FC<AssetDialogFormProps> = ({
                     />
                 )}
                 {formData.valueStrategyType === 'dynamic' && (
-                    <TextField
-                        margin="dense"
-                        label="API Source"
-                        name="apiSource"
-                        fullWidth
-                        value={formData.apiSource}
-                        onChange={handleInputChange}
-                        error={errors.apiSource}
-                        helperText={errors.apiSource ? 'API Source is required' : ''}
-                        placeholder="e.g., https://api.example.com/value"
-                    />
+                    <>
+                        <TextField
+                            margin="dense"
+                            label="JavaScript Code"
+                            name="scriptCode"
+                            multiline
+                            rows={12}
+                            fullWidth
+                            variant="outlined"
+                            value={formData.scriptCode}
+                            onChange={handleInputChange}
+                            error={errors.scriptCode}
+                            helperText={errors.scriptCode ? 'JavaScript code is required' : 'Enter JavaScript function to fetch asset value'}
+                            placeholder={`// This function will be executed to fetch the asset value
+// You must export an async function called "getValue"
+// The function should return a numeric value
+
+/**
+ * @returns {Promise<number>} The current value of the asset
+ */
+export async function getValue() {
+  try {
+    // Example: Make API call to fetch stock price
+    const response = await fetch('https://api.example.com/stocks/AAPL');
+    const data = await response.json();
+    
+    // You can process the data as needed
+    return data.price;
+  } catch (error) {
+    console.error('Error fetching asset value:', error);
+    throw error; // Or return a default/fallback value
+  }
+}`}
+                            InputProps={{
+                                style: { 
+                                    fontFamily: 'monospace',
+                                    fontSize: '14px'
+                                }
+                            }}
+                        />
+                        <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                            Your code will be executed in the browser to dynamically fetch the asset value.
+                            You can make HTTP requests, process data, and perform calculations.
+                        </div>
+                    </>
                 )}
                 {formData.valueStrategyType === 'manual' && (
                     <TextField
@@ -262,7 +296,7 @@ export const buildAssetInput = (formData: AssetFormData): any => {
     } else if (formData.valueStrategyType === 'dynamic') {
         assetInput.dynamicValueStrategy = {
             type: 'dynamic',
-            apiSource: formData.apiSource
+            scriptCode: formData.scriptCode
         };
     } else if (formData.valueStrategyType === 'manual') {
         assetInput.manualValueStrategy = {
@@ -284,6 +318,7 @@ export const validateAssetForm = (formData: AssetFormData): [boolean, AssetFormE
         valueStrategyType: !formData.valueStrategyType,
         growthRate: false,
         apiSource: false,
+        scriptCode: false,
         manualValue: false,
     };
     
@@ -291,7 +326,7 @@ export const validateAssetForm = (formData: AssetFormData): [boolean, AssetFormE
         newErrors.growthRate = !formData.growthRate;
     }
     if (formData.valueStrategyType === 'dynamic') {
-        newErrors.apiSource = !formData.apiSource;
+        newErrors.scriptCode = !formData.scriptCode.trim();
     }
     if (formData.valueStrategyType === 'manual') {
         newErrors.manualValue = !formData.manualValue;

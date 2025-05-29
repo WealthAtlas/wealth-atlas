@@ -15,7 +15,7 @@ export class DynamicValueStrategyDTO {
   type!: string;
 
   @Field()
-  apiSource!: string;
+  scriptCode!: string;
 
   @Field(() => Float, { nullable: true })
   value?: number;
@@ -126,7 +126,7 @@ export class DynamicValueStrategyInput {
   type!: string;
 
   @Field()
-  apiSource!: string;
+  scriptCode!: string;
 
   @Field(() => Float, { nullable: true })
   value?: number;

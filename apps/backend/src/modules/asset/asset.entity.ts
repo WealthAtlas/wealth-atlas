@@ -3,7 +3,12 @@ import { Document } from 'mongoose';
 
 export type ValueStrategy =
   | { type: 'fixed'; growthRate: number }
-  | { type: 'dynamic'; apiSource: string; value?: number, updatedAt?: Date }
+  | { 
+      type: 'dynamic'; 
+      scriptCode: string; // JavaScript code as a string
+      value?: number; 
+      updatedAt?: Date 
+    }
   | { type: 'manual'; value: number; updatedAt: Date };
 
 @Schema({ collection: 'assets' })

@@ -18,7 +18,7 @@ export const GET_ASSET_BY_ID_QUERY = gql`
         }
         ... on DynamicValueStrategy {
           type
-          apiSource
+          scriptCode
           dynamicUpdatedAt: updatedAt
         }
         ... on ManualValueStrategy {

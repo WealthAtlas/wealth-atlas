@@ -47,7 +47,7 @@ const CreateAssetDialog: React.FC<CreateAssetDialogProps> = ({ open, onClose, on
         } else if (formData.valueStrategyType === 'dynamic') {
             assetInput.dynamicValueStrategy = {
                 type: 'dynamic',
-                apiSource: formData.apiSource
+                scriptCode: formData.scriptCode
             };
         } else if (formData.valueStrategyType === 'manual') {
             assetInput.manualValueStrategy = {

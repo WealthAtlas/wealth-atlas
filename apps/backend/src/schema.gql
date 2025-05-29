@@ -41,6 +41,7 @@ type FixedValueStrategy {
 type DynamicValueStrategy {
   type: String!
   apiSource: String!
+  scriptCode: String
   value: Float
   updatedAt: DateTime
 }
@@ -149,6 +150,7 @@ input FixedValueStrategyInput {
 input DynamicValueStrategyInput {
   type: String!
   apiSource: String!
+  scriptCode: String
   value: Float
 }
 

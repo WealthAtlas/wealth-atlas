@@ -35,7 +35,7 @@ const EditAssetDialog: React.FC<EditAssetDialogProps> = ({ open, onClose, onSucc
             const asset = assetData.asset;
             let valueStrategyType = '';
             let growthRate = '';
-            let apiSource = '';
+            let scriptCode = '';
             let manualValue = '';
             
             // Determine value strategy type and populate related fields
@@ -44,7 +44,7 @@ const EditAssetDialog: React.FC<EditAssetDialogProps> = ({ open, onClose, onSucc
                 growthRate = asset.valueStrategy.growthRate.toString();
             } else if (asset.valueStrategy.__typename === 'DynamicValueStrategy') {
                 valueStrategyType = 'dynamic';
-                apiSource = asset.valueStrategy.apiSource;
+                scriptCode = asset.valueStrategy.scriptCode || '';
             } else if (asset.valueStrategy.__typename === 'ManualValueStrategy') {
                 valueStrategyType = 'manual';
                 manualValue = asset.valueStrategy.value.toString();
@@ -59,7 +59,7 @@ const EditAssetDialog: React.FC<EditAssetDialogProps> = ({ open, onClose, onSucc
                 maturityDate: asset.maturityDate ? asset.maturityDate.substring(0, 10) : '',
                 valueStrategyType,
                 growthRate,
-                apiSource,
+                scriptCode,
                 manualValue,
             });
         } else {
@@ -93,7 +93,7 @@ const EditAssetDialog: React.FC<EditAssetDialogProps> = ({ open, onClose, onSucc
         } else if (formData.valueStrategyType === 'dynamic') {
             assetInput.dynamicValueStrategy = {
                 type: 'dynamic',
-                apiSource: formData.apiSource
+                scriptCode: formData.scriptCode
             };
         } else if (formData.valueStrategyType === 'manual') {
             assetInput.manualValueStrategy = {
