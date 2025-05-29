@@ -40,8 +40,3 @@ coverage/
 *.tmp
 *.swp
 *.swo
-
-# Lock files (if not using them in version control)
-# Keep package-lock.json
-yarn.lock
-package-lock.json
