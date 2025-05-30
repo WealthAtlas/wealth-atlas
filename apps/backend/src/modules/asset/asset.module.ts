@@ -5,6 +5,7 @@ import { AssetEntity, AssetSchema } from './asset.entity';
 import { AssetResolver } from './asset.resolver';
 import { AssetService } from './asset.service';
 import { ValueService } from './value.service';
+import { ScriptExecutorService } from './script-executor.service';
 
 @Module({
     imports: [
@@ -13,7 +14,7 @@ import { ValueService } from './value.service';
         ]),
         forwardRef(() => InvestmentModule),
     ],
-    providers: [AssetResolver, AssetService, ValueService],
+    providers: [AssetResolver, AssetService, ValueService, ScriptExecutorService],
     exports: [AssetService],
 })
 export class AssetModule { }

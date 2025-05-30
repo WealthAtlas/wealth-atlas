@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { InvestmentDTO } from '../investment/investment.graphql';
 import { InvestmentService } from '../investment/investment.service';
 import { AssetEntity } from './asset.entity';
+import { ScriptExecutorService } from './script-executor.service';
 
 @Injectable()
 export class ValueService {
@@ -11,6 +12,7 @@ export class ValueService {
   constructor(
     @InjectModel(AssetEntity.name) private assetModel: Model<AssetEntity>,
     @Inject(forwardRef(() => InvestmentService)) private investmentService: InvestmentService,
+    private scriptExecutorService: ScriptExecutorService,
   ) {
   }
 
@@ -39,15 +41,31 @@ export class ValueService {
         const investments = await this.investmentService.getInvestments(assetId);
         const totalQty = investments.reduce((sum, inv) => sum + (inv.qty ?? 1), 0);
         
-        // If we're in a Node.js environment, we'll need to pass this to the frontend
-        // since we can't safely execute arbitrary JavaScript in the backend
         if (!asset.valueStrategy.scriptCode) {
           throw new Error('Dynamic asset is missing script code');
         }
-
-        // We'll just store the last known value here for reference
-        // The frontend will be responsible for executing the script code
-        return asset.latestValue || 0;
+        
+        try {
+          // Execute the script in our secure sandbox
+          const valuePerUnit = await this.scriptExecutorService.executeValueScript(
+            asset.valueStrategy.scriptCode
+          );
+          
+          // Update the latest value in the asset document
+          await this.assetModel.updateOne(
+            { _id: assetId },
+            { 
+              latestValue: valuePerUnit,
+              latestValueDate: new Date()
+            }
+          );
+          
+          return valuePerUnit * totalQty;
+        } catch (error) {
+          console.error(`Error executing script for asset ${assetId}:`, error);
+          // Fall back to the last known value if execution fails
+          return asset.latestValue || 0;
+        }
       }
       case 'manual':
         return asset.latestValue || 0;
@@ -91,13 +109,12 @@ export class ValueService {
     return this.investmentService.getInvestments(assetId);
   }
 
-  // This is a placeholder method - in this architecture,
-  // the actual script execution will happen on the frontend
-  // to avoid security issues with executing arbitrary code on the server
-  private async _executeDynamicScript(scriptCode: string): Promise<number> {
-    // In a real implementation, we might have a secure sandbox environment
-    // or pass this to the frontend for execution
-    console.warn('Dynamic script execution attempted on server side - this is not implemented for security reasons');
-    return 0;
+  /**
+   * Execute dynamic script code in a secure sandbox
+   * @param scriptCode JavaScript code to execute
+   * @returns Promise resolving to the computed value
+   */
+  async executeDynamicScript(scriptCode: string, options: { bypassCache?: boolean } = {}): Promise<number> {
+    return this.scriptExecutorService.executeValueScript(scriptCode, options);
   }
 }
