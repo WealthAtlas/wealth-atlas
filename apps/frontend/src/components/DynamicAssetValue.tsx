@@ -7,13 +7,17 @@ interface DynamicAssetValueProps {
   onValueCalculated?: (value: number) => void;
   autoRefresh?: boolean;
   refreshInterval?: number; // in milliseconds
+  bypassCache?: boolean;
+  cacheTTL?: number; // in milliseconds
 }
 
 const DynamicAssetValue: React.FC<DynamicAssetValueProps> = ({
   scriptCode,
   onValueCalculated,
   autoRefresh = false,
-  refreshInterval = 300000 // default 5 minutes
+  refreshInterval = 300000, // default 5 minutes
+  bypassCache = false, // default to use cache if available
+  cacheTTL = 300000 // default 5 minutes
 }) => {
   const [value, setValue] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +32,10 @@ const DynamicAssetValue: React.FC<DynamicAssetValueProps> = ({
     setError(null);
 
     try {
-      const result = await executeValueScript(scriptCode);
+      const result = await executeValueScript(scriptCode, {
+        bypassCache, 
+        cacheTTL
+      });
       setValue(result);
       setLastUpdated(new Date());
       

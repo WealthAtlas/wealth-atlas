@@ -83,3 +83,48 @@ If your script isn't working correctly, try the following:
 2. **Check the console** for any error messages.
 3. **Verify your API endpoints** are correct and accessible from the browser.
 4. **Ensure your script returns a number** and not a string or other data type.
+
+## Performance Optimization
+
+The system includes performance optimizations to ensure efficient execution of asset value scripts:
+
+### Caching Mechanism
+
+Script execution results are cached to reduce unnecessary API calls and computation:
+
+1. **Cache Duration**: By default, asset values are cached for 5 minutes (configurable).
+2. **Cache Keys**: Cache entries are identified by a combination of the script code and asset information.
+3. **Bypassing Cache**: You can force a fresh calculation by setting the `bypassCache` option to `true`.
+
+### Usage Examples
+
+In most cases, the caching is handled automatically. However, you can control it when needed:
+
+```javascript
+// Using the DynamicAssetValue component with custom cache settings
+<DynamicAssetValue 
+  scriptCode={assetScript}
+  assetInfo={asset}
+  bypassCache={false}
+  cacheTTL={300000} // 5 minutes in milliseconds
+/>
+```
+
+When using the executeValueScript directly:
+
+```javascript
+import { executeValueScript } from '@/utils/scriptExecutor';
+
+// Force a fresh calculation
+const value = await executeValueScript(script, asset, { bypassCache: true });
+
+// With custom cache duration
+const value = await executeValueScript(script, asset, { cacheTTL: 60000 }); // 1 minute
+```
+
+### Best Practices for Performance
+
+1. **Minimize API Calls**: Use the caching mechanism to avoid excessive API calls.
+2. **Optimize Calculations**: For complex calculations, consider precalculating values where possible.
+3. **Error Fallbacks**: Provide fallback values if your API is temporarily unavailable.
+4. **Asset Context**: Use the asset information provided to the script to optimize calculations.

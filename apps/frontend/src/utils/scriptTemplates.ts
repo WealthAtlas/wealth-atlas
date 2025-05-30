@@ -201,6 +201,8 @@ export async function getValue() {
 }
 `;
 
+// Import our new asset info template
+
 // Export all templates in a more accessible format
 export const scriptTemplates = {
   stock: {

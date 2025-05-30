@@ -75,14 +75,12 @@ const AssetDialogForm: React.FC<AssetDialogFormProps> = ({
     formData,
     setFormData,
     errors,
-    setErrors,
     handleSubmit,
     isLoading
 }) => {
     // State for script testing
     const [scriptTestResult, setScriptTestResult] = React.useState<number | null>(null);
     const [scriptTestError, setScriptTestError] = React.useState<string | null>(null);
-    const [isTestingScript, setIsTestingScript] = React.useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -106,7 +104,6 @@ const AssetDialogForm: React.FC<AssetDialogFormProps> = ({
             return;
         }
         
-        setIsTestingScript(true);
         setScriptTestResult(null);
         setScriptTestError(null);
         
@@ -118,8 +115,6 @@ const AssetDialogForm: React.FC<AssetDialogFormProps> = ({
         } catch (error) {
             console.error('Script test error:', error);
             setScriptTestError(error instanceof Error ? error.message : 'Unknown error executing script');
-        } finally {
-            setIsTestingScript(false);
         }
     };
 
@@ -237,7 +232,7 @@ const AssetDialogForm: React.FC<AssetDialogFormProps> = ({
                                 value=""
                                 label="Script Template"
                                 onChange={(e) => {
-                                    const templateKey = e.target.value;
+                                    const templateKey = e.target.value as keyof typeof scriptTemplates;
                                     if (templateKey && scriptTemplates[templateKey]) {
                                         setFormData({
                                             ...formData,
@@ -341,22 +336,6 @@ export async function getValue() {
                                 )}
                             </div>
                         )}
-                        {/* Script Template Selection */}
-                        <FormControl fullWidth margin="dense">
-                            <InputLabel>Script Template</InputLabel>
-                            <Select
-                                value=""
-                                onChange={(e) => handleTemplateSelect(e.target.value)}
-                                displayEmpty
-                            >
-                                <MenuItem value="" disabled>Select a template</MenuItem>
-                                {Object.entries(scriptTemplates).map(([key, template]) => (
-                                    <MenuItem key={key} value={template.template}>
-                                        {template.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
                     </>
                 )}
                 {formData.valueStrategyType === 'manual' && (
