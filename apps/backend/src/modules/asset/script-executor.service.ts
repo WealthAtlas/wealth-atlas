@@ -42,7 +42,7 @@ export class ScriptExecutorService {
           return cachedEntry.value;
         }
       }
-
+      
       // Create a VM2 NodeVM to safely execute code
       const vm = new NodeVM({
         console: 'redirect',
@@ -59,43 +59,41 @@ export class ScriptExecutorService {
         },
       });
 
-      // Create a wrapper for the script that uses a temporary variable
-      // to avoid conflicts with global exports
+      // Create a wrapper for the script
       const wrappedScript = `
-        const scriptModule = {};
+        // Run the script code inside an IIFE to isolate it
+        const setupScript = (function() {
+          // Create a local exports object
+          const exports = {};
+          
+          // Run the user script
+          ${scriptCode}
+          
+          // Return the exports
+          return exports;
+        })();
         
-        // Define exports property on scriptModule
-        Object.defineProperty(scriptModule, 'exports', {
-          value: {},
-          writable: true,
-          enumerable: true
-        });
-        
-        // Set up the exports variable that the script will use
-        const exports = scriptModule.exports;
-        
-        // Execute the user's script
-        ${scriptCode}
-        
-        // Validate the script output
-        if (typeof exports.getValue !== 'function') {
+        // Check if the script exports a getValue function
+        if (typeof setupScript.getValue !== 'function') {
           throw new Error('Script must export a getValue function');
         }
         
-        // Return a function that will execute the script
-        module.exports = async () => {
-          const value = await exports.getValue();
+        // Export a function that calls getValue and validates the result
+        module.exports = async function() {
+          const result = await setupScript.getValue();
           
-          if (typeof value !== 'number' || isNaN(value)) {
+          if (typeof result !== 'number' || isNaN(result)) {
             throw new Error('getValue function must return a valid number');
           }
           
-          return value;
+          return result;
         };
       `;
 
       // Execute the script in the VM
       const getValue = vm.run(wrappedScript);
+      
+      // Run the getValue function
       const value = await getValue();
 
       // Cache the result
