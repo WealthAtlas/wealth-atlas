@@ -38,8 +38,16 @@ export class ValueService {
       case 'dynamic': {
         const investments = await this.investmentService.getInvestments(assetId);
         const totalQty = investments.reduce((sum, inv) => sum + (inv.qty ?? 1), 0);
-        const ratePerQty = await this._fetchDynamicRate(asset.valueStrategy.apiSource);
-        return totalQty * ratePerQty;
+        
+        // If we're in a Node.js environment, we'll need to pass this to the frontend
+        // since we can't safely execute arbitrary JavaScript in the backend
+        if (!asset.valueStrategy.scriptCode) {
+          throw new Error('Dynamic asset is missing script code');
+        }
+
+        // We'll just store the last known value here for reference
+        // The frontend will be responsible for executing the script code
+        return asset.latestValue || 0;
       }
       case 'manual':
         return asset.latestValue || 0;
@@ -83,10 +91,13 @@ export class ValueService {
     return this.investmentService.getInvestments(assetId);
   }
 
-  // Add a private method to fetch the rate from the API source
-  private async _fetchDynamicRate(apiSource: string): Promise<number> {
-    // TODO: Implement actual API call logic here
-    // For now, throw an error to indicate this needs implementation
-    throw new Error('Dynamic rate fetching not implemented');
+  // This is a placeholder method - in this architecture,
+  // the actual script execution will happen on the frontend
+  // to avoid security issues with executing arbitrary code on the server
+  private async _executeDynamicScript(scriptCode: string): Promise<number> {
+    // In a real implementation, we might have a secure sandbox environment
+    // or pass this to the frontend for execution
+    console.warn('Dynamic script execution attempted on server side - this is not implemented for security reasons');
+    return 0;
   }
 }

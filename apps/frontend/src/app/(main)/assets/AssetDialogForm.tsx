@@ -1,5 +1,6 @@
-import React from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem } from '@mui/material';
+import React, { useState } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Select, FormControl, InputLabel, Box, Typography } from '@mui/material';
+import { scriptTemplates } from '@/utils/scriptTemplates';
 
 // Types
 export interface AssetFormData {
@@ -78,13 +79,53 @@ const AssetDialogForm: React.FC<AssetDialogFormProps> = ({
     handleSubmit,
     isLoading
 }) => {
+    // State for script testing
+    const [scriptTestResult, setScriptTestResult] = React.useState<number | null>(null);
+    const [scriptTestError, setScriptTestError] = React.useState<string | null>(null);
+    const [isTestingScript, setIsTestingScript] = React.useState(false);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         if ((name === 'growthRate' || name === 'manualValue') && value) {
             const regex = /^\d*\.?\d{0,2}$/;
             if (!regex.test(value)) return;
         }
+        
+        // Clear test results when script code changes
+        if (name === 'scriptCode') {
+            setScriptTestResult(null);
+            setScriptTestError(null);
+        }
+        
         setFormData({ ...formData, [name]: value });
+    };
+    
+    const handleTestScript = async (scriptCode: string) => {
+        if (!scriptCode.trim()) {
+            setScriptTestError('Script code is empty');
+            return;
+        }
+        
+        setIsTestingScript(true);
+        setScriptTestResult(null);
+        setScriptTestError(null);
+        
+        try {
+            // Dynamically import the script executor to keep bundle size small
+            const { executeValueScript } = await import('@/utils/scriptExecutor');
+            const result = await executeValueScript(scriptCode);
+            setScriptTestResult(result);
+        } catch (error) {
+            console.error('Script test error:', error);
+            setScriptTestError(error instanceof Error ? error.message : 'Unknown error executing script');
+        } finally {
+            setIsTestingScript(false);
+        }
+    };
+
+    // Handle script template selection
+    const handleTemplateSelect = (template: string) => {
+        setFormData({ ...formData, scriptCode: template });
     };
 
     return (
@@ -188,20 +229,53 @@ const AssetDialogForm: React.FC<AssetDialogFormProps> = ({
                 )}
                 {formData.valueStrategyType === 'dynamic' && (
                     <>
+                        <FormControl fullWidth margin="dense">
+                            <InputLabel id="script-template-label">Script Template</InputLabel>
+                            <Select
+                                labelId="script-template-label"
+                                id="script-template"
+                                value=""
+                                label="Script Template"
+                                onChange={(e) => {
+                                    const templateKey = e.target.value;
+                                    if (templateKey && scriptTemplates[templateKey]) {
+                                        setFormData({
+                                            ...formData,
+                                            scriptCode: scriptTemplates[templateKey].template
+                                        });
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" disabled>
+                                    <em>Select a template</em>
+                                </MenuItem>
+                                {Object.entries(scriptTemplates).map(([key, template]) => (
+                                    <MenuItem key={key} value={key}>
+                                        {template.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <Box sx={{ mt: 2, mb: 1 }}>
+                            <Typography variant="subtitle2">JavaScript Code</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Enter code that exports a getValue() function which returns the asset value
+                            </Typography>
+                        </Box>
+
                         <TextField
                             margin="dense"
-                            label="JavaScript Code"
                             name="scriptCode"
                             multiline
-                            rows={12}
+                            rows={15}
                             fullWidth
                             variant="outlined"
                             value={formData.scriptCode}
                             onChange={handleInputChange}
                             error={errors.scriptCode}
-                            helperText={errors.scriptCode ? 'JavaScript code is required' : 'Enter JavaScript function to fetch asset value'}
-                            placeholder={`// This function will be executed to fetch the asset value
-// You must export an async function called "getValue"
+                            helperText={errors.scriptCode ? 'JavaScript code is required' : ''}
+                            placeholder={`// You must export an async function called "getValue"
 // The function should return a numeric value
 
 /**
@@ -227,10 +301,62 @@ export async function getValue() {
                                 }
                             }}
                         />
-                        <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-                            Your code will be executed in the browser to dynamically fetch the asset value.
-                            You can make HTTP requests, process data, and perform calculations.
+                        <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            marginTop: '8px'
+                        }}>
+                            <div style={{ fontSize: '12px', color: '#666' }}>
+                                Your code will be executed in the browser to dynamically fetch the asset value.
+                                You can make HTTP requests, process data, and perform calculations.
+                            </div>
+                            <Button 
+                                variant="outlined"
+                                size="small"
+                                onClick={() => handleTestScript(formData.scriptCode)}
+                                disabled={!formData.scriptCode || errors.scriptCode}
+                            >
+                                Test Script
+                            </Button>
                         </div>
+                        {scriptTestResult !== null && (
+                            <div style={{ 
+                                marginTop: '8px',
+                                padding: '8px',
+                                backgroundColor: scriptTestError ? '#ffebee' : '#e8f5e9',
+                                borderRadius: '4px',
+                                fontSize: '14px'
+                            }}>
+                                {scriptTestError ? (
+                                    <>
+                                        <span style={{ fontWeight: 'bold', color: '#c62828' }}>Error: </span>
+                                        <span>{scriptTestError}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span style={{ fontWeight: 'bold', color: '#2e7d32' }}>Success: </span>
+                                        <span>Value returned: {scriptTestResult}</span>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {/* Script Template Selection */}
+                        <FormControl fullWidth margin="dense">
+                            <InputLabel>Script Template</InputLabel>
+                            <Select
+                                value=""
+                                onChange={(e) => handleTemplateSelect(e.target.value)}
+                                displayEmpty
+                            >
+                                <MenuItem value="" disabled>Select a template</MenuItem>
+                                {scriptTemplates.map((template, index) => (
+                                    <MenuItem key={index} value={template.code}>
+                                        {template.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </>
                 )}
                 {formData.valueStrategyType === 'manual' && (

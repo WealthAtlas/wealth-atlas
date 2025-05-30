@@ -17,7 +17,7 @@ export const UPDATE_ASSET_QUERY = gql`
         }
         ... on DynamicValueStrategy {
           type
-          apiSource
+          scriptCode
           dynamicUpdatedAt: updatedAt
         }
         ... on ManualValueStrategy {

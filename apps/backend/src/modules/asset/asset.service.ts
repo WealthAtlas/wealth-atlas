@@ -29,7 +29,7 @@ export class AssetService {
     } else if (input.dynamicValueStrategy) {
       valueStrategy = {
         type: 'dynamic',
-        apiSource: input.dynamicValueStrategy.apiSource,
+        scriptCode: input.dynamicValueStrategy.scriptCode,
         value: input.dynamicValueStrategy.value,
         updatedAt: new Date()
       };
@@ -122,7 +122,7 @@ export class AssetService {
     } else if (input.dynamicValueStrategy) {
       valueStrategy = {
         type: 'dynamic',
-        apiSource: input.dynamicValueStrategy.apiSource,
+        scriptCode: input.dynamicValueStrategy.scriptCode,
         value: input.dynamicValueStrategy.value,
         updatedAt: new Date()
       };
