@@ -8,7 +8,7 @@ import AssetDialogForm, {
     buildAssetInput, 
     AssetFormData, 
     AssetFormErrors 
-} from './AssetDialogForm';
+} from '../../../components/AssetDialogForm';
 
 interface CreateAssetDialogProps {
     open: boolean;

@@ -9,7 +9,7 @@ import AssetDialogForm, {
     validateAssetForm, 
     AssetFormData, 
     AssetFormErrors 
-} from './AssetDialogForm';
+} from '../../../components/AssetDialogForm';
 
 interface EditAssetDialogProps {
     open: boolean;

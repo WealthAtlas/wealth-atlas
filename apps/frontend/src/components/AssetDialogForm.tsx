@@ -350,8 +350,8 @@ export async function getValue() {
                                 displayEmpty
                             >
                                 <MenuItem value="" disabled>Select a template</MenuItem>
-                                {scriptTemplates.map((template, index) => (
-                                    <MenuItem key={index} value={template.code}>
+                                {Object.entries(scriptTemplates).map(([key, template]) => (
+                                    <MenuItem key={key} value={template.template}>
                                         {template.name}
                                     </MenuItem>
                                 ))}
@@ -443,7 +443,6 @@ export const validateAssetForm = (formData: AssetFormData): [boolean, AssetFormE
         currency: !formData.currency,
         valueStrategyType: !formData.valueStrategyType,
         growthRate: false,
-        apiSource: false,
         scriptCode: false,
         manualValue: false,
     };

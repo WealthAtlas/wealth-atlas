@@ -23,7 +23,7 @@ import SortIcon from '@mui/icons-material/Sort';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { AssetDTO, useGetAssetsQuery } from '@/graphql/models/generated';
 import CreateAssetDialog from './CreateAssetDialog';
-import AssetRow from './AssetRow';
+import AssetRow from '../../../components/AssetRow';
 import AddInvestmentDialog from './AddInvestmentDialog';
 import EditAssetDialog from './EditAssetDialog';
 import InvestmentsListDialog from './InvestmentsListDialog';

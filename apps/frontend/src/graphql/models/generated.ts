@@ -53,14 +53,14 @@ export type AssetInput = {
 
 export type DynamicValueStrategy = {
   readonly __typename: 'DynamicValueStrategy';
-  readonly apiSource: Scalars['String'];
+  readonly scriptCode: Scalars['String'];
   readonly type: Scalars['String'];
   readonly updatedAt: Maybe<Scalars['DateTime']>;
   readonly value: Maybe<Scalars['Float']>;
 };
 
 export type DynamicValueStrategyInput = {
-  readonly apiSource: Scalars['String'];
+  readonly scriptCode: Scalars['String'];
   readonly type: Scalars['String'];
   readonly value: InputMaybe<Scalars['Float']>;
 };
@@ -84,6 +84,15 @@ export type FixedValueStrategyInput = {
   readonly growthRate: Scalars['Float'];
   readonly type: Scalars['String'];
 };
+
+/** The frequency of SIP investment */
+export enum FrequencyType {
+  DAILY = 'DAILY',
+  MONTHLY = 'MONTHLY',
+  QUARTERLY = 'QUARTERLY',
+  WEEKLY = 'WEEKLY',
+  YEARLY = 'YEARLY'
+}
 
 export type GoalDTO = {
   readonly __typename: 'GoalDTO';
@@ -148,13 +157,16 @@ export type Mutation = {
   readonly createAsset: AssetDTO;
   readonly createExpense: Scalars['Boolean'];
   readonly createGoal: GoalDTO;
+  readonly createSIP: SIPDTO;
   readonly deleteInvestment: Scalars['Boolean'];
+  readonly deleteSIP: Scalars['Boolean'];
   readonly loginUser: Scalars['Boolean'];
   readonly logoutUser: Scalars['Boolean'];
   readonly registerUser: Scalars['Boolean'];
   readonly updateAsset: AssetDTO;
   readonly updateGoal: GoalDTO;
   readonly updateInvestment: ReadonlyArray<InvestmentDTO>;
+  readonly updateSIP: SIPDTO;
 };
 
 
@@ -179,9 +191,20 @@ export type MutationcreateGoalArgs = {
 };
 
 
+export type MutationcreateSIPArgs = {
+  assetId: Scalars['String'];
+  input: SIPInput;
+};
+
+
 export type MutationdeleteInvestmentArgs = {
   assetId: Scalars['String'];
   investmentId: Scalars['String'];
+};
+
+
+export type MutationdeleteSIPArgs = {
+  sipId: Scalars['String'];
 };
 
 
@@ -213,6 +236,12 @@ export type MutationupdateInvestmentArgs = {
   investmentId: Scalars['String'];
 };
 
+
+export type MutationupdateSIPArgs = {
+  input: SIPInput;
+  sipId: Scalars['String'];
+};
+
 export type Query = {
   readonly __typename: 'Query';
   readonly asset: AssetDTO;
@@ -224,6 +253,29 @@ export type Query = {
 
 export type QueryassetArgs = {
   id: Scalars['String'];
+};
+
+export type SIPDTO = {
+  readonly __typename: 'SIPDTO';
+  readonly amount: Scalars['Float'];
+  readonly asset: AssetDTO;
+  readonly assetId: Scalars['String'];
+  readonly description: Maybe<Scalars['String']>;
+  readonly endDate: Maybe<Scalars['DateTime']>;
+  readonly frequency: FrequencyType;
+  readonly id: Scalars['String'];
+  readonly lastExecutedDate: Maybe<Scalars['DateTime']>;
+  readonly name: Scalars['String'];
+  readonly startDate: Scalars['DateTime'];
+};
+
+export type SIPInput = {
+  readonly amount: Scalars['Float'];
+  readonly description: InputMaybe<Scalars['String']>;
+  readonly endDate: InputMaybe<Scalars['DateTime']>;
+  readonly frequency: FrequencyType;
+  readonly name: Scalars['String'];
+  readonly startDate: Scalars['DateTime'];
 };
 
 export type UserDTO = {
@@ -265,7 +317,7 @@ export type GetAssetByIdQueryVariables = Exact<{
 }>;
 
 
-export type GetAssetByIdQuery = { readonly __typename: 'Query', readonly asset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly apiSource: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
+export type GetAssetByIdQuery = { readonly __typename: 'Query', readonly asset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly scriptCode: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
 
 export type GetAssetInvestmentsQueryVariables = Exact<{
   assetId: Scalars['String'];
@@ -277,7 +329,7 @@ export type GetAssetInvestmentsQuery = { readonly __typename: 'Query', readonly 
 export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAssetsQuery = { readonly __typename: 'Query', readonly assets: ReadonlyArray<{ readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly growthRate: number, readonly investedAmount: number, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly apiSource: string, readonly updatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string } }> };
+export type GetAssetsQuery = { readonly __typename: 'Query', readonly assets: ReadonlyArray<{ readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly growthRate: number, readonly investedAmount: number, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly scriptCode: string, readonly updatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string } }> };
 
 export type LoginUserMutationVariables = Exact<{
   input: UserLoginInput;
@@ -304,7 +356,7 @@ export type UpdateAssetMutationVariables = Exact<{
 }>;
 
 
-export type UpdateAssetMutation = { readonly __typename: 'Mutation', readonly updateAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly apiSource: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
+export type UpdateAssetMutation = { readonly __typename: 'Mutation', readonly updateAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly scriptCode: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
 
 
 export const AddInvestmentDocument = gql`
@@ -402,7 +454,7 @@ export const GetAssetByIdDocument = gql`
       }
       ... on DynamicValueStrategy {
         type
-        apiSource
+        scriptCode
         dynamicUpdatedAt: updatedAt
       }
       ... on ManualValueStrategy {
@@ -502,7 +554,7 @@ export const GetAssetsDocument = gql`
       }
       ... on DynamicValueStrategy {
         type
-        apiSource
+        scriptCode
         updatedAt
       }
       ... on ManualValueStrategy {
@@ -649,7 +701,7 @@ export const UpdateAssetDocument = gql`
       }
       ... on DynamicValueStrategy {
         type
-        apiSource
+        scriptCode
         dynamicUpdatedAt: updatedAt
       }
       ... on ManualValueStrategy {
