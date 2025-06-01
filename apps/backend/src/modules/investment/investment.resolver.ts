@@ -17,24 +17,22 @@ export class InvestmentResolver {
     return this.investmentService.addInvestment(userId, assetId, input);
   }
 
-  @Mutation(() => [InvestmentDTO])
+  @Mutation(() => InvestmentDTO)
   async updateInvestment(
     @Context() context: CustomContext,
-    @Args('assetId') assetId: string,
     @Args('investmentId') investmentId: string,
     @Args('input') input: InvestmentInput
   ): Promise<InvestmentDTO> {
     const userId = context.req.user?.userId || '';
-    return this.investmentService.updateInvestment(userId, assetId, investmentId, input);
+    return this.investmentService.updateInvestment(userId, investmentId, input);
   }
 
   @Mutation(() => Boolean)
   async deleteInvestment(
     @Context() context: CustomContext,
-    @Args('assetId') assetId: string,
     @Args('investmentId') investmentID: string,
   ): Promise<boolean> {
     const userId = context.req.user?.userId || '';
-    return this.investmentService.deleteInvestment(userId, assetId, investmentID);
+    return this.investmentService.deleteInvestment(userId, investmentID);
   }
 }

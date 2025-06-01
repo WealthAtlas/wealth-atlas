@@ -109,8 +109,8 @@ type Mutation {
   createAsset(input: AssetInput!): AssetDTO!
   updateAsset(id: String!, input: AssetInput!): AssetDTO!
   addInvestment(assetId: String!, input: InvestmentInput!): InvestmentDTO!
-  updateInvestment(assetId: String!, investmentId: String!, input: InvestmentInput!): [InvestmentDTO!]!
-  deleteInvestment(assetId: String!, investmentId: String!): Boolean!
+  updateInvestment(investmentId: String!, input: InvestmentInput!): InvestmentDTO!
+  deleteInvestment(investmentId: String!): Boolean!
   createExpense(input: ExpenseInput!): Boolean!
   createGoal(input: GoalInput!): GoalDTO!
   updateGoal(goalId: Float!, input: GoalInput!): GoalDTO!

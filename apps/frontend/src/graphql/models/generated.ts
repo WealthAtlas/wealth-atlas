@@ -198,7 +198,6 @@ export type MutationcreateSIPArgs = {
 
 
 export type MutationdeleteInvestmentArgs = {
-  assetId: Scalars['String'];
   investmentId: Scalars['String'];
 };
 
@@ -231,7 +230,6 @@ export type MutationupdateGoalArgs = {
 
 
 export type MutationupdateInvestmentArgs = {
-  assetId: Scalars['String'];
   input: InvestmentInput;
   investmentId: Scalars['String'];
 };
@@ -245,6 +243,7 @@ export type MutationupdateSIPArgs = {
 export type Query = {
   readonly __typename: 'Query';
   readonly asset: AssetDTO;
+  readonly assetSIPs: ReadonlyArray<SIPDTO>;
   readonly assets: ReadonlyArray<AssetDTO>;
   readonly goals: ReadonlyArray<GoalDTO>;
   readonly user: UserDTO;
@@ -253,6 +252,11 @@ export type Query = {
 
 export type QueryassetArgs = {
   id: Scalars['String'];
+};
+
+
+export type QueryassetSIPsArgs = {
+  assetId: Scalars['String'];
 };
 
 export type SIPDTO = {
@@ -312,6 +316,28 @@ export type CreateAssetMutationVariables = Exact<{
 
 export type CreateAssetMutation = { readonly __typename: 'Mutation', readonly createAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly growthRate: number, readonly currentValue: number } };
 
+export type CreateSIPMutationVariables = Exact<{
+  assetId: Scalars['String'];
+  input: SIPInput;
+}>;
+
+
+export type CreateSIPMutation = { readonly __typename: 'Mutation', readonly createSIP: { readonly __typename: 'SIPDTO', readonly id: string, readonly assetId: string, readonly name: string, readonly amount: number, readonly frequency: FrequencyType, readonly startDate: any, readonly endDate: any | null, readonly lastExecutedDate: any | null, readonly description: string | null } };
+
+export type DeleteInvestmentMutationVariables = Exact<{
+  investmentId: Scalars['String'];
+}>;
+
+
+export type DeleteInvestmentMutation = { readonly __typename: 'Mutation', readonly deleteInvestment: boolean };
+
+export type DeleteSIPMutationVariables = Exact<{
+  sipId: Scalars['String'];
+}>;
+
+
+export type DeleteSIPMutation = { readonly __typename: 'Mutation', readonly deleteSIP: boolean };
+
 export type GetAssetByIdQueryVariables = Exact<{
   id: Scalars['String'];
 }>;
@@ -325,6 +351,13 @@ export type GetAssetInvestmentsQueryVariables = Exact<{
 
 
 export type GetAssetInvestmentsQuery = { readonly __typename: 'Query', readonly asset: { readonly __typename: 'AssetDTO', readonly investments: ReadonlyArray<{ readonly __typename: 'InvestmentDTO', readonly id: string, readonly qty: number | null, readonly valuePerQty: number, readonly date: any }> } };
+
+export type GetAssetSIPsQueryVariables = Exact<{
+  assetId: Scalars['String'];
+}>;
+
+
+export type GetAssetSIPsQuery = { readonly __typename: 'Query', readonly assetSIPs: ReadonlyArray<{ readonly __typename: 'SIPDTO', readonly id: string, readonly assetId: string, readonly name: string, readonly amount: number, readonly frequency: FrequencyType, readonly startDate: any, readonly endDate: any | null, readonly lastExecutedDate: any | null, readonly description: string | null }> };
 
 export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -357,6 +390,22 @@ export type UpdateAssetMutationVariables = Exact<{
 
 
 export type UpdateAssetMutation = { readonly __typename: 'Mutation', readonly updateAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly scriptCode: string, readonly dynamicUpdatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string, readonly value: number, readonly manualUpdatedAt: any } } };
+
+export type UpdateInvestmentMutationVariables = Exact<{
+  investmentId: Scalars['String'];
+  input: InvestmentInput;
+}>;
+
+
+export type UpdateInvestmentMutation = { readonly __typename: 'Mutation', readonly updateInvestment: ReadonlyArray<{ readonly __typename: 'InvestmentDTO', readonly id: string, readonly date: any, readonly amount: number }> };
+
+export type UpdateSIPMutationVariables = Exact<{
+  sipId: Scalars['String'];
+  input: SIPInput;
+}>;
+
+
+export type UpdateSIPMutation = { readonly __typename: 'Mutation', readonly updateSIP: { readonly __typename: 'SIPDTO', readonly id: string, readonly assetId: string, readonly name: string, readonly amount: number, readonly frequency: FrequencyType, readonly startDate: any, readonly endDate: any | null, readonly lastExecutedDate: any | null, readonly description: string | null } };
 
 
 export const AddInvestmentDocument = gql`
@@ -436,6 +485,110 @@ export function useCreateAssetMutation(baseOptions?: Apollo.MutationHookOptions<
 export type CreateAssetMutationHookResult = ReturnType<typeof useCreateAssetMutation>;
 export type CreateAssetMutationResult = Apollo.MutationResult<CreateAssetMutation>;
 export type CreateAssetMutationOptions = Apollo.BaseMutationOptions<CreateAssetMutation, CreateAssetMutationVariables>;
+export const CreateSIPDocument = gql`
+    mutation CreateSIP($assetId: String!, $input: SIPInput!) {
+  createSIP(assetId: $assetId, input: $input) {
+    id
+    assetId
+    name
+    amount
+    frequency
+    startDate
+    endDate
+    lastExecutedDate
+    description
+  }
+}
+    `;
+export type CreateSIPMutationFn = Apollo.MutationFunction<CreateSIPMutation, CreateSIPMutationVariables>;
+
+/**
+ * __useCreateSIPMutation__
+ *
+ * To run a mutation, you first call `useCreateSIPMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useCreateSIPMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [createSipMutation, { data, loading, error }] = useCreateSIPMutation({
+ *   variables: {
+ *      assetId: // value for 'assetId'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useCreateSIPMutation(baseOptions?: Apollo.MutationHookOptions<CreateSIPMutation, CreateSIPMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<CreateSIPMutation, CreateSIPMutationVariables>(CreateSIPDocument, options);
+      }
+export type CreateSIPMutationHookResult = ReturnType<typeof useCreateSIPMutation>;
+export type CreateSIPMutationResult = Apollo.MutationResult<CreateSIPMutation>;
+export type CreateSIPMutationOptions = Apollo.BaseMutationOptions<CreateSIPMutation, CreateSIPMutationVariables>;
+export const DeleteInvestmentDocument = gql`
+    mutation DeleteInvestment($investmentId: String!) {
+  deleteInvestment(investmentId: $investmentId)
+}
+    `;
+export type DeleteInvestmentMutationFn = Apollo.MutationFunction<DeleteInvestmentMutation, DeleteInvestmentMutationVariables>;
+
+/**
+ * __useDeleteInvestmentMutation__
+ *
+ * To run a mutation, you first call `useDeleteInvestmentMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDeleteInvestmentMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [deleteInvestmentMutation, { data, loading, error }] = useDeleteInvestmentMutation({
+ *   variables: {
+ *      investmentId: // value for 'investmentId'
+ *   },
+ * });
+ */
+export function useDeleteInvestmentMutation(baseOptions?: Apollo.MutationHookOptions<DeleteInvestmentMutation, DeleteInvestmentMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<DeleteInvestmentMutation, DeleteInvestmentMutationVariables>(DeleteInvestmentDocument, options);
+      }
+export type DeleteInvestmentMutationHookResult = ReturnType<typeof useDeleteInvestmentMutation>;
+export type DeleteInvestmentMutationResult = Apollo.MutationResult<DeleteInvestmentMutation>;
+export type DeleteInvestmentMutationOptions = Apollo.BaseMutationOptions<DeleteInvestmentMutation, DeleteInvestmentMutationVariables>;
+export const DeleteSIPDocument = gql`
+    mutation DeleteSIP($sipId: String!) {
+  deleteSIP(sipId: $sipId)
+}
+    `;
+export type DeleteSIPMutationFn = Apollo.MutationFunction<DeleteSIPMutation, DeleteSIPMutationVariables>;
+
+/**
+ * __useDeleteSIPMutation__
+ *
+ * To run a mutation, you first call `useDeleteSIPMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDeleteSIPMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [deleteSipMutation, { data, loading, error }] = useDeleteSIPMutation({
+ *   variables: {
+ *      sipId: // value for 'sipId'
+ *   },
+ * });
+ */
+export function useDeleteSIPMutation(baseOptions?: Apollo.MutationHookOptions<DeleteSIPMutation, DeleteSIPMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<DeleteSIPMutation, DeleteSIPMutationVariables>(DeleteSIPDocument, options);
+      }
+export type DeleteSIPMutationHookResult = ReturnType<typeof useDeleteSIPMutation>;
+export type DeleteSIPMutationResult = Apollo.MutationResult<DeleteSIPMutation>;
+export type DeleteSIPMutationOptions = Apollo.BaseMutationOptions<DeleteSIPMutation, DeleteSIPMutationVariables>;
 export const GetAssetByIdDocument = gql`
     query GetAssetById($id: String!) {
   asset(id: $id) {
@@ -535,6 +688,49 @@ export function useGetAssetInvestmentsLazyQuery(baseOptions?: Apollo.LazyQueryHo
 export type GetAssetInvestmentsQueryHookResult = ReturnType<typeof useGetAssetInvestmentsQuery>;
 export type GetAssetInvestmentsLazyQueryHookResult = ReturnType<typeof useGetAssetInvestmentsLazyQuery>;
 export type GetAssetInvestmentsQueryResult = Apollo.QueryResult<GetAssetInvestmentsQuery, GetAssetInvestmentsQueryVariables>;
+export const GetAssetSIPsDocument = gql`
+    query GetAssetSIPs($assetId: String!) {
+  assetSIPs(assetId: $assetId) {
+    id
+    assetId
+    name
+    amount
+    frequency
+    startDate
+    endDate
+    lastExecutedDate
+    description
+  }
+}
+    `;
+
+/**
+ * __useGetAssetSIPsQuery__
+ *
+ * To run a query within a React component, call `useGetAssetSIPsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetAssetSIPsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetAssetSIPsQuery({
+ *   variables: {
+ *      assetId: // value for 'assetId'
+ *   },
+ * });
+ */
+export function useGetAssetSIPsQuery(baseOptions: Apollo.QueryHookOptions<GetAssetSIPsQuery, GetAssetSIPsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetAssetSIPsQuery, GetAssetSIPsQueryVariables>(GetAssetSIPsDocument, options);
+      }
+export function useGetAssetSIPsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetAssetSIPsQuery, GetAssetSIPsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetAssetSIPsQuery, GetAssetSIPsQueryVariables>(GetAssetSIPsDocument, options);
+        }
+export type GetAssetSIPsQueryHookResult = ReturnType<typeof useGetAssetSIPsQuery>;
+export type GetAssetSIPsLazyQueryHookResult = ReturnType<typeof useGetAssetSIPsLazyQuery>;
+export type GetAssetSIPsQueryResult = Apollo.QueryResult<GetAssetSIPsQuery, GetAssetSIPsQueryVariables>;
 export const GetAssetsDocument = gql`
     query GetAssets {
   assets {
@@ -741,3 +937,81 @@ export function useUpdateAssetMutation(baseOptions?: Apollo.MutationHookOptions<
 export type UpdateAssetMutationHookResult = ReturnType<typeof useUpdateAssetMutation>;
 export type UpdateAssetMutationResult = Apollo.MutationResult<UpdateAssetMutation>;
 export type UpdateAssetMutationOptions = Apollo.BaseMutationOptions<UpdateAssetMutation, UpdateAssetMutationVariables>;
+export const UpdateInvestmentDocument = gql`
+    mutation UpdateInvestment($investmentId: String!, $input: InvestmentInput!) {
+  updateInvestment(investmentId: $investmentId, input: $input) {
+    id
+    date
+    amount
+  }
+}
+    `;
+export type UpdateInvestmentMutationFn = Apollo.MutationFunction<UpdateInvestmentMutation, UpdateInvestmentMutationVariables>;
+
+/**
+ * __useUpdateInvestmentMutation__
+ *
+ * To run a mutation, you first call `useUpdateInvestmentMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateInvestmentMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateInvestmentMutation, { data, loading, error }] = useUpdateInvestmentMutation({
+ *   variables: {
+ *      investmentId: // value for 'investmentId'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdateInvestmentMutation(baseOptions?: Apollo.MutationHookOptions<UpdateInvestmentMutation, UpdateInvestmentMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdateInvestmentMutation, UpdateInvestmentMutationVariables>(UpdateInvestmentDocument, options);
+      }
+export type UpdateInvestmentMutationHookResult = ReturnType<typeof useUpdateInvestmentMutation>;
+export type UpdateInvestmentMutationResult = Apollo.MutationResult<UpdateInvestmentMutation>;
+export type UpdateInvestmentMutationOptions = Apollo.BaseMutationOptions<UpdateInvestmentMutation, UpdateInvestmentMutationVariables>;
+export const UpdateSIPDocument = gql`
+    mutation UpdateSIP($sipId: String!, $input: SIPInput!) {
+  updateSIP(sipId: $sipId, input: $input) {
+    id
+    assetId
+    name
+    amount
+    frequency
+    startDate
+    endDate
+    lastExecutedDate
+    description
+  }
+}
+    `;
+export type UpdateSIPMutationFn = Apollo.MutationFunction<UpdateSIPMutation, UpdateSIPMutationVariables>;
+
+/**
+ * __useUpdateSIPMutation__
+ *
+ * To run a mutation, you first call `useUpdateSIPMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateSIPMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateSipMutation, { data, loading, error }] = useUpdateSIPMutation({
+ *   variables: {
+ *      sipId: // value for 'sipId'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdateSIPMutation(baseOptions?: Apollo.MutationHookOptions<UpdateSIPMutation, UpdateSIPMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdateSIPMutation, UpdateSIPMutationVariables>(UpdateSIPDocument, options);
+      }
+export type UpdateSIPMutationHookResult = ReturnType<typeof useUpdateSIPMutation>;
+export type UpdateSIPMutationResult = Apollo.MutationResult<UpdateSIPMutation>;
+export type UpdateSIPMutationOptions = Apollo.BaseMutationOptions<UpdateSIPMutation, UpdateSIPMutationVariables>;

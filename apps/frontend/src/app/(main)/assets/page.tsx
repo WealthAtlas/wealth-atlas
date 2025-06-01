@@ -385,6 +385,11 @@ const AssetsPage = () => {
                 open={!!viewInvestmentsAsset}
                 asset={viewInvestmentsAsset}
                 onClose={() => setViewInvestmentsAsset(null)}
+                onSuccess={async () => {
+                    await refetch();
+                    setAddInvestmentAssetId(viewInvestmentsAsset?.id || null);
+                    setViewInvestmentsAsset(null);
+                }}
             />
             <AddSIPDialog
                 open={!!addSIPAssetId}
@@ -399,6 +404,9 @@ const AssetsPage = () => {
                 open={!!viewSIPsAsset}
                 asset={viewSIPsAsset}
                 onClose={() => setViewSIPsAsset(null)}
+                onSuccess={async () => {
+                    await refetch();
+                }}
             />
         </Box>
     );

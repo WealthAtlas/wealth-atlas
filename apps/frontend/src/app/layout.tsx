@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthProvider } from "@/context/AuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 import ApolloWrapper from "@/lib/apolloWrapper";
 import { createTheme, ThemeProvider } from "@mui/material";
 
@@ -26,7 +27,13 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ThemeProvider theme={theme}>
-          <ApolloWrapper><AuthProvider>{children}</AuthProvider></ApolloWrapper>
+          <ApolloWrapper>
+            <AuthProvider>
+              <NotificationProvider>
+                {children}
+              </NotificationProvider>
+            </AuthProvider>
+          </ApolloWrapper>
         </ThemeProvider>
       </body>
     </html>

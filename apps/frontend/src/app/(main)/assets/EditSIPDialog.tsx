@@ -1,37 +1,49 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
-import React, { useState } from 'react';
-import { FrequencyType } from '@/graphql/models/generated';
-import { useCreateSIPMutation } from '@/graphql/queries/CreateSIP.query';
+import React, { useState, useEffect } from 'react';
+import { FrequencyType, SIPDTO, useUpdateSIPMutation } from '@/graphql/models/generated';
 import { useNotification } from '@/context/NotificationContext';
 
-interface AddSIPDialogProps {
+interface EditSIPDialogProps {
     open: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    assetId: string;
+    sip: SIPDTO | null;
 }
 
-const initialFormData = {
-    name: '',
-    amount: '',
-    frequency: FrequencyType.MONTHLY,
-    startDate: '',
-    endDate: '',
-    description: '',
-};
+const EditSIPDialog: React.FC<EditSIPDialogProps> = ({ open, onClose, onSuccess, sip }) => {
+    const [formData, setFormData] = useState({
+        name: '',
+        amount: '',
+        frequency: FrequencyType.MONTHLY,
+        startDate: '',
+        endDate: '',
+        description: '',
+    });
 
-const AddSIPDialog: React.FC<AddSIPDialogProps> = ({ open, onClose, onSuccess, assetId }) => {
-    const [formData, setFormData] = useState(initialFormData);
     const [errors, setErrors] = useState({
         name: false,
         amount: false,
         startDate: false,
     });
     
-    const [createSIP, { loading }] = useCreateSIPMutation();
+    const [updateSIP, { loading }] = useUpdateSIPMutation();
     
     // Get notification context
     const { showNotification } = useNotification();
+
+    // Initialize form data when SIP changes
+    useEffect(() => {
+        if (sip) {
+            setFormData({
+                name: sip.name,
+                amount: sip.amount.toString(),
+                frequency: sip.frequency,
+                startDate: sip.startDate ? new Date(sip.startDate).toISOString().substring(0, 10) : '',
+                endDate: sip.endDate ? new Date(sip.endDate).toISOString().substring(0, 10) : '',
+                description: sip.description || '',
+            });
+        }
+    }, [sip]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -55,12 +67,12 @@ const AddSIPDialog: React.FC<AddSIPDialogProps> = ({ open, onClose, onSuccess, a
     };
 
     const handleFormSubmit = async () => {
-        if (!validateForm()) return;
+        if (!validateForm() || !sip) return;
         
         try {
-            await createSIP({
+            await updateSIP({
                 variables: {
-                    assetId,
+                    sipId: sip.id,
                     input: {
                         name: formData.name,
                         amount: parseFloat(formData.amount),
@@ -72,23 +84,22 @@ const AddSIPDialog: React.FC<AddSIPDialogProps> = ({ open, onClose, onSuccess, a
                 },
             });
             onSuccess();
-            showNotification(`SIP "${formData.name}" created successfully`, 'success');
+            showNotification(`SIP "${formData.name}" updated successfully`, 'success');
             handleClose();
         } catch (err) {
-            console.error('Error creating SIP:', err);
-            showNotification(`Failed to create SIP: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+            console.error('Error updating SIP:', err);
+            showNotification(`Failed to update SIP: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
         }
     };
 
     const handleClose = () => {
-        setFormData(initialFormData);
         setErrors({ name: false, amount: false, startDate: false });
         onClose();
     };
 
     return (
         <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-            <DialogTitle>Create SIP (Systematic Investment Plan)</DialogTitle>
+            <DialogTitle>Edit SIP</DialogTitle>
             <DialogContent>
                 <TextField
                     margin="dense"
@@ -170,11 +181,11 @@ const AddSIPDialog: React.FC<AddSIPDialogProps> = ({ open, onClose, onSuccess, a
                     Cancel
                 </Button>
                 <Button onClick={handleFormSubmit} color="primary" disabled={loading}>
-                    {loading ? 'Creating...' : 'Create SIP'}
+                    {loading ? 'Updating...' : 'Update SIP'}
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
 
-export default AddSIPDialog;
+export default EditSIPDialog;

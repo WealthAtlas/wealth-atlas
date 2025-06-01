@@ -43,26 +43,37 @@ export class InvestmentService {
 
   async updateInvestment(
     userId: string,
-    assetId: string,
     investmentId: string,
     input: InvestmentInput
   ): Promise<InvestmentDTO> {
+    const investment = await this.investmentModel.findById(investmentId).exec();
+    
+    if (!investment) {
+      throw new Error('Investment not found');
+    }
+    const assetId = investment.assetId;
     const asset = await this.assetService.getAsset(userId, assetId);
     if (!asset) {
       throw new Error('Asset not found');
     }
-    const investment = await this.investmentModel.findOneAndUpdate(
+    const updatedInvestment = await this.investmentModel.findOneAndUpdate(
       { _id: investmentId, assetId },
       input,
       { new: true }
     );
+    if (!updatedInvestment) {
+      throw new Error('Investment not found');
+    }
+    return InvestmentDTO.fromData(updatedInvestment.toObject())
+  }
+
+  async deleteInvestment(userId: string, investmentId: string): Promise<boolean> {
+
+    const investment = await this.investmentModel.findById(investmentId).exec();
     if (!investment) {
       throw new Error('Investment not found');
     }
-    return investment.toObject();
-  }
-
-  async deleteInvestment(userId: string, assetId: string, investmentId: string): Promise<boolean> {
+    const assetId = investment.assetId;
     const asset = await this.assetService.getAsset(userId, assetId);
     if (!asset) {
       throw new Error('Asset not found');
