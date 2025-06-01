@@ -82,7 +82,6 @@ export class SIPService {
   async executePendingSIPs(): Promise<void> {
     const now = new Date();
     const sips = await this.sipModel.find({
-      active: true,
       startDate: { $lte: now },
       $or: [
         { endDate: { $exists: false } },

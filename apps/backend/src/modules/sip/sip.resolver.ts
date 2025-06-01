@@ -12,6 +12,17 @@ export class SIPResolver {
     private readonly assetService: AssetService,
   ) {}
 
+  @Query(() => [SIPDTO])
+  async assetSIPs(
+    @Context() context: CustomContext,
+    @Args('assetId') assetId: string,
+  ): Promise<SIPDTO[]> {
+    // Validate asset belongs to user before returning SIPs
+    const userId = context.req.user?.userId || '';
+    await this.assetService.getAsset(userId, assetId); // Will throw if user doesn't own the asset
+    return this.sipService.getSIPsByAsset(assetId);
+  }
+
   @Mutation(() => SIPDTO)
   async createSIP(
     @Context() context: CustomContext,

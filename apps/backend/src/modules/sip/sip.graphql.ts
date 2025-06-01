@@ -61,9 +61,6 @@ export class SIPDTO {
     if (document.startDate === undefined) {
       throw new Error('startDate is required');
     }
-    if (document.active === undefined) {
-      throw new Error('active is required');
-    }
 
     const dto = new SIPDTO();
     dto.id = document._id;

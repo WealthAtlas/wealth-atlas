@@ -27,6 +27,8 @@ import AssetRow from '../../../components/AssetRow';
 import AddInvestmentDialog from './AddInvestmentDialog';
 import EditAssetDialog from './EditAssetDialog';
 import InvestmentsListDialog from './InvestmentsListDialog';
+import AddSIPDialog from './AddSIPDialog';
+import SIPListDialog from './SIPListDialog';
 
 const AssetsPage = () => {
     const { data, loading, error, refetch } = useGetAssetsQuery();
@@ -37,6 +39,10 @@ const AssetsPage = () => {
     const [editAssetId, setEditAssetId] = useState<string | null>(null);
     // For view investments dialog
     const [viewInvestmentsAsset, setViewInvestmentsAsset] = useState<AssetDTO | null>(null);
+    // For add SIP dialog
+    const [addSIPAssetId, setAddSIPAssetId] = useState<string | null>(null);
+    // For view SIPs dialog
+    const [viewSIPsAsset, setViewSIPsAsset] = useState<AssetDTO | null>(null);
 
     // Search and filter states
     const [searchQuery, setSearchQuery] = useState('');
@@ -332,8 +338,8 @@ const AssetsPage = () => {
                             asset={asset as any}
                             onAddInvestment={() => setAddInvestmentAssetId(asset.id)}
                             onViewInvestments={() => setViewInvestmentsAsset(asset)}
-                            onCreateSIP={() => {/* TODO: implement create SIP */ }}
-                            onViewSIPs={() => {/* TODO: implement view SIPs */ }}
+                            onCreateSIP={() => setAddSIPAssetId(asset.id)}
+                            onViewSIPs={() => setViewSIPsAsset(asset)}
                             onEdit={() => setEditAssetId(asset.id)}
                         />
                     ))
@@ -379,6 +385,20 @@ const AssetsPage = () => {
                 open={!!viewInvestmentsAsset}
                 asset={viewInvestmentsAsset}
                 onClose={() => setViewInvestmentsAsset(null)}
+            />
+            <AddSIPDialog
+                open={!!addSIPAssetId}
+                assetId={addSIPAssetId || ''}
+                onClose={() => setAddSIPAssetId(null)}
+                onSuccess={async () => {
+                    await refetch();
+                    setAddSIPAssetId(null);
+                }}
+            />
+            <SIPListDialog
+                open={!!viewSIPsAsset}
+                asset={viewSIPsAsset}
+                onClose={() => setViewSIPsAsset(null)}
             />
         </Box>
     );

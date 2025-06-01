@@ -99,6 +99,7 @@ type Query {
   assets: [AssetDTO!]!
   asset(id: String!): AssetDTO!
   goals: [GoalDTO!]!
+  assetSIPs(assetId: String!): [SIPDTO!]!
 }
 
 type Mutation {
