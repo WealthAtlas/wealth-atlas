@@ -6,7 +6,8 @@ import {
   ChevronRight, 
   Dashboard, 
   LogoutRounded,
-  AccountBalanceWalletRounded
+  AccountBalanceWalletRounded,
+  ReceiptRounded
 } from '@mui/icons-material';
 import { 
   Box, 
@@ -77,6 +78,7 @@ interface NavItem {
 const navItems: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: <Dashboard /> },
     { label: 'Assets', href: '/assets', icon: <AccountBalanceWalletRounded /> },
+    { label: 'Expenses', href: '/expenses', icon: <ReceiptRounded /> },
 ];
 
 // Define prop types for custom components

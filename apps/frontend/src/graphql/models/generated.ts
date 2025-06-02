@@ -16,6 +16,21 @@ export type Scalars = {
   DateTime: any;
 };
 
+export type AggregatedExpenseDTO = {
+  readonly __typename: 'AggregatedExpenseDTO';
+  readonly currency: Scalars['String'];
+  readonly currentValue: ReadonlyArray<ExpenseDTO>;
+  readonly month: Scalars['String'];
+  readonly totalAmount: Scalars['Float'];
+  readonly year: Scalars['String'];
+};
+
+
+export type AggregatedExpenseDTOcurrentValueArgs = {
+  categories: InputMaybe<ReadonlyArray<Scalars['String']>>;
+  tags: InputMaybe<ReadonlyArray<Scalars['String']>>;
+};
+
 export type AllocatedAssetDTO = {
   readonly __typename: 'AllocatedAssetDTO';
   readonly asset: AssetDTO;
@@ -63,6 +78,17 @@ export type DynamicValueStrategyInput = {
   readonly scriptCode: Scalars['String'];
   readonly type: Scalars['String'];
   readonly value: InputMaybe<Scalars['Float']>;
+};
+
+export type ExpenseDTO = {
+  readonly __typename: 'ExpenseDTO';
+  readonly amount: Scalars['Float'];
+  readonly category: Scalars['String'];
+  readonly currency: Scalars['String'];
+  readonly date: Scalars['DateTime'];
+  readonly description: Scalars['String'];
+  readonly id: Scalars['String'];
+  readonly tags: ReadonlyArray<Scalars['String']>;
 };
 
 export type ExpenseInput = {
@@ -155,7 +181,7 @@ export type Mutation = {
   readonly __typename: 'Mutation';
   readonly addInvestment: InvestmentDTO;
   readonly createAsset: AssetDTO;
-  readonly createExpense: Scalars['Boolean'];
+  readonly createExpense: ExpenseDTO;
   readonly createGoal: GoalDTO;
   readonly createSIP: SIPDTO;
   readonly deleteInvestment: Scalars['Boolean'];
@@ -165,7 +191,7 @@ export type Mutation = {
   readonly registerUser: Scalars['Boolean'];
   readonly updateAsset: AssetDTO;
   readonly updateGoal: GoalDTO;
-  readonly updateInvestment: ReadonlyArray<InvestmentDTO>;
+  readonly updateInvestment: InvestmentDTO;
   readonly updateSIP: SIPDTO;
 };
 
@@ -242,11 +268,19 @@ export type MutationupdateSIPArgs = {
 
 export type Query = {
   readonly __typename: 'Query';
+  readonly aggregatedExpenses: ReadonlyArray<AggregatedExpenseDTO>;
   readonly asset: AssetDTO;
   readonly assetSIPs: ReadonlyArray<SIPDTO>;
   readonly assets: ReadonlyArray<AssetDTO>;
   readonly goals: ReadonlyArray<GoalDTO>;
+  readonly monthlyExpenses: ReadonlyArray<ExpenseDTO>;
   readonly user: UserDTO;
+};
+
+
+export type QueryaggregatedExpensesArgs = {
+  categories: InputMaybe<ReadonlyArray<Scalars['String']>>;
+  tags: InputMaybe<ReadonlyArray<Scalars['String']>>;
 };
 
 
@@ -257,6 +291,14 @@ export type QueryassetArgs = {
 
 export type QueryassetSIPsArgs = {
   assetId: Scalars['String'];
+};
+
+
+export type QuerymonthlyExpensesArgs = {
+  categories: InputMaybe<ReadonlyArray<Scalars['String']>>;
+  month: Scalars['String'];
+  tags: InputMaybe<ReadonlyArray<Scalars['String']>>;
+  year: Scalars['String'];
 };
 
 export type SIPDTO = {
@@ -316,6 +358,13 @@ export type CreateAssetMutationVariables = Exact<{
 
 export type CreateAssetMutation = { readonly __typename: 'Mutation', readonly createAsset: { readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly growthRate: number, readonly currentValue: number } };
 
+export type CreateExpenseMutationVariables = Exact<{
+  input: ExpenseInput;
+}>;
+
+
+export type CreateExpenseMutation = { readonly __typename: 'Mutation', readonly createExpense: { readonly __typename: 'ExpenseDTO', readonly id: string, readonly description: string, readonly amount: number, readonly currency: string, readonly category: string, readonly tags: ReadonlyArray<string>, readonly date: any } };
+
 export type CreateSIPMutationVariables = Exact<{
   assetId: Scalars['String'];
   input: SIPInput;
@@ -364,6 +413,24 @@ export type GetAssetsQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type GetAssetsQuery = { readonly __typename: 'Query', readonly assets: ReadonlyArray<{ readonly __typename: 'AssetDTO', readonly id: string, readonly name: string, readonly description: string, readonly category: string, readonly maturityDate: any | null, readonly currency: string, readonly riskLevel: string, readonly growthRate: number, readonly investedAmount: number, readonly currentValue: number, readonly valueStrategy: { readonly __typename: 'DynamicValueStrategy', readonly type: string, readonly scriptCode: string, readonly updatedAt: any | null } | { readonly __typename: 'FixedValueStrategy', readonly type: string, readonly growthRate: number } | { readonly __typename: 'ManualValueStrategy', readonly type: string } }> };
 
+export type GetAggregatedExpensesQueryVariables = Exact<{
+  categories: InputMaybe<ReadonlyArray<Scalars['String']> | Scalars['String']>;
+  tags: InputMaybe<ReadonlyArray<Scalars['String']> | Scalars['String']>;
+}>;
+
+
+export type GetAggregatedExpensesQuery = { readonly __typename: 'Query', readonly aggregatedExpenses: ReadonlyArray<{ readonly __typename: 'AggregatedExpenseDTO', readonly month: string, readonly year: string, readonly currency: string, readonly totalAmount: number }> };
+
+export type GetMonthlyExpensesQueryVariables = Exact<{
+  month: Scalars['String'];
+  year: Scalars['String'];
+  categories: InputMaybe<ReadonlyArray<Scalars['String']> | Scalars['String']>;
+  tags: InputMaybe<ReadonlyArray<Scalars['String']> | Scalars['String']>;
+}>;
+
+
+export type GetMonthlyExpensesQuery = { readonly __typename: 'Query', readonly monthlyExpenses: ReadonlyArray<{ readonly __typename: 'ExpenseDTO', readonly id: string, readonly description: string, readonly amount: number, readonly currency: string, readonly category: string, readonly tags: ReadonlyArray<string>, readonly date: any }> };
+
 export type LoginUserMutationVariables = Exact<{
   input: UserLoginInput;
 }>;
@@ -397,7 +464,7 @@ export type UpdateInvestmentMutationVariables = Exact<{
 }>;
 
 
-export type UpdateInvestmentMutation = { readonly __typename: 'Mutation', readonly updateInvestment: ReadonlyArray<{ readonly __typename: 'InvestmentDTO', readonly id: string, readonly date: any, readonly amount: number }> };
+export type UpdateInvestmentMutation = { readonly __typename: 'Mutation', readonly updateInvestment: { readonly __typename: 'InvestmentDTO', readonly id: string, readonly date: any, readonly amount: number } };
 
 export type UpdateSIPMutationVariables = Exact<{
   sipId: Scalars['String'];
@@ -485,6 +552,45 @@ export function useCreateAssetMutation(baseOptions?: Apollo.MutationHookOptions<
 export type CreateAssetMutationHookResult = ReturnType<typeof useCreateAssetMutation>;
 export type CreateAssetMutationResult = Apollo.MutationResult<CreateAssetMutation>;
 export type CreateAssetMutationOptions = Apollo.BaseMutationOptions<CreateAssetMutation, CreateAssetMutationVariables>;
+export const CreateExpenseDocument = gql`
+    mutation CreateExpense($input: ExpenseInput!) {
+  createExpense(input: $input) {
+    id
+    description
+    amount
+    currency
+    category
+    tags
+    date
+  }
+}
+    `;
+export type CreateExpenseMutationFn = Apollo.MutationFunction<CreateExpenseMutation, CreateExpenseMutationVariables>;
+
+/**
+ * __useCreateExpenseMutation__
+ *
+ * To run a mutation, you first call `useCreateExpenseMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useCreateExpenseMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [createExpenseMutation, { data, loading, error }] = useCreateExpenseMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useCreateExpenseMutation(baseOptions?: Apollo.MutationHookOptions<CreateExpenseMutation, CreateExpenseMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<CreateExpenseMutation, CreateExpenseMutationVariables>(CreateExpenseDocument, options);
+      }
+export type CreateExpenseMutationHookResult = ReturnType<typeof useCreateExpenseMutation>;
+export type CreateExpenseMutationResult = Apollo.MutationResult<CreateExpenseMutation>;
+export type CreateExpenseMutationOptions = Apollo.BaseMutationOptions<CreateExpenseMutation, CreateExpenseMutationVariables>;
 export const CreateSIPDocument = gql`
     mutation CreateSIP($assetId: String!, $input: SIPInput!) {
   createSIP(assetId: $assetId, input: $input) {
@@ -788,6 +894,94 @@ export function useGetAssetsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<
 export type GetAssetsQueryHookResult = ReturnType<typeof useGetAssetsQuery>;
 export type GetAssetsLazyQueryHookResult = ReturnType<typeof useGetAssetsLazyQuery>;
 export type GetAssetsQueryResult = Apollo.QueryResult<GetAssetsQuery, GetAssetsQueryVariables>;
+export const GetAggregatedExpensesDocument = gql`
+    query GetAggregatedExpenses($categories: [String!], $tags: [String!]) {
+  aggregatedExpenses(categories: $categories, tags: $tags) {
+    month
+    year
+    currency
+    totalAmount
+  }
+}
+    `;
+
+/**
+ * __useGetAggregatedExpensesQuery__
+ *
+ * To run a query within a React component, call `useGetAggregatedExpensesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetAggregatedExpensesQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetAggregatedExpensesQuery({
+ *   variables: {
+ *      categories: // value for 'categories'
+ *      tags: // value for 'tags'
+ *   },
+ * });
+ */
+export function useGetAggregatedExpensesQuery(baseOptions?: Apollo.QueryHookOptions<GetAggregatedExpensesQuery, GetAggregatedExpensesQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetAggregatedExpensesQuery, GetAggregatedExpensesQueryVariables>(GetAggregatedExpensesDocument, options);
+      }
+export function useGetAggregatedExpensesLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetAggregatedExpensesQuery, GetAggregatedExpensesQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetAggregatedExpensesQuery, GetAggregatedExpensesQueryVariables>(GetAggregatedExpensesDocument, options);
+        }
+export type GetAggregatedExpensesQueryHookResult = ReturnType<typeof useGetAggregatedExpensesQuery>;
+export type GetAggregatedExpensesLazyQueryHookResult = ReturnType<typeof useGetAggregatedExpensesLazyQuery>;
+export type GetAggregatedExpensesQueryResult = Apollo.QueryResult<GetAggregatedExpensesQuery, GetAggregatedExpensesQueryVariables>;
+export const GetMonthlyExpensesDocument = gql`
+    query GetMonthlyExpenses($month: String!, $year: String!, $categories: [String!], $tags: [String!]) {
+  monthlyExpenses(
+    month: $month
+    year: $year
+    categories: $categories
+    tags: $tags
+  ) {
+    id
+    description
+    amount
+    currency
+    category
+    tags
+    date
+  }
+}
+    `;
+
+/**
+ * __useGetMonthlyExpensesQuery__
+ *
+ * To run a query within a React component, call `useGetMonthlyExpensesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetMonthlyExpensesQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetMonthlyExpensesQuery({
+ *   variables: {
+ *      month: // value for 'month'
+ *      year: // value for 'year'
+ *      categories: // value for 'categories'
+ *      tags: // value for 'tags'
+ *   },
+ * });
+ */
+export function useGetMonthlyExpensesQuery(baseOptions: Apollo.QueryHookOptions<GetMonthlyExpensesQuery, GetMonthlyExpensesQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetMonthlyExpensesQuery, GetMonthlyExpensesQueryVariables>(GetMonthlyExpensesDocument, options);
+      }
+export function useGetMonthlyExpensesLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetMonthlyExpensesQuery, GetMonthlyExpensesQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetMonthlyExpensesQuery, GetMonthlyExpensesQueryVariables>(GetMonthlyExpensesDocument, options);
+        }
+export type GetMonthlyExpensesQueryHookResult = ReturnType<typeof useGetMonthlyExpensesQuery>;
+export type GetMonthlyExpensesLazyQueryHookResult = ReturnType<typeof useGetMonthlyExpensesLazyQuery>;
+export type GetMonthlyExpensesQueryResult = Apollo.QueryResult<GetMonthlyExpensesQuery, GetMonthlyExpensesQueryVariables>;
 export const LoginUserDocument = gql`
     mutation LoginUser($input: UserLoginInput!) {
   loginUser(input: $input)

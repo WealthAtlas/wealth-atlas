@@ -10,8 +10,8 @@ export class AggregatedExpenseResolver {
   @Query(() => [AggregatedExpenseDTO])
   async aggregatedExpenses(
     @Context() context: CustomContext,
-    @Args('categories', { type: () => [String], nullable: true }) categories?: string[],
-    @Args('tags', { type: () => [String], nullable: true }) tags?: string[],
+    @Args('categories', { type: () => [String!], nullable: true }) categories?: string[],
+    @Args('tags', { type: () => [String!], nullable: true }) tags?: string[],
   ): Promise<AggregatedExpenseDTO[]> {
     const userId = context.req.user?.userId || '';
     return this.expenseService.getAggregatedExpenses(userId, { categories, tags });
@@ -21,8 +21,8 @@ export class AggregatedExpenseResolver {
   async currentValue(
     @Context() context: CustomContext,
     @Parent() aggregatedExpense: AggregatedExpenseDTO,
-    @Args('categories', { type: () => [String], nullable: true }) categories?: string[],
-    @Args('tags', { type: () => [String], nullable: true }) tags?: string[],
+    @Args('categories', { type: () => [String!], nullable: true }) categories?: string[],
+    @Args('tags', { type: () => [String!], nullable: true }) tags?: string[],
   ): Promise<ExpenseDTO[]> {
     const userId = context.req.user?.userId || '';
     return this.expenseService.getExpenses(userId, aggregatedExpense.month, aggregatedExpense.year, { categories, tags });

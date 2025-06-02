@@ -11,5 +11,9 @@
     "build:backend": "pnpm --filter atlas-backend build",
     "build:frontend": "pnpm --filter atlas-frontend build",
     "build": "pnpm -r run build"
+  },
+  "dependencies": {
+    "@mui/x-date-pickers": "^8.5.0",
+    "date-fns": "^4.1.0"
   }
 }

@@ -18,7 +18,7 @@ export class AggregatedExpenseDTO {
 @ObjectType()
 export class ExpenseDTO {
   @Field()
-  id!: number;
+  id!: string;
 
   @Field()
   description!: string;

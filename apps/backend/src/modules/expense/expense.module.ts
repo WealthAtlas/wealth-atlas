@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ExpenseEntity, ExpenseSchema } from './expense.entity';
 import { ExpenseResolver } from './expense.resolver';
 import { ExpenseService } from './expense.service';
+import { AggregatedExpenseResolver } from './aggregated_expense.resolver';
 
 @Module({
     imports: [
@@ -10,7 +11,7 @@ import { ExpenseService } from './expense.service';
             { name: ExpenseEntity.name, schema: ExpenseSchema },
         ]),
     ],
-    providers: [ExpenseResolver, ExpenseService],
+    providers: [ExpenseResolver, AggregatedExpenseResolver, ExpenseService],
     exports: [],
 })
 export class ExpenseModule { }

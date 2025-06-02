@@ -51,6 +51,24 @@ type ManualValueStrategy {
   updatedAt: DateTime!
 }
 
+type AggregatedExpenseDTO {
+  month: String!
+  year: String!
+  currency: String!
+  totalAmount: Float!
+  currentValue(categories: [String!], tags: [String!]): [ExpenseDTO!]!
+}
+
+type ExpenseDTO {
+  id: String!
+  description: String!
+  amount: Float!
+  currency: String!
+  category: String!
+  tags: [String!]!
+  date: DateTime!
+}
+
 type GoalDTO {
   id: Float!
   name: String!
@@ -98,6 +116,8 @@ type Query {
   user: UserDTO!
   assets: [AssetDTO!]!
   asset(id: String!): AssetDTO!
+  monthlyExpenses(month: String!, year: String!, categories: [String!], tags: [String!]): [ExpenseDTO!]!
+  aggregatedExpenses(categories: [String!], tags: [String!]): [AggregatedExpenseDTO!]!
   goals: [GoalDTO!]!
   assetSIPs(assetId: String!): [SIPDTO!]!
 }
@@ -111,7 +131,7 @@ type Mutation {
   addInvestment(assetId: String!, input: InvestmentInput!): InvestmentDTO!
   updateInvestment(investmentId: String!, input: InvestmentInput!): InvestmentDTO!
   deleteInvestment(investmentId: String!): Boolean!
-  createExpense(input: ExpenseInput!): Boolean!
+  createExpense(input: ExpenseInput!): ExpenseDTO!
   createGoal(input: GoalInput!): GoalDTO!
   updateGoal(goalId: Float!, input: GoalInput!): GoalDTO!
   createSIP(assetId: String!, input: SIPInput!): SIPDTO!
