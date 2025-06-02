@@ -484,7 +484,6 @@ const InvestmentsListDialog: React.FC<InvestmentsListDialogProps> = ({
                 onClose={() => setEditDialogOpen(false)}
                 onSuccess={async () => {
                     await refetch();
-                    // Notify parent component if needed
                     if (onSuccess) {
                         await onSuccess();
                     }

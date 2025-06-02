@@ -387,8 +387,6 @@ const AssetsPage = () => {
                 onClose={() => setViewInvestmentsAsset(null)}
                 onSuccess={async () => {
                     await refetch();
-                    setAddInvestmentAssetId(viewInvestmentsAsset?.id || null);
-                    setViewInvestmentsAsset(null);
                 }}
             />
             <AddSIPDialog
