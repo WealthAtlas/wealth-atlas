@@ -35,8 +35,15 @@ interface ExpenseFiltersProps {
     categories: string[];
     tags: string[];
     timeRangeOptions?: TimeRangeOption[];
-    getTimeRangeOptions?: () => TimeRangeOption[];
 }
+
+// Default time range options
+const getTimeRangeOptions = (): TimeRangeOption[] => [
+    { value: '3', label: 'Last 3 Months' },
+    { value: '6', label: 'Last 6 Months' },
+    { value: '12', label: 'Last 12 Months' },
+    { value: '24', label: 'Last 2 Years' },
+];
 
 const ExpenseFilters = ({ 
     timeRange,
@@ -51,11 +58,10 @@ const ExpenseFilters = ({
     toggleTagFilter,
     categories,
     tags,
-    timeRangeOptions = [],
-    getTimeRangeOptions
+    timeRangeOptions = []
 }: ExpenseFiltersProps) => {
-    // Use provided timeRangeOptions or get them from the function
-    const options = timeRangeOptions.length > 0 ? timeRangeOptions : (getTimeRangeOptions ? getTimeRangeOptions() : []);
+    // Use provided timeRangeOptions or get them from default function
+    const options = timeRangeOptions.length > 0 ? timeRangeOptions : getTimeRangeOptions();
     
     return (
         <Card sx={{ p: 2, mb: 3, borderRadius: 2 }}>

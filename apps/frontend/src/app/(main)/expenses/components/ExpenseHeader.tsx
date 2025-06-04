@@ -20,7 +20,7 @@ interface ChartDataItem {
 }
 
 interface ExpenseHeaderProps {
-    aggregatedData: { aggregatedExpenses: AggregatedExpense[] | null };
+    aggregatedData: { aggregatedExpenses?: readonly AggregatedExpense[] | null };
     chartData: ChartDataItem[];
 }
 

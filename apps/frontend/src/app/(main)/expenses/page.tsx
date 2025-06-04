@@ -16,12 +16,14 @@ import {
 } from '@/graphql/models/generated';
 import AddExpenseDialog from './AddExpenseDialog';
 import ExpenseDetailsDialog from './ExpenseDetailsDialog';
-import ExpenseHeader from './components/ExpenseHeader';
-import ExpenseFilters from './components/ExpenseFilters';
-import ExpenseChart from './components/ExpenseChart';
-import ExpenseList from './components/ExpenseList';
+import {
+    ExpenseHeader,
+    ExpenseFilters,
+    ExpenseChart,
+    ExpenseList
+} from './components';
 
-// Type definitions
+// Type definitions for props and state - more specific types are in components
 interface AggregatedExpense {
     __typename?: string;
     month: string;
@@ -39,18 +41,9 @@ interface ChartDataItem {
     date?: Date;
 }
 
-// Date/time utility for formatting
-const formatMonth = (month: string) => {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return monthNames[parseInt(month) - 1];
-};
+// This space intentionally left empty - moved to respective components
 
-const getTimeRangeOptions = () => [
-    { value: '3', label: 'Last 3 Months' },
-    { value: '6', label: 'Last 6 Months' },
-    { value: '12', label: 'Last 12 Months' },
-    { value: '24', label: 'Last 2 Years' },
-];
+// This space intentionally left empty - moved to respective components
 
 const ExpensesPage = () => {
     // Dialog states
@@ -152,7 +145,7 @@ const ExpensesPage = () => {
         // Create a copy of the aggregatedExpenses array to avoid mutating the Apollo cache
         return [...(aggregatedData.aggregatedExpenses as unknown as AggregatedExpense[])]
             .map((expense: AggregatedExpense) => ({
-                name: `${formatMonth(expense.month)} ${expense.year}`,
+                name: `${expense.month}/${expense.year}`, // Simple format, will be formatted properly in chart component
                 month: expense.month,
                 year: expense.year,
                 amount: expense.totalAmount,
@@ -232,7 +225,7 @@ const ExpensesPage = () => {
         <Box sx={{ padding: 2 }}>
             {/* Header with title and summary */}
             <ExpenseHeader 
-                aggregatedData={aggregatedData} 
+                aggregatedData={aggregatedData as any} 
                 chartData={chartData} 
             />
             
@@ -256,7 +249,6 @@ const ExpensesPage = () => {
                 toggleTagFilter={toggleTagFilter}
                 categories={categories}
                 tags={tags}
-                timeRangeOptions={getTimeRangeOptions()}
             />
             
             {/* Content based on selected tab */}
@@ -268,10 +260,9 @@ const ExpensesPage = () => {
             ) : (
                 <ExpenseList 
                     chartData={chartData}
-                    aggregatedData={aggregatedData}
+                    aggregatedData={aggregatedData as any}
                     handleViewMonthDetails={handleViewMonthDetails}
                     selectedMonth={selectedMonth}
-                    formatMonth={formatMonth}
                 />
             )}
             

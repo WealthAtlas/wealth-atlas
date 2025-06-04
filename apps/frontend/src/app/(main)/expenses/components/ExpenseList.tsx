@@ -30,19 +30,23 @@ interface AggregatedExpense {
     totalAmount: number;
 }
 
+// Date/time utility for formatting
+const formatMonth = (month: string): string => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return monthNames[parseInt(month) - 1];
+};
+
 interface ExpenseListProps {
     chartData: ChartDataItem[];
-    aggregatedData: { aggregatedExpenses?: any[] | null };
+    aggregatedData: { aggregatedExpenses?: readonly AggregatedExpense[] | null };
     handleViewMonthDetails: (month: string, year: string) => void;
     selectedMonth: { month: string; year: string } | null;
-    formatMonth: (month: string) => string;
 }
 
 const ExpenseList = ({ 
     aggregatedData, 
     handleViewMonthDetails, 
-    selectedMonth,
-    formatMonth 
+    selectedMonth
 }: ExpenseListProps) => {
     const expenses = aggregatedData?.aggregatedExpenses || [];
     

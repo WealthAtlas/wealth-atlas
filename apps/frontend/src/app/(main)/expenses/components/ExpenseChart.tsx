@@ -14,6 +14,12 @@ import {
     Cell
 } from 'recharts';
 
+// Date/time utility for formatting
+const formatMonth = (month: string): string => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return monthNames[parseInt(month) - 1];
+};
+
 interface ChartDataItem {
     name: string;
     month: string;
@@ -42,7 +48,10 @@ const ExpenseChart = ({ chartData, handleViewMonthDetails }: ExpenseChartProps) 
                 ) : (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart
-                            data={chartData}
+                            data={chartData.map(item => ({
+                                ...item,
+                                name: `${formatMonth(item.month)} ${item.year}`
+                            }))}
                             margin={{
                                 top: 20,
                                 right: 30,
