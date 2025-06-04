@@ -123,4 +123,9 @@ export class ExpenseService {
         });
       });
   }
+
+  async deleteExpense(userId: string, expenseId: string): Promise<boolean> {
+    const result = await this.expenseModel.deleteOne({ _id: expenseId, userId }).exec();
+    return result.deletedCount > 0;
+  }
 }

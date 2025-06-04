@@ -16,18 +16,27 @@ import {
     Chip,
     OutlinedInput,
     Typography,
-    InputAdornment
+    InputAdornment,
+    ListSubheader,
+    RadioGroup,
+    FormControlLabel,
+    Radio,
+    FormLabel,
+    FormHelperText,
+    Tooltip,
+    IconButton
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { useMutation } from '@apollo/client';
-import { CREATE_EXPENSE } from '@/graphql/queries/CreateExpense.query';
+import { useCreateExpenseMutation } from '@/graphql/models/generated';
+import InfoIcon from '@mui/icons-material/Info';
 
 interface AddExpenseDialogProps {
     open: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    defaultDate?: Date;
 }
 
 const ITEM_HEIGHT = 48;
@@ -41,53 +50,54 @@ const MenuProps = {
     },
 };
 
-// Predefined categories and tags - these could come from the backend in the future
+// Predefined categories - these could come from the backend in the future
 const predefinedCategories = [
-    'Food & Dining',
-    'Transportation',
-    'Entertainment',
-    'Housing',
-    'Utilities',
-    'Shopping',
-    'Medical',
+    'Food & Groceries', 
+    'Housing & Utilities', 
+    'Healthcare',
     'Education',
-    'Travel',
-    'Personal Care',
-    'Taxes',
-    'Investments',
+    'Transportation',
+    'Communication & Internet',
+    'Childcare',
+    'Insurance',
+    'Debt Payments',
+    'Entertainment',
+    'Shopping',
+    'Dining Out',
+    'Travel & Vacation',
+    'Subscriptions',
+    'Hobbies',
+    'Beauty & Personal Care',
     'Gifts & Donations',
     'Other'
 ];
 
-const predefinedTags = [
-    'Essential',
-    'Luxury',
-    'Monthly',
-    'One-time',
-    'Shared',
-    'Work',
-    'Personal'
-];
+// Types for essential classification - decoupled from categories
+type EssentialClassification = 'Essential' | 'Non-essential';
 
-const AddExpenseDialog = ({ open, onClose, onSuccess }: AddExpenseDialogProps) => {
+const AddExpenseDialog = ({ open, onClose, onSuccess, defaultDate }: AddExpenseDialogProps) => {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState<number | ''>('');
     const [category, setCategory] = useState('');
-    const [tags, setTags] = useState<string[]>([]);
-    const [date, setDate] = useState<Date | null>(new Date());
+    const [essentialClassification, setEssentialClassification] = useState<EssentialClassification | ''>('');
+    const [date, setDate] = useState<Date | null>(defaultDate || new Date());
     const [currency, setCurrency] = useState('USD');  // Default currency
     const [errors, setErrors] = useState<Record<string, string>>({});
-
-    const [createExpense, { loading }] = useMutation(CREATE_EXPENSE);
+    const [createExpense, { loading }] = useCreateExpenseMutation();
 
     const resetForm = () => {
         setDescription('');
         setAmount('');
         setCategory('');
-        setTags([]);
-        setDate(new Date());
+        setEssentialClassification('');
+        setDate(defaultDate || new Date());
         setCurrency('USD');
         setErrors({});
+    };
+    
+    // Handle category change - no longer auto-tags
+    const handleCategoryChange = (newCategory: string) => {
+        setCategory(newCategory);
     };
 
     const handleClose = () => {
@@ -112,6 +122,10 @@ const AddExpenseDialog = ({ open, onClose, onSuccess }: AddExpenseDialogProps) =
             newErrors.category = 'Category is required';
         }
 
+        if (!essentialClassification) {
+            newErrors.essentialClassification = 'Please classify if this expense is essential or non-essential';
+        }
+
         if (!date) {
             newErrors.date = 'Date is required';
         }
@@ -130,7 +144,7 @@ const AddExpenseDialog = ({ open, onClose, onSuccess }: AddExpenseDialogProps) =
                         description,
                         amount: Number(amount),
                         category,
-                        tags,
+                        tags: essentialClassification ? [essentialClassification] : [],
                         date,
                         currency
                     }
@@ -200,12 +214,15 @@ const AddExpenseDialog = ({ open, onClose, onSuccess }: AddExpenseDialogProps) =
                         <InputLabel>Category</InputLabel>
                         <Select
                             value={category}
-                            onChange={(e) => setCategory(e.target.value)}
+                            onChange={(e) => handleCategoryChange(e.target.value)}
                             label="Category"
                         >
-                            {predefinedCategories.map((cat) => (
-                                <MenuItem key={cat} value={cat}>
-                                    {cat}
+                            {predefinedCategories.map((category) => (
+                                <MenuItem 
+                                    key={category} 
+                                    value={category}
+                                >
+                                    {category}
                                 </MenuItem>
                             ))}
                         </Select>
@@ -216,28 +233,51 @@ const AddExpenseDialog = ({ open, onClose, onSuccess }: AddExpenseDialogProps) =
                         )}
                     </FormControl>
 
-                    <FormControl fullWidth>
-                        <InputLabel>Tags</InputLabel>
-                        <Select
-                            multiple
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value as string[])}
-                            input={<OutlinedInput label="Tags" />}
-                            renderValue={(selected) => (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {selected.map((value) => (
-                                        <Chip key={value} label={value} />
-                                    ))}
+                    <FormControl component="fieldset" error={!!errors.essentialClassification}>
+                        <FormLabel component="legend" sx={{ display: 'flex', alignItems: 'center' }}>
+                            Expense Classification
+                            <Tooltip title="Essential: Needed for family well-being. Non-essential: Luxurious expenses that can be avoided or replaced with cheaper alternatives." arrow>
+                                <IconButton size="small" sx={{ ml: 1 }}>
+                                    <InfoIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        </FormLabel>
+                        <Box sx={{ mt: 1, mb: 2, p: 2, bgcolor: 'background.default', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                    <Chip 
+                                        label="Essential" 
+                                        color="primary" 
+                                        size="small" 
+                                        sx={{ borderRadius: 1, minWidth: 100 }}
+                                    />
+                                    <Typography variant="body2">
+                                        Needed expense for family well-being
+                                    </Typography>
                                 </Box>
-                            )}
-                            MenuProps={MenuProps}
+                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                    <Chip 
+                                        label="Non-essential" 
+                                        size="small"
+                                        sx={{ borderRadius: 1, borderColor: 'warning.main', color: 'warning.main', minWidth: 100 }}
+                                        variant="outlined"
+                                    />
+                                    <Typography variant="body2">
+                                        Luxurious expenses that can be avoided or replaced with cheaper alternatives
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Box>
+                        <RadioGroup
+                            value={essentialClassification}
+                            onChange={(e) => setEssentialClassification(e.target.value as EssentialClassification)}
                         >
-                            {predefinedTags.map((tag) => (
-                                <MenuItem key={tag} value={tag}>
-                                    {tag}
-                                </MenuItem>
-                            ))}
-                        </Select>
+                            <FormControlLabel value="Essential" control={<Radio />} label="Essential" />
+                            <FormControlLabel value="Non-essential" control={<Radio />} label="Non-essential" />
+                        </RadioGroup>
+                        {errors.essentialClassification && (
+                            <FormHelperText>{errors.essentialClassification}</FormHelperText>
+                        )}
                     </FormControl>
 
                     <LocalizationProvider dateAdapter={AdapterDateFns}>

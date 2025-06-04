@@ -184,6 +184,7 @@ export type Mutation = {
   readonly createExpense: ExpenseDTO;
   readonly createGoal: GoalDTO;
   readonly createSIP: SIPDTO;
+  readonly deleteExpense: Scalars['Boolean'];
   readonly deleteInvestment: Scalars['Boolean'];
   readonly deleteSIP: Scalars['Boolean'];
   readonly loginUser: Scalars['Boolean'];
@@ -220,6 +221,11 @@ export type MutationcreateGoalArgs = {
 export type MutationcreateSIPArgs = {
   assetId: Scalars['String'];
   input: SIPInput;
+};
+
+
+export type MutationdeleteExpenseArgs = {
+  expenseId: Scalars['String'];
 };
 
 
@@ -372,6 +378,13 @@ export type CreateSIPMutationVariables = Exact<{
 
 
 export type CreateSIPMutation = { readonly __typename: 'Mutation', readonly createSIP: { readonly __typename: 'SIPDTO', readonly id: string, readonly assetId: string, readonly name: string, readonly amount: number, readonly frequency: FrequencyType, readonly startDate: any, readonly endDate: any | null, readonly lastExecutedDate: any | null, readonly description: string | null } };
+
+export type DeleteExpenseMutationVariables = Exact<{
+  expenseId: Scalars['String'];
+}>;
+
+
+export type DeleteExpenseMutation = { readonly __typename: 'Mutation', readonly deleteExpense: boolean };
 
 export type DeleteInvestmentMutationVariables = Exact<{
   investmentId: Scalars['String'];
@@ -633,6 +646,37 @@ export function useCreateSIPMutation(baseOptions?: Apollo.MutationHookOptions<Cr
 export type CreateSIPMutationHookResult = ReturnType<typeof useCreateSIPMutation>;
 export type CreateSIPMutationResult = Apollo.MutationResult<CreateSIPMutation>;
 export type CreateSIPMutationOptions = Apollo.BaseMutationOptions<CreateSIPMutation, CreateSIPMutationVariables>;
+export const DeleteExpenseDocument = gql`
+    mutation DeleteExpense($expenseId: String!) {
+  deleteExpense(expenseId: $expenseId)
+}
+    `;
+export type DeleteExpenseMutationFn = Apollo.MutationFunction<DeleteExpenseMutation, DeleteExpenseMutationVariables>;
+
+/**
+ * __useDeleteExpenseMutation__
+ *
+ * To run a mutation, you first call `useDeleteExpenseMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDeleteExpenseMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [deleteExpenseMutation, { data, loading, error }] = useDeleteExpenseMutation({
+ *   variables: {
+ *      expenseId: // value for 'expenseId'
+ *   },
+ * });
+ */
+export function useDeleteExpenseMutation(baseOptions?: Apollo.MutationHookOptions<DeleteExpenseMutation, DeleteExpenseMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<DeleteExpenseMutation, DeleteExpenseMutationVariables>(DeleteExpenseDocument, options);
+      }
+export type DeleteExpenseMutationHookResult = ReturnType<typeof useDeleteExpenseMutation>;
+export type DeleteExpenseMutationResult = Apollo.MutationResult<DeleteExpenseMutation>;
+export type DeleteExpenseMutationOptions = Apollo.BaseMutationOptions<DeleteExpenseMutation, DeleteExpenseMutationVariables>;
 export const DeleteInvestmentDocument = gql`
     mutation DeleteInvestment($investmentId: String!) {
   deleteInvestment(investmentId: $investmentId)

@@ -15,6 +15,15 @@ export class ExpenseResolver {
     const userId = context.req.user?.userId || '';
     return this.expenseService.createExpense(userId, input);
   }
+  
+  @Mutation(() => Boolean)
+  async deleteExpense(
+    @Context() context: CustomContext,
+    @Args('expenseId') expenseId: string,
+  ): Promise<boolean> {
+    const userId = context.req.user?.userId || '';
+    return this.expenseService.deleteExpense(userId, expenseId);
+  }
 
   @Query(() => [ExpenseDTO])
   async monthlyExpenses(
