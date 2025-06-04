@@ -40,6 +40,14 @@ interface CategoryChartItem {
     [category: string]: string | number | Date | undefined; // Dynamic keys for each category
 }
 
+// Interface for clustered and stacked bar chart data
+interface ClusteredStackedItem {
+    name: string;
+    month: string;
+    year: string;
+    [currencyCategory: string]: string | number; // Format: "USD_Food & Groceries", "EUR_Housing", etc.
+}
+
 interface ExpenseChartProps {
     chartData: ChartDataItem[];
     handleViewMonthDetails: (month: string, year: string) => void;
@@ -94,54 +102,91 @@ const ExpenseChart = ({ chartData, handleViewMonthDetails }: ExpenseChartProps) 
     // we'll use a simulation to demonstrate how stacked bars would look
     // In a real implementation, we'd fetch category-wise data from the backend
 
-    // Transform data to include simulated category distribution
-    const prepareStackedData = (): CategoryChartItem[] => {
-        return chartData.map(item => {
-            // Create a base object with the common properties
-            const baseItem: CategoryChartItem = {
-                name: `${formatMonth(item.month)} ${item.year}`,
-                month: item.month,
-                year: item.year,
-                currency: item.currency,
-                date: item.date
+    // Group data by month-year
+    const groupedData: { [key: string]: ChartDataItem[] } = chartData.reduce((acc, item) => {
+        const key = `${formatMonth(item.month)} ${item.year}`;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+    }, {} as { [key: string]: ChartDataItem[] });
+
+    // Get unique currencies from the data
+    const uniqueCurrencies = [...new Set(chartData.map(item => item.currency))];
+
+    // Prepare data for clustered and stacked columns
+    const prepareClusteredStackedData = () => {
+        // First, prepare data organized by month and currency
+        const monthCurrencyData: ClusteredStackedItem[] = [];
+
+        // For each month/year, create an entry with data for each currency and category
+        Object.entries(groupedData).forEach(([dateKey, items]) => {
+            if (items.length === 0) return;
+
+            // Create base object for this month
+            const baseMonthItem: ClusteredStackedItem = {
+                name: dateKey,
+                month: items[0].month,
+                year: items[0].year,
             };
 
-            // Simulate distribution by dividing the total amount among categories
-            // In a real implementation, this data would come from the backend
-            const totalCategories = Math.min(5, categories.length); // Limit to 5 random categories per month
-            const selectedCategories = [...categories]
-                .sort(() => 0.5 - Math.random())
-                .slice(0, totalCategories);
-            
-            let remainingAmount = item.amount;
-            
-            // Distribute the amount among selected categories
-            selectedCategories.forEach((category, index) => {
-                // Last category gets the remaining amount
-                if (index === selectedCategories.length - 1) {
-                    baseItem[category] = remainingAmount;
-                } else {
-                    // Allocate a random portion of the remaining amount
-                    const portion = remainingAmount * (0.1 + Math.random() * 0.3);
-                    baseItem[category] = Number(portion.toFixed(2));
-                    remainingAmount -= portion;
-                }
+            // For each currency, simulate category distribution
+            uniqueCurrencies.forEach(currency => {
+                // Filter items for this currency
+                const currencyItems = items.filter(item => item.currency === currency);
+                if (currencyItems.length === 0) return;
+
+                // Calculate total amount for this currency
+                const totalAmount = currencyItems.reduce((sum, item) => sum + item.amount, 0);
+                
+                // Randomly select 2-4 categories for this currency
+                const numCategories = 2 + Math.floor(Math.random() * 3); // 2 to 4 categories
+                const selectedCategories = [...categories]
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, numCategories);
+                
+                // Create category distribution for this currency
+                let remainingAmount = totalAmount;
+                
+                selectedCategories.forEach((category, index) => {
+                    const categoryKey = `${currency}_${category}`;
+                    
+                    if (index === selectedCategories.length - 1) {
+                        // Last category gets remaining amount
+                        baseMonthItem[categoryKey] = Number(remainingAmount.toFixed(2));
+                    } else {
+                        // Random distribution
+                        const portion = remainingAmount * (0.2 + Math.random() * 0.4);
+                        baseMonthItem[categoryKey] = Number(portion.toFixed(2));
+                        remainingAmount -= portion;
+                    }
+                });
             });
-            
-            return baseItem;
+
+            monthCurrencyData.push(baseMonthItem);
         });
+
+        return monthCurrencyData;
     };
-    
-    const stackedData = prepareStackedData();
-    const activeCategories = [...new Set(stackedData.flatMap(item => 
-        Object.keys(item).filter(key => 
-            categories.includes(key) && typeof item[key] === 'number' && Number(item[key]) > 0
-        )
-    ))];
+
+    const clusteredStackedData = prepareClusteredStackedData();
+
+    // Generate all possible currency-category combinations
+    const currencyCategoryKeys: string[] = [];
+    uniqueCurrencies.forEach(currency => {
+        categories.forEach(category => {
+            const key = `${currency}_${category}`;
+            // Only include keys that have data
+            if (clusteredStackedData.some(item => item[key] && typeof item[key] === 'number' && (item[key] as number) > 0)) {
+                currencyCategoryKeys.push(key);
+            }
+        });
+    });
 
     return (
         <Card sx={{ p: 2, borderRadius: 2, mb: 3, minHeight: 500 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>Monthly Expenses by Category</Typography>
+            <Typography variant="h6" sx={{ mb: 2 }}>Monthly Expenses by Currency and Category</Typography>
             
             {/* Chart shows expense trends */}
             <Box sx={{ height: 400, width: '100%' }}>
@@ -152,7 +197,7 @@ const ExpenseChart = ({ chartData, handleViewMonthDetails }: ExpenseChartProps) 
                 ) : (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart
-                            data={stackedData}
+                            data={clusteredStackedData}
                             margin={{
                                 top: 20,
                                 right: 30,
@@ -171,24 +216,36 @@ const ExpenseChart = ({ chartData, handleViewMonthDetails }: ExpenseChartProps) 
                             <YAxis />
                             <Tooltip 
                                 formatter={(value, name, props) => {
-                                    if (categories.includes(name as string)) {
-                                        const currency = props.payload.currency || 'USD';
-                                        return [typeof value === 'number' ? `${value.toFixed(2)} ${currency}` : `${value} ${currency}`, name];
+                                    if (typeof name === 'string' && name.includes('_')) {
+                                        const [currency, category] = name.split('_');
+                                        return [typeof value === 'number' ? `${value.toFixed(2)} ${currency}` : `${value} ${currency}`, category];
                                     }
                                     return [value, name];
                                 }}
+                                labelFormatter={(label) => `${label}`}
                             />
-                            <Legend />
-                            {activeCategories.map((category) => (
-                                <Bar 
-                                    key={category}
-                                    dataKey={category} 
-                                    stackId="a"
-                                    name={category}
-                                    fill={categoryColors[category] || '#8884d8'}
-                                    cursor="pointer"
-                                />
-                            ))}
+                            <Legend 
+                                formatter={(value) => {
+                                    if (typeof value === 'string' && value.includes('_')) {
+                                        const [currency, category] = value.split('_');
+                                        return `${category} (${currency})`;
+                                    }
+                                    return value;
+                                }}
+                            />
+                            {currencyCategoryKeys.map((key) => {
+                                const [currency, category] = key.split('_');
+                                return (
+                                    <Bar 
+                                        key={key}
+                                        dataKey={key} 
+                                        stackId={currency} // Stack by currency
+                                        name={key}
+                                        fill={categoryColors[category] || '#8884d8'}
+                                        cursor="pointer"
+                                    />
+                                );
+                            })}
                         </BarChart>
                     </ResponsiveContainer>
                 )}
