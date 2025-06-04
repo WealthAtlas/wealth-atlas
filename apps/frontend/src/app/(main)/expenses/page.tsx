@@ -16,15 +16,10 @@ import {
 } from '@/graphql/models/generated';
 import AddExpenseDialog from './AddExpenseDialog';
 import ExpenseDetailsDialog from './ExpenseDetailsDialog';
-import {
-    ExpenseHeader,
-    ExpenseFilters,
-    ExpenseChart,
-    ExpenseList,
-    ExpenseInsights,
-    ExpenseClassificationGuide
-} from './components';
-
+import ExpenseHeader from './components/ExpenseHeader';
+import ExpenseFilters from './components/ExpenseFilters';
+import ExpenseChart from './components/ExpenseChart';
+import ExpenseList from './components/ExpenseList';
 
 // Type definitions
 interface AggregatedExpense {
@@ -33,16 +28,6 @@ interface AggregatedExpense {
     year: string;
     currency: string;
     totalAmount: number;
-}
-
-interface ExpenseDTO {
-    id: string;
-    description: string;
-    amount: number;
-    currency: string;
-    category: string;
-    tags: string[];
-    date: Date;
 }
 
 interface ChartDataItem {
@@ -255,7 +240,6 @@ const ExpensesPage = () => {
             <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 2 }}>
                 <Tab label="Chart View" />
                 <Tab label="List View" />
-                <Tab label="Spending Insights" />
             </Tabs>
             
             {/* Filter controls */}
@@ -280,9 +264,8 @@ const ExpensesPage = () => {
                 <ExpenseChart 
                     chartData={chartData}
                     handleViewMonthDetails={handleViewMonthDetails}
-                    selectedMonth={selectedMonth}
                 />
-            ) : currentTab === 1 ? (
+            ) : (
                 <ExpenseList 
                     chartData={chartData}
                     aggregatedData={aggregatedData}
@@ -290,14 +273,7 @@ const ExpensesPage = () => {
                     selectedMonth={selectedMonth}
                     formatMonth={formatMonth}
                 />
-            ) : (
-                <ExpenseInsights 
-                    chartData={chartData}
-                />
             )}
-            
-            {/* Classification Guide */}
-            <ExpenseClassificationGuide />
             
             <Fab
                 color="primary"

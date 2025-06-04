@@ -65,7 +65,7 @@ const ExpenseChart = ({ chartData, handleViewMonthDetails }: ExpenseChartProps) 
                                         // Get currency from the item
                                         const item = chartData.find(item => item.amount === value);
                                         const currency = item ? item.currency : 'USD';
-                                        return [`${value?.toFixed(2)} ${currency}`, 'Total Expenses'];
+                                        return [typeof value === 'number' ? `${value.toFixed(2)} ${currency}` : `${value} ${currency}`, 'Total Expenses'];
                                     }
                                     return [value, name];
                                 }}

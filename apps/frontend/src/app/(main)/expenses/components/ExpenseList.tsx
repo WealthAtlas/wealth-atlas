@@ -32,7 +32,7 @@ interface AggregatedExpense {
 
 interface ExpenseListProps {
     chartData: ChartDataItem[];
-    aggregatedData: { aggregatedExpenses: any[] };
+    aggregatedData: { aggregatedExpenses?: any[] | null };
     handleViewMonthDetails: (month: string, year: string) => void;
     selectedMonth: { month: string; year: string } | null;
     formatMonth: (month: string) => string;

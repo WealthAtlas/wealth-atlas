@@ -34,7 +34,8 @@ interface ExpenseFiltersProps {
     toggleTagFilter: (tag: string) => void;
     categories: string[];
     tags: string[];
-    timeRangeOptions: TimeRangeOption[];
+    timeRangeOptions?: TimeRangeOption[];
+    getTimeRangeOptions?: () => TimeRangeOption[];
 }
 
 const ExpenseFilters = ({ 
@@ -50,8 +51,12 @@ const ExpenseFilters = ({
     toggleTagFilter,
     categories,
     tags,
-    timeRangeOptions
+    timeRangeOptions = [],
+    getTimeRangeOptions
 }: ExpenseFiltersProps) => {
+    // Use provided timeRangeOptions or get them from the function
+    const options = timeRangeOptions.length > 0 ? timeRangeOptions : (getTimeRangeOptions ? getTimeRangeOptions() : []);
+    
     return (
         <Card sx={{ p: 2, mb: 3, borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
@@ -85,7 +90,7 @@ const ExpenseFilters = ({
                                 </InputAdornment>
                             }
                         >
-                            {timeRangeOptions.map((option) => (
+                            {options.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>
                                     {option.label}
                                 </MenuItem>
@@ -101,7 +106,7 @@ const ExpenseFilters = ({
                             multiple
                             value={categoryFilter}
                             label="Filter by Category"
-                            onChange={(e) => setTimeRange(e.target.value as string)}
+                            onChange={(e) => setCategoryFilter(e.target.value as string[])}
                             renderValue={(selected) => (
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                     {selected.map((value) => (
@@ -174,7 +179,7 @@ const ExpenseFilters = ({
                     {tagFilter.map(tag => (
                         <Chip 
                             key={tag}
-                            label={`#${tag}`}
+                            label={tag}
                             onDelete={() => toggleTagFilter(tag)}
                             color="secondary"
                             variant="outlined"
