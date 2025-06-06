@@ -1,17 +1,20 @@
-FROM node:slim AS build
+FROM node:18-slim AS build
+
+# Install pnpm
+RUN npm install -g pnpm
 
 # Create app directory
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
-COPY package-lock.json ./
-
-# Copy app source
-COPY apps/backend ./apps/backend
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/backend/package.json ./apps/backend/
 
 # Install dependencies using pnpm workspaces
 RUN pnpm install
+
+# Copy app source
+COPY apps/backend ./apps/backend
 
 # Build backend using pnpm workspace
 WORKDIR /app

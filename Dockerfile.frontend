@@ -1,0 +1,51 @@
+FROM node:18-slim AS base
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Create app directory
+WORKDIR /app
+
+# ---- Build Stage ----
+FROM base AS builder
+
+# Copy package files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/frontend/package.json ./apps/frontend/
+
+# Install dependencies 
+RUN pnpm install
+
+# Copy app source
+COPY apps/frontend ./apps/frontend
+
+# Build the app
+WORKDIR /app
+RUN pnpm build:frontend
+
+# ---- Production Stage ----
+FROM base AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy necessary files from build stage
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/apps/frontend/package.json ./apps/frontend/
+COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
+COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
+COPY --from=builder /app/apps/frontend/next.config.ts ./apps/frontend/
+
+# Install production dependencies only
+RUN pnpm install --prod
+
+# Set working directory to frontend
+WORKDIR /app/apps/frontend
+
+# Expose port
+EXPOSE 3000
+
+# Start the Next.js application
+CMD ["pnpm", "start"]
