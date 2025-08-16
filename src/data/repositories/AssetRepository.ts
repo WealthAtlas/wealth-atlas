@@ -1,6 +1,6 @@
-import { Asset } from "../../domain/entities/Asset";
-import { AssetRecord } from "../records/AssetRecord";
-import { db } from "../database";
+import { Asset } from '../../domain/entities/Asset';
+import { AssetRecord } from '../records/AssetRecord';
+import { db } from '../database';
 
 // Repository handles data access and converts between domain and database
 export class AssetRepository {
@@ -9,7 +9,7 @@ export class AssetRepository {
     return {
       id: record.id,
       name: record.name,
-      description: record.description
+      description: record.description,
     };
   }
 
@@ -17,7 +17,7 @@ export class AssetRepository {
   private toRecord(asset: Asset): Omit<AssetRecord, 'id' | 'createdAt' | 'updatedAt'> {
     return {
       name: asset.name,
-      description: asset.description
+      description: asset.description,
     };
   }
 
@@ -35,17 +35,14 @@ export class AssetRepository {
 
   // Find assets by name (partial match)
   async findByName(name: string): Promise<Asset[]> {
-    const records = await db.assets
-      .where('name')
-      .startsWithIgnoreCase(name)
-      .toArray();
+    const records = await db.assets.where('name').startsWithIgnoreCase(name).toArray();
     return records.map(record => this.toDomain(record));
   }
 
   // Save new asset (create or update)
   async save(asset: Asset): Promise<Asset> {
     const recordData = this.toRecord(asset);
-    
+
     if (asset.id) {
       // Update existing
       await db.assets.update(asset.id, recordData);
@@ -64,10 +61,7 @@ export class AssetRepository {
 
   // Check if asset with name already exists
   async existsByName(name: string): Promise<boolean> {
-    const count = await db.assets
-      .where('name')
-      .equalsIgnoreCase(name)
-      .count();
+    const count = await db.assets.where('name').equalsIgnoreCase(name).count();
     return count > 0;
   }
 

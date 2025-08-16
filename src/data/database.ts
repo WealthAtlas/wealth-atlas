@@ -12,7 +12,7 @@ export class WealthAtlasDB extends Dexie {
 
   private setupSchema(): void {
     this.version(1).stores({
-      assets: '++id, name, description, createdAt, updatedAt'
+      assets: '++id, name, description, createdAt, updatedAt',
     });
   }
 
@@ -24,15 +24,15 @@ export class WealthAtlasDB extends Dexie {
     table: Table<T>
   ): void {
     // Auto-populate timestamps on creation
-    table.hook('creating', (primKey, obj, trans) => {
+    table.hook('creating', (_primKey, obj, _trans) => {
       const now = new Date();
       obj.createdAt = now;
       obj.updatedAt = now;
     });
 
     // Auto-update timestamp on modification
-    table.hook('updating', (modifications, primKey, obj, trans) => {
-      (modifications as any).updatedAt = new Date();
+    table.hook('updating', (modifications, _primKey, _obj, _trans) => {
+      (modifications as { updatedAt?: Date }).updatedAt = new Date();
     });
   }
 }
