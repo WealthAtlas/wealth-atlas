@@ -1,33 +1,40 @@
 import Dexie, { Table } from 'dexie';
-import { User, PortfolioItem } from '../domain/types';
+import { AssetRecord } from './records/AssetRecord';
 
 export class WealthAtlasDB extends Dexie {
-  users!: Table<User>;
-  portfolioItems!: Table<PortfolioItem>;
+  assets!: Table<AssetRecord>;
 
   constructor() {
     super('WealthAtlasDB');
-    
+    this.setupSchema();
+    this.setupHooks();
+  }
+
+  private setupSchema(): void {
     this.version(1).stores({
-      users: '++id, username, email, createdAt',
-      portfolioItems: '++id, userId, name, value, createdAt, updatedAt'
+      assets: '++id, name, description, createdAt, updatedAt'
+    });
+  }
+
+  private setupHooks(): void {
+    this.setupTimestampHooks(this.assets);
+  }
+
+  private setupTimestampHooks<T extends { createdAt?: Date; updatedAt?: Date }>(
+    table: Table<T>
+  ): void {
+    // Auto-populate timestamps on creation
+    table.hook('creating', (primKey, obj, trans) => {
+      const now = new Date();
+      obj.createdAt = now;
+      obj.updatedAt = now;
     });
 
-    // Auto-populate timestamps
-    this.users.hook('creating', (primKey, obj, trans) => {
-      obj.createdAt = new Date();
-    });
-
-    this.portfolioItems.hook('creating', (primKey, obj, trans) => {
-      obj.createdAt = new Date();
-      obj.updatedAt = new Date();
-    });
-
-    this.portfolioItems.hook('updating', (modifications, primKey, obj, trans) => {
-      modifications.updatedAt = new Date();
+    // Auto-update timestamp on modification
+    table.hook('updating', (modifications, primKey, obj, trans) => {
+      (modifications as any).updatedAt = new Date();
     });
   }
 }
 
-// Create and export database instance
 export const db = new WealthAtlasDB();

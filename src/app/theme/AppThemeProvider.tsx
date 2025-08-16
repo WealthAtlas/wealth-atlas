@@ -1,6 +1,6 @@
-import React from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { ReactNode } from 'react';
 
 const theme = createTheme({
   palette: {
@@ -12,14 +12,14 @@ const theme = createTheme({
 });
 
 interface AppThemeProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-export const AppThemeProvider: React.FC<AppThemeProviderProps> = ({ children }) => {
+export function AppThemeProvider({ children }: AppThemeProviderProps) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       {children}
     </ThemeProvider>
   );
-};
+}
