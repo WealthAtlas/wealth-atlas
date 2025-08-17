@@ -270,6 +270,19 @@ export class Asset implements IAsset {
 - **camelCase** for utilities and hooks: `useAuth.ts`, `database.ts`
 - **PascalCase** for entities and records: `Asset.ts`, `AssetRecord.ts`
 
+### Component Organization
+
+- **Forms** (`src/app/components/Forms/`) - Reusable form dialog components
+  - `AssetFormDialog.tsx` - Asset creation/editing form
+  - `TransactionFormDialog.tsx` - Transaction creation/editing form
+- **Dialogs** (`src/app/components/Dialogs/`) - Modal dialog components
+  - `TransactionListDialog.tsx` - Transaction listing and management
+- **Pages** (`src/app/components/Pages/`) - Page-level presentational components
+- **Containers** (`src/app/containers/`) - Smart components with business logic
+  - `AssetsContainer.tsx` - Main orchestration for assets and transactions
+  - `TransactionFormContainer.tsx` - Transaction form business logic
+  - `TransactionListContainer.tsx` - Transaction list business logic
+
 ### Import Organization
 
 1. React and external libraries first
@@ -310,6 +323,30 @@ export class Asset implements IAsset {
 4. **Build Container** - Create smart component for business logic
 5. **Add Presentation** - Create pure component for UI rendering
 6. **Update Router** - Add new routes if needed
+
+### Transaction Management Pattern
+
+The project implements a comprehensive transaction management system:
+
+1. **Transaction Creation/Editing** - `TransactionFormDialog.tsx` + `TransactionFormContainer.tsx`
+   - Supports both add and edit modes via `transactionToEdit` prop
+   - Form pre-populates when editing existing transactions
+   - Handles validation and business logic in container
+2. **Transaction Listing** - `TransactionListDialog.tsx` + `TransactionListContainer.tsx`
+   - Displays all transactions for a specific asset
+   - Provides actions for editing and deleting transactions
+   - Handles data loading and management operations
+3. **Multi-Dialog Coordination** - `AssetsContainer.tsx`
+   - Orchestrates between asset forms, transaction forms, and transaction lists
+   - Manages state transitions between dialogs (e.g., from list to edit form)
+   - Ensures data consistency across all operations
+
+### Component Interaction Patterns
+
+- **Form Dialog Pattern** - Reusable forms that support both create and edit modes
+- **List Management Pattern** - Dedicated containers for complex list operations
+- **Dialog Orchestration** - Parent containers coordinate multiple dialog states
+- **Data Flow** - Containers handle all data operations, components handle presentation
 
 ### When Refactoring
 
@@ -356,6 +393,9 @@ export class Asset implements IAsset {
 - Store computed portfolio values in the database
 - Use negative amounts instead of explicit buy/sell transaction types
 - Store total invested amounts or profit/loss in Asset entities
+- Create forms without supporting both add and edit modes
+- Mix transaction management logic across multiple containers
+- Skip dialog state coordination in parent containers
 
 ✅ **Do:**
 
@@ -375,6 +415,10 @@ export class Asset implements IAsset {
 - Calculate portfolio metrics at runtime from raw transaction data
 - Store unit prices including fees rather than separate fee fields
 - Make quantity optional for assets where it doesn't apply (FDs, bonds)
+- Create form dialogs that support both create and edit modes via props
+- Use dedicated containers for complex list operations (TransactionListContainer)
+- Implement proper dialog orchestration in parent containers (AssetsContainer)
+- Follow the established transaction management patterns for consistency
 
 ## Future Evolution
 

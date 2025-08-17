@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AssetsContainer } from '../../containers/AssetsContainer';
+import { ExpensesContainer } from '../../containers/ExpensesContainer';
 import { MainLayout } from '../Layout/MainLayout';
 import { DashboardPage } from '../Pages/DashboardPage';
-import { ExpensesPage } from '../Pages/ExpensesPage';
 import { LoansPage } from '../Pages/LoansPage';
 
 export function MainPage() {
@@ -78,7 +78,7 @@ export function MainPage() {
       case 2:
         return <LoansPage />;
       case 3:
-        return <ExpensesPage />;
+        return <ExpensesContainer />;
       default:
         return <DashboardPage />;
     }

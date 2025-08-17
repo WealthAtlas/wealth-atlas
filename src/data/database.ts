@@ -1,10 +1,12 @@
 import Dexie, { Table } from 'dexie';
 import { IAsset } from '../domain/entities/Asset';
 import { IAssetTransaction } from '../domain/entities/AssetTransaction';
+import { IExpense } from '../domain/entities/Expense';
 
 export class WealthAtlasDB extends Dexie {
   assets!: Table<IAsset>;
   assetTransactions!: Table<IAssetTransaction>;
+  expenses!: Table<IExpense>;
 
   constructor() {
     super('WealthAtlasDB');
@@ -21,7 +23,15 @@ export class WealthAtlasDB extends Dexie {
       assets: '++id, name, description, category, currency, currentMarketValue, valueUpdatedAt',
       assetTransactions: '++id, assetId, transactionType, quantity, price, date',
     });
+
+    // Version 3: Add Expenses table
+    this.version(3).stores({
+      assets: '++id, name, description, category, currency, currentMarketValue, valueUpdatedAt',
+      assetTransactions: '++id, assetId, transactionType, quantity, price, date',
+      expenses: '++id, amount, currency, date, category, isEssential, description',
+    });
   }
 }
 
 export const db = new WealthAtlasDB();
+export const database = db;
