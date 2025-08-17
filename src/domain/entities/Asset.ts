@@ -1,36 +1,53 @@
-// Domain Asset entity - will evolve into a class with business logic
-export interface Asset {
+import { AssetCategory } from './AssetCategory';
+import { AssetTransaction } from './AssetTransaction';
+
+export interface IAsset {
   id?: number;
   name: string;
-  description?: string;
+  description: string;
+  category: AssetCategory;
+  currency: string;
+  currentMarketValue: number | undefined;
+  valueUpdatedAt: Date | undefined;
 }
 
-// Future: This will become a class like this:
-/*
-export class Asset {
+export class Asset implements IAsset {
   constructor(
     public readonly id: number | undefined,
     public readonly name: string,
-    public readonly description?: string
-  ) {
-    this.validateName();
+    public readonly description: string,
+    public readonly category: AssetCategory,
+    public readonly currency: string,
+    public readonly currentMarketValue: number | undefined,
+    public readonly valueUpdatedAt: Date | undefined
+  ) {}
+
+  // Business methods to compute portfolio metrics
+  getTotalInvestedAmount(transactions: AssetTransaction[]): number {
+    return transactions
+      .filter(t => t.assetId === this.id)
+      .reduce((total, transaction) => {
+        const amount = (transaction.quantity || 1) * transaction.price;
+        return transaction.transactionType === 'buy' ? total + amount : total - amount;
+      }, 0);
   }
 
-  private validateName(): void {
-    if (!this.name || this.name.trim().length === 0) {
-      throw new Error('Asset name cannot be empty');
-    }
+  getCurrentHoldings(transactions: AssetTransaction[]): number {
+    return transactions
+      .filter(t => t.assetId === this.id)
+      .reduce((total, transaction) => {
+        const quantity = transaction.quantity || 1;
+        return transaction.transactionType === 'buy' ? total + quantity : total - quantity;
+      }, 0);
   }
 
-  // Business logic methods
-  isSimilarTo(other: Asset): boolean {
-    return this.name.toLowerCase() === other.name.toLowerCase();
-  }
+  getProfitLoss(transactions: AssetTransaction[]): number | undefined {
+    if (!this.currentMarketValue) return undefined;
 
-  getDisplayName(): string {
-    return this.description ? `${this.name} - ${this.description}` : this.name;
-  }
+    const totalInvested = this.getTotalInvestedAmount(transactions);
+    const currentHoldings = this.getCurrentHoldings(transactions);
+    const currentTotalValue = currentHoldings * this.currentMarketValue;
 
-  // Add more business logic as needed
+    return currentTotalValue - totalInvested;
+  }
 }
-*/

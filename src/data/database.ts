@@ -1,38 +1,25 @@
 import Dexie, { Table } from 'dexie';
-import { AssetRecord } from './records/AssetRecord';
+import { IAsset } from '../domain/entities/Asset';
+import { IAssetTransaction } from '../domain/entities/AssetTransaction';
 
 export class WealthAtlasDB extends Dexie {
-  assets!: Table<AssetRecord>;
+  assets!: Table<IAsset>;
+  assetTransactions!: Table<IAssetTransaction>;
 
   constructor() {
     super('WealthAtlasDB');
     this.setupSchema();
-    this.setupHooks();
   }
 
   private setupSchema(): void {
     this.version(1).stores({
-      assets: '++id, name, description, createdAt, updatedAt',
-    });
-  }
-
-  private setupHooks(): void {
-    this.setupTimestampHooks(this.assets);
-  }
-
-  private setupTimestampHooks<T extends { createdAt?: Date; updatedAt?: Date }>(
-    table: Table<T>
-  ): void {
-    // Auto-populate timestamps on creation
-    table.hook('creating', (_primKey, obj, _trans) => {
-      const now = new Date();
-      obj.createdAt = now;
-      obj.updatedAt = now;
+      assets: '++id, name, description',
     });
 
-    // Auto-update timestamp on modification
-    table.hook('updating', (modifications, _primKey, _obj, _trans) => {
-      (modifications as { updatedAt?: Date }).updatedAt = new Date();
+    // Version 2: Add new Asset fields and AssetTransactions table
+    this.version(2).stores({
+      assets: '++id, name, description, category, currency, currentMarketValue, valueUpdatedAt',
+      assetTransactions: '++id, assetId, transactionType, quantity, price, date',
     });
   }
 }

@@ -1,20 +1,27 @@
-import { Asset } from '../../domain/entities/Asset';
+import { Asset, IAsset } from '../../domain/entities/Asset';
 import { db } from '../database';
-import { AssetRecord } from '../records/AssetRecord';
 
 export class AssetRepository {
-  private toDomain(record: AssetRecord): Asset {
-    return {
-      id: record.id,
-      name: record.name,
-      description: record.description,
-    };
+  private toDomain(record: IAsset): Asset {
+    return new Asset(
+      record.id,
+      record.name,
+      record.description,
+      record.category,
+      record.currency,
+      record.currentMarketValue,
+      record.valueUpdatedAt
+    );
   }
 
-  private toRecord(asset: Asset): Omit<AssetRecord, 'id' | 'createdAt' | 'updatedAt'> {
+  private toRecord(asset: Asset): Omit<IAsset, 'id'> {
     return {
       name: asset.name,
       description: asset.description,
+      category: asset.category,
+      currency: asset.currency,
+      currentMarketValue: asset.currentMarketValue,
+      valueUpdatedAt: asset.valueUpdatedAt,
     };
   }
 
@@ -38,7 +45,15 @@ export class AssetRepository {
     } else {
       // Create new
       const newId = await db.assets.add(recordData);
-      return { ...asset, id: newId };
+      return new Asset(
+        newId,
+        asset.name,
+        asset.description,
+        asset.category,
+        asset.currency,
+        asset.currentMarketValue,
+        asset.valueUpdatedAt
+      );
     }
   }
 

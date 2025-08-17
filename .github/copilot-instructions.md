@@ -88,7 +88,7 @@ The project follows a clean DDD architecture with clear separation of concerns:
 ```
 src/
 ├── domain/           # Pure business logic (entities, value objects)
-├── data/             # Data access layer (repositories, records, database)
+├── data/             # Data access layer (repositories, database)
 └── app/              # Application layer (components, containers, routing)
 ```
 
@@ -101,9 +101,9 @@ src/
    - Example: `Asset` entity will become a class with validation and business logic
 
 2. **Data Layer** (`src/data/`)
-   - **Records** (`src/data/records/`) - Database schema definitions with timestamps
-   - **Repositories** (`src/data/repositories/`) - Data access with domain/record mapping
-   - **Database** (`src/data/database.ts`) - Dexie configuration with automatic timestamp hooks
+   - **Repositories** (`src/data/repositories/`) - Data access using domain interfaces directly
+   - **Database** (`src/data/database.ts`) - Simple Dexie configuration for local storage
+   - **No Timestamps** - Clean interfaces without audit fields for personal use
 
 3. **Application Layer** (`src/app/`)
    - **Components** - Pure presentational React components
@@ -171,69 +171,96 @@ Follow the strict container-component separation:
 
 ### Repository Pattern Implementation
 
-Follow the established repository pattern in `AssetRepository.ts`:
+Follow the simplified repository pattern using domain interfaces directly:
 
+````typescript
 ```typescript
 export class AssetRepository {
   // Private mapping methods for DRY principle
-  private toDomain(record: AssetRecord): Asset {
-    /* ... */
+  private toDomain(record: IAsset): Asset {
+    return new Asset(/* map all business fields */);
   }
-  private toRecord(asset: Asset): Omit<AssetRecord, 'id' | 'createdAt' | 'updatedAt'> {
-    /* ... */
+  private toRecord(asset: Asset): Omit<IAsset, 'id'> {
+    return { /* only business fields */ };
   }
 
   // Standard CRUD operations
-  async findAll(): Promise<Asset[]> {
-    /* ... */
-  }
-  async findById(id: number): Promise<Asset | null> {
-    /* ... */
-  }
-  async save(asset: Asset): Promise<Asset> {
-    /* ... */
-  }
-  async delete(id: number): Promise<void> {
-    /* ... */
-  }
+  async findAll(): Promise<Asset[]> { /* ... */ }
+  async findById(id: number): Promise<Asset | null> { /* ... */ }
+  async save(asset: Asset): Promise<Asset> { /* ... */ }
+  async delete(id: number): Promise<void> { /* ... */ }
 }
-```
+````
+
+````
 
 ### Database Design Patterns
 
-1. **Automatic Timestamps** - All records have `createdAt` and `updatedAt` managed by Dexie hooks
-2. **Generic Timestamp Hooks** - Reusable `setupTimestampHooks<T>()` method for any table
-3. **Schema Versioning** - Proper Dexie version management for database migrations
+1. **Simple Schema** - Direct use of domain interfaces without audit fields
+2. **Schema Versioning** - Proper Dexie version management for database migrations
+3. **Domain Interface as Schema** - Use `IAsset`, `IAssetTransaction` directly as Dexie table types
+4. **Personal Use Focus** - No monitoring or audit trails needed for single-user app
 
 ### Entity Evolution Pattern
 
 Entities start as interfaces and evolve to classes:
 
 ```typescript
-// Current: Simple interface
-export interface Asset {
+// Current: Interface with clean business fields
+export interface IAsset {
   id?: number;
   name: string;
-  description?: string;
+  description: string;
+  category: AssetCategory;
+  currency: string;
+  currentMarketValue: number | undefined;
+  valueUpdatedAt: Date | undefined;
 }
 
-// Future: Class with business logic
-export class Asset {
-  constructor(/* ... */) {
+// Domain class implementing the interface
+export class Asset implements IAsset {
+  constructor(/* all fields */) {
     this.validateName();
   }
 
   private validateName(): void {
     /* validation logic */
   }
-  isSimilarTo(other: Asset): boolean {
+  getTotalInvestedAmount(transactions: AssetTransaction[]): number {
     /* business logic */
   }
-  getDisplayName(): string {
-    /* display logic */
+  getCurrentHoldings(transactions: AssetTransaction[]): number {
+    /* business logic */
+  }
+  getProfitLoss(transactions: AssetTransaction[]): number | undefined {
+    /* business logic */
   }
 }
-```
+````
+
+### Wealth Management Domain Patterns
+
+#### Asset & Transaction Model
+
+- **Assets** represent investable items (stocks, real estate, mutual funds, FDs, gold, etc.)
+- **Transactions** track buy/sell activities with quantity (optional) and unit price
+- **No Computed Storage** - Calculate portfolio metrics at runtime
+- **Money-First Approach** - Always prioritize monetary tracking over quantity
+
+#### Key Business Rules
+
+1. **Store Raw Data Only** - Never store computed values that can be calculated
+2. **Unit Price Storage** - Store unit price including fees, not separate fee fields
+3. **Optional Quantity** - Some assets (FDs, bonds) don't have meaningful quantity concept
+4. **Explicit Transaction Types** - Use `buy`/`sell` rather than positive/negative amounts
+5. **Market Value Separation** - `currentMarketValue` is manually updated or API-fetched
+
+#### Portfolio Calculations (Runtime)
+
+- **Total Invested** - Sum of (quantity × price) for all buy transactions minus sells
+- **Current Holdings** - Sum of quantities bought minus quantities sold
+- **Current Value** - Current holdings × current market value per unit
+- **Profit/Loss** - Current value minus total invested amount
 
 ## File Naming Conventions
 
@@ -278,7 +305,7 @@ export class Asset {
 ### When Adding New Features
 
 1. **Start with Domain** - Define entities and business logic first
-2. **Create Records** - Design database schema separate from domain
+2. **Extend Interface** - Add optional database fields to domain interface if needed
 3. **Implement Repository** - Handle data access with proper mapping
 4. **Build Container** - Create smart component for business logic
 5. **Add Presentation** - Create pure component for UI rendering
@@ -304,6 +331,7 @@ export class Asset {
 - [ ] Uses established container-presentational pattern
 - [ ] Includes proper TypeScript types
 - [ ] Has private mapping methods in repositories
+- [ ] Uses domain interfaces directly (no separate record types)
 - [ ] Passes `pnpm run quality` checks
 - [ ] Uses consistent naming conventions
 - [ ] Maintains clean import organization
@@ -324,6 +352,10 @@ export class Asset {
 - Use outdated or legacy design patterns
 - Test presentation layer or data layer components
 - Put domain logic in containers or data logic in components
+- Create separate record interfaces when domain interfaces suffice
+- Store computed portfolio values in the database
+- Use negative amounts instead of explicit buy/sell transaction types
+- Store total invested amounts or profit/loss in Asset entities
 
 ✅ **Do:**
 
@@ -339,6 +371,10 @@ export class Asset {
 - Apply modern clean code practices and latest design patterns
 - Test only complex business logic (calculations, algorithms)
 - Place logic in appropriate layers (domain, data, application)
+- Use domain interfaces directly for database schemas when possible
+- Calculate portfolio metrics at runtime from raw transaction data
+- Store unit prices including fees rather than separate fee fields
+- Make quantity optional for assets where it doesn't apply (FDs, bonds)
 
 ## Future Evolution
 
