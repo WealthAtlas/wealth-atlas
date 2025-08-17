@@ -1,3 +1,4 @@
+import { Currency } from '@/domain/entities/Currency';
 import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/domain/entities/ExpenseCategory';
 import {
   Box,
@@ -76,7 +77,7 @@ export function ExpenseFormDialog({
     };
 
   const handleSelectChange =
-    (field: keyof ExpenseFormData) => (event: SelectChangeEvent<ExpenseCategory>) => {
+    (field: keyof ExpenseFormData) => (event: SelectChangeEvent<string>) => {
       setFormData(prev => ({
         ...prev,
         [field]: event.target.value,
@@ -116,14 +117,21 @@ export function ExpenseFormDialog({
             fullWidth
           />
 
-          <TextField
-            label="Currency"
-            value={formData.currency}
-            onChange={handleInputChange('currency')}
-            required
-            placeholder="e.g., USD, EUR, INR"
-            fullWidth
-          />
+          <FormControl fullWidth>
+            <InputLabel>Currency</InputLabel>
+            <Select
+              value={formData.currency}
+              onChange={handleSelectChange('currency')}
+              label="Currency"
+              required
+            >
+              {Object.entries(Currency).map(([key, value]) => (
+                <MenuItem key={key} value={key}>
+                  {key} - {value}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           <TextField
             label="Date"
