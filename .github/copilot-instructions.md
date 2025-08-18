@@ -8,6 +8,7 @@
 
 - **React 18.3** + **TypeScript 5** - Modern React with strict typing
 - **Vite** - Fast development and build tooling
+- **Vitest** - Fast unit testing framework integrated with Vite
 - **Material-UI v5** - Component library for consistent UI
 - **@mui/x-charts** - Material-UI charts for data visualization
 - **Dexie v4** - IndexedDB wrapper for local-first data storage
@@ -54,10 +55,12 @@
 
 ### 6. Strategic Testing (Test Pyramid)
 
-- **Complex Business Logic Only** - Unit tests for critical domain calculations (growth rates, inflation, etc.)
+- **Complex Business Logic Only** - Unit tests for critical domain calculations (IRR analysis, growth rates, inflation, loan metrics)
+- **Financial Calculations** - Comprehensive testing for IRR calculations, Newton-Raphson method convergence, and loan analytics
 - **No Presentation Tests** - Skip testing for UI components and presentation layer
 - **No Data Layer Tests** - Skip testing for repositories and database operations
 - **Focus on Value** - Test only the most complex and critical business logic
+- **Test Framework** - Use Vitest for fast unit testing with excellent TypeScript support
 
 ### 7. Strict Type Safety
 
@@ -167,6 +170,9 @@ Follow the strict container-component separation:
 - `pnpm run quality` - Runs type-check, lint, and format:check
 - `pnpm run lint:fix` - Auto-fix ESLint issues
 - `pnpm run format` - Auto-format code with Prettier
+- `pnpm test` - Run unit tests with Vitest
+- `pnpm test:ui` - Run tests with interactive UI
+- `pnpm test:run` - Run tests once without watch mode
 
 ## Development Patterns
 
@@ -267,6 +273,15 @@ export class Asset implements IAsset {
 - **Category Classification** - Expenses are categorized (FOOD, TRANSPORT, HOUSING, etc.)
 - **Essential vs Non-Essential** - Track whether expenses are essential or discretionary
 
+#### Loan Management Model
+
+- **Loans** represent borrowed money with payment tracking and financial analysis
+- **Payment Schedule** - Automated generation of scheduled payments with configurable frequency
+- **Payment Tracking** - Mark payments as paid/unpaid with overdue detection
+- **IRR Analysis** - Advanced Internal Rate of Return calculations using Newton-Raphson method
+- **Financial Metrics** - Comprehensive loan analytics including effective interest rates, risk assessment, and payment history
+- **Payment-First Model** - Focus on actual payment tracking rather than theoretical schedules
+
 #### Key Business Rules
 
 1. **Store Raw Data Only** - Never store computed values that can be calculated
@@ -282,6 +297,15 @@ export class Asset implements IAsset {
 3. **Category Classification** - Mandatory expense categorization for analytics
 4. **Essential Tracking** - Distinguish between essential and discretionary spending
 5. **Real-time Analytics** - Calculate monthly totals and trends dynamically
+
+#### Loan Management Rules
+
+1. **Payment-First Approach** - Focus on actual payment tracking over theoretical calculations
+2. **Automated Scheduling** - Generate payment schedules with configurable frequency (monthly, quarterly, etc.)
+3. **IRR Calculation** - Use Newton-Raphson method for accurate Internal Rate of Return analysis
+4. **Risk Assessment** - Categorize loans by risk level (LOW/MEDIUM/HIGH) based on payment history and rates
+5. **Cash Flow Analysis** - Build comprehensive cash flow models for accurate financial metrics
+6. **Overdue Detection** - Automatic identification of missed payments with aging analysis
 
 #### Portfolio Calculations (Runtime)
 
@@ -304,8 +328,12 @@ export class Asset implements IAsset {
   - `AssetFormDialog.tsx` - Asset creation/editing form
   - `TransactionFormDialog.tsx` - Transaction creation/editing form
   - `ExpenseFormDialog.tsx` - Expense creation/editing form
+  - `LoanFormDialog.tsx` - Loan creation/editing form
+  - `PaymentFormDialog.tsx` - Payment creation/editing form
 - **Dialogs** (`src/app/components/Dialogs/`) - Modal dialog components
   - `TransactionListDialog.tsx` - Transaction listing and management
+  - `PaymentListDialog.tsx` - Payment listing and management
+  - `IRRAnalysisDialog.tsx` - Detailed IRR analysis display
 - **Pages** (`src/app/components/Pages/`) - Page-level presentational components
 - **Containers** (`src/app/containers/`) - Smart components with business logic
   - `AssetsContainer.tsx` - Main orchestration for assets and transactions
@@ -313,6 +341,10 @@ export class Asset implements IAsset {
   - `TransactionListContainer.tsx` - Transaction list business logic
   - `ExpensesContainer.tsx` - Expense management and analytics
   - `ExpenseFormContainer.tsx` - Expense form business logic
+  - `LoansContainer.tsx` - Loan management and IRR analysis orchestration
+  - `LoanFormContainer.tsx` - Loan form business logic
+  - `PaymentFormContainer.tsx` - Payment form business logic
+  - `PaymentListContainer.tsx` - Payment list business logic
 
 ### Import Organization
 
@@ -328,6 +360,9 @@ export class Asset implements IAsset {
 
 - `pnpm dev` - Start development server (localhost:3000)
 - `pnpm build` - Production build with TypeScript compilation
+- `pnpm test` - Run unit tests in watch mode
+- `pnpm test:ui` - Run tests with interactive Vitest UI
+- `pnpm test:run` - Run tests once without watch mode
 - `pnpm run quality` - **Run before commits** to ensure code quality
 - `pnpm run lint:fix && pnpm run format` - Auto-fix common issues
 
@@ -355,6 +390,27 @@ export class Asset implements IAsset {
 5. **Add Presentation** - Create pure component for UI rendering
 6. **Update Router** - Add new routes if needed
 
+### Testing Patterns
+
+The project follows strategic testing focused on complex business logic:
+
+1. **Test Structure** - Place tests in `__tests__` folders adjacent to source files
+   - `src/domain/services/__tests__/` for service logic tests
+   - Use descriptive test names that explain business scenarios
+2. **Test Content Focus**:
+   - **Financial Calculations** - IRR analysis, Newton-Raphson convergence, loan metrics
+   - **Business Logic Validation** - Entity validation, payment scheduling, risk assessment
+   - **Edge Cases** - Small amounts, overpayments, future dates, invalid data
+3. **Test Organization**:
+   - Group related tests with `describe` blocks
+   - Use `beforeEach` for common test setup
+   - Test both success and failure scenarios
+   - Include edge cases and boundary conditions
+4. **Vitest Configuration**:
+   - Integrated with Vite for fast test execution
+   - Global test utilities available
+   - Support for TypeScript without additional configuration
+
 ### Transaction Management Pattern
 
 The project implements a comprehensive transaction management system:
@@ -378,6 +434,28 @@ The project implements a comprehensive transaction management system:
 - **List Management Pattern** - Dedicated containers for complex list operations
 - **Dialog Orchestration** - Parent containers coordinate multiple dialog states
 - **Data Flow** - Containers handle all data operations, components handle presentation
+
+### Loan Management Pattern
+
+The project implements a comprehensive loan management system:
+
+1. **Loan Creation/Editing** - `LoanFormDialog.tsx` + `LoanFormContainer.tsx`
+   - Supports both add and edit modes with loan validation
+   - Handles principal amount, interest rates, and payment schedules
+   - Integrates with automated payment generation
+2. **Payment Management** - `PaymentFormDialog.tsx` + `PaymentListDialog.tsx`
+   - Track individual payments with paid/unpaid status
+   - Automatic overdue detection and aging analysis
+   - Support for manual payment entry and bulk operations
+3. **IRR Analysis** - `IRRAnalysisDialog.tsx` + `IRRAnalysisService.ts`
+   - Advanced Internal Rate of Return calculations using Newton-Raphson method
+   - Risk assessment with LOW/MEDIUM/HIGH categorization
+   - Interactive displays with progressive disclosure (card → tooltip → detailed dialog)
+   - Comprehensive financial metrics including EAR, monthly rates, and reliability scoring
+4. **Payment Scheduling** - `PaymentSchedule` entity with automated generation
+   - Configurable payment frequencies (monthly, quarterly, etc.)
+   - Automatic conversion of scheduled to actual payments
+   - Smart date handling with business day adjustments
 
 ### When Refactoring
 
@@ -430,6 +508,14 @@ The project implements a comprehensive transaction management system:
 - Use text inputs for currency fields instead of Currency enum dropdowns
 - Store computed expense totals instead of calculating them at runtime
 - Mix essential and non-essential expenses without proper categorization
+- Store computed loan metrics instead of calculating IRR at runtime
+- Use separate payment tracking systems instead of unified LoanPayment entities
+- Skip IRR analysis for loan interest rate calculations
+- Ignore payment scheduling automation in favor of manual entry only
+- Mix theoretical loan calculations with actual payment tracking
+- Use simple interest calculations instead of IRR for loan analysis
+- Skip risk assessment in loan management
+- Store computed interest rates instead of calculating from payment history
 
 ✅ **Do:**
 
@@ -456,6 +542,14 @@ The project implements a comprehensive transaction management system:
 - Use Currency enum for all currency-related fields with dropdown selection
 - Implement monthly grouping for time-based data organization
 - Calculate analytics and totals at runtime rather than storing computed values
+- Use comprehensive IRR analysis for accurate loan interest rate calculations
+- Implement unified payment tracking with LoanPayment entities
+- Leverage Newton-Raphson method for precise IRR calculations
+- Automate payment scheduling with configurable frequencies
+- Separate actual payment tracking from theoretical loan calculations
+- Use IRR-based analysis for professional-grade loan management
+- Include risk assessment in all loan analysis workflows
+- Calculate interest rates dynamically from payment history and cash flows
 
 ## Future Evolution
 

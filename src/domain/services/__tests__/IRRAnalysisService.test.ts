@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Loan } from '../../entities/Loan';
 import { LoanPayment } from '../../entities/LoanPayment';
 import { IRRAnalysisService } from '../IRRAnalysisService';
 
 describe('IRRAnalysisService', () => {
   let testLoan: Loan;
-  
+
   beforeEach(() => {
     testLoan = new Loan(
       1,
@@ -47,12 +47,10 @@ describe('IRRAnalysisService', () => {
       // Simple scenario: $100k loan with monthly payments of $4500 for 24 months
       // This should result in approximately 5% annual interest rate
       const payments: LoanPayment[] = [];
-      
+
       // Generate 12 paid monthly payments
       for (let i = 1; i <= 12; i++) {
-        payments.push(
-          new LoanPayment(i, 1, new Date(2024, i - 1, 1), 4500, true, `Payment ${i}`)
-        );
+        payments.push(new LoanPayment(i, 1, new Date(2024, i - 1, 1), 4500, true, `Payment ${i}`));
       }
 
       const analysis = IRRAnalysisService.calculateIRRAnalysis(testLoan, payments);
@@ -112,11 +110,18 @@ describe('IRRAnalysisService', () => {
 
     it('should assess risk levels correctly', () => {
       const payments: LoanPayment[] = [];
-      
+
       // Generate many payments for reliable calculation
       for (let i = 1; i <= 24; i++) {
         payments.push(
-          new LoanPayment(i, 1, new Date(2024, Math.floor((i - 1) / 12), (i - 1) % 12 + 1), 4500, true, `Payment ${i}`)
+          new LoanPayment(
+            i,
+            1,
+            new Date(2024, Math.floor((i - 1) / 12), ((i - 1) % 12) + 1),
+            4500,
+            true,
+            `Payment ${i}`
+          )
         );
       }
 
