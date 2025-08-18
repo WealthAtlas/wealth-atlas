@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AssetsContainer } from '../../containers/AssetsContainer';
 import { ExpensesContainer } from '../../containers/ExpensesContainer';
+import { LoansContainer } from '../../containers/LoansContainer';
 import { MainLayout } from '../Layout/MainLayout';
 import { DashboardPage } from '../Pages/DashboardPage';
-import { LoansPage } from '../Pages/LoansPage';
 
 export function MainPage() {
   const navigate = useNavigate();
@@ -76,7 +76,7 @@ export function MainPage() {
       case 1:
         return <AssetsContainer />;
       case 2:
-        return <LoansPage />;
+        return <LoansContainer />;
       case 3:
         return <ExpensesContainer />;
       default:
