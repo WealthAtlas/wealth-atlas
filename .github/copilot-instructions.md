@@ -9,6 +9,7 @@
 - **React 18.3** + **TypeScript 5** - Modern React with strict typing
 - **Vite** - Fast development and build tooling
 - **Material-UI v5** - Component library for consistent UI
+- **@mui/x-charts** - Material-UI charts for data visualization
 - **Dexie v4** - IndexedDB wrapper for local-first data storage
 - **React Router v6** - Client-side routing
 - **PWA** - Progressive Web App capabilities
@@ -217,6 +218,17 @@ export interface IAsset {
   valueUpdatedAt: Date | undefined;
 }
 
+// Future: Enhanced with Currency enum
+export interface IExpense {
+  id?: number;
+  amount: number;
+  currency: string; // Uses Currency enum values (USD, GBP, INR)
+  date: Date;
+  category: ExpenseCategory;
+  isEssential: boolean;
+  description: string;
+}
+
 // Domain class implementing the interface
 export class Asset implements IAsset {
   constructor(/* all fields */) {
@@ -247,6 +259,14 @@ export class Asset implements IAsset {
 - **No Computed Storage** - Calculate portfolio metrics at runtime
 - **Money-First Approach** - Always prioritize monetary tracking over quantity
 
+#### Expense Tracking Model
+
+- **Expenses** represent personal expenditures with categorization and analytics
+- **Monthly Grouping** - Expenses are organized by month with expandable sections
+- **Multi-Currency Support** - Expenses support different currencies using Currency enum
+- **Category Classification** - Expenses are categorized (FOOD, TRANSPORT, HOUSING, etc.)
+- **Essential vs Non-Essential** - Track whether expenses are essential or discretionary
+
 #### Key Business Rules
 
 1. **Store Raw Data Only** - Never store computed values that can be calculated
@@ -254,6 +274,14 @@ export class Asset implements IAsset {
 3. **Optional Quantity** - Some assets (FDs, bonds) don't have meaningful quantity concept
 4. **Explicit Transaction Types** - Use `buy`/`sell` rather than positive/negative amounts
 5. **Market Value Separation** - `currentMarketValue` is manually updated or API-fetched
+
+#### Expense Management Rules
+
+1. **Monthly Organization** - Group expenses by month for historical analysis
+2. **Currency Consistency** - Use Currency enum for standardized currency handling
+3. **Category Classification** - Mandatory expense categorization for analytics
+4. **Essential Tracking** - Distinguish between essential and discretionary spending
+5. **Real-time Analytics** - Calculate monthly totals and trends dynamically
 
 #### Portfolio Calculations (Runtime)
 
@@ -275,6 +303,7 @@ export class Asset implements IAsset {
 - **Forms** (`src/app/components/Forms/`) - Reusable form dialog components
   - `AssetFormDialog.tsx` - Asset creation/editing form
   - `TransactionFormDialog.tsx` - Transaction creation/editing form
+  - `ExpenseFormDialog.tsx` - Expense creation/editing form
 - **Dialogs** (`src/app/components/Dialogs/`) - Modal dialog components
   - `TransactionListDialog.tsx` - Transaction listing and management
 - **Pages** (`src/app/components/Pages/`) - Page-level presentational components
@@ -282,6 +311,8 @@ export class Asset implements IAsset {
   - `AssetsContainer.tsx` - Main orchestration for assets and transactions
   - `TransactionFormContainer.tsx` - Transaction form business logic
   - `TransactionListContainer.tsx` - Transaction list business logic
+  - `ExpensesContainer.tsx` - Expense management and analytics
+  - `ExpenseFormContainer.tsx` - Expense form business logic
 
 ### Import Organization
 
@@ -396,6 +427,9 @@ The project implements a comprehensive transaction management system:
 - Create forms without supporting both add and edit modes
 - Mix transaction management logic across multiple containers
 - Skip dialog state coordination in parent containers
+- Use text inputs for currency fields instead of Currency enum dropdowns
+- Store computed expense totals instead of calculating them at runtime
+- Mix essential and non-essential expenses without proper categorization
 
 ✅ **Do:**
 
@@ -419,6 +453,9 @@ The project implements a comprehensive transaction management system:
 - Use dedicated containers for complex list operations (TransactionListContainer)
 - Implement proper dialog orchestration in parent containers (AssetsContainer)
 - Follow the established transaction management patterns for consistency
+- Use Currency enum for all currency-related fields with dropdown selection
+- Implement monthly grouping for time-based data organization
+- Calculate analytics and totals at runtime rather than storing computed values
 
 ## Future Evolution
 
