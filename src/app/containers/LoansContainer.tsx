@@ -5,6 +5,7 @@ import { Loan } from '@/domain/entities/Loan';
 import { PaymentSchedule } from '@/domain/entities/PaymentSchedule';
 import { LoanService, LoanSummary } from '@/domain/services/LoanService';
 import { useEffect, useState } from 'react';
+import { IRRAnalysisDialog } from '../components/Dialogs/IRRAnalysisDialog';
 import { LoansPage } from '../components/Pages/LoansPage';
 import { LoanFormContainer } from './LoanFormContainer';
 import { PaymentHistoryContainer } from './PaymentHistoryContainer';
@@ -20,6 +21,8 @@ export function LoansContainer() {
   const [scheduleToEdit, setScheduleToEdit] = useState<PaymentSchedule | null>(null);
   const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
   const [loanForPaymentHistory, setLoanForPaymentHistory] = useState<Loan | null>(null);
+  const [isIRRAnalysisOpen, setIsIRRAnalysisOpen] = useState(false);
+  const [summaryForIRRAnalysis, setSummaryForIRRAnalysis] = useState<LoanSummary | null>(null);
 
   const loanRepository = new LoanRepository();
   const paymentScheduleRepository = new PaymentScheduleRepository();
@@ -143,6 +146,16 @@ export function LoansContainer() {
     await loadLoans(); // Reload to get updated summaries
   };
 
+  const handleViewIRRAnalysis = (summary: LoanSummary) => {
+    setSummaryForIRRAnalysis(summary);
+    setIsIRRAnalysisOpen(true);
+  };
+
+  const handleIRRAnalysisClose = () => {
+    setIsIRRAnalysisOpen(false);
+    setSummaryForIRRAnalysis(null);
+  };
+
   return (
     <>
       <LoansPage
@@ -153,6 +166,7 @@ export function LoansContainer() {
         onDeleteLoan={handleDeleteLoan}
         onAddSchedule={handleAddSchedule}
         onViewPaymentHistory={handleViewPaymentHistory}
+        onViewIRRAnalysis={handleViewIRRAnalysis}
       />
 
       {/* Loan Form Dialog */}
@@ -183,6 +197,16 @@ export function LoansContainer() {
           loan={loanForPaymentHistory}
           onClose={handlePaymentHistoryClose}
           onPaymentUpdated={handlePaymentUpdated}
+        />
+      )}
+
+      {/* IRR Analysis Dialog */}
+      {isIRRAnalysisOpen && summaryForIRRAnalysis && (
+        <IRRAnalysisDialog
+          isOpen={isIRRAnalysisOpen}
+          loanName={summaryForIRRAnalysis.loan.name}
+          analysis={summaryForIRRAnalysis.irrAnalysis}
+          onClose={handleIRRAnalysisClose}
         />
       )}
     </>

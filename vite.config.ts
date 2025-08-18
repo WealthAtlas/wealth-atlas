@@ -18,6 +18,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+  },
   server: {
     port: 3000,
     open: true,

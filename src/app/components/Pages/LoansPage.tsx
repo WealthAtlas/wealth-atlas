@@ -1,4 +1,5 @@
 import { Loan } from '@/domain/entities/Loan';
+import { IRRAnalysisService } from '@/domain/services/IRRAnalysisService';
 import { LoanSummary } from '@/domain/services/LoanService';
 import { Add, CheckCircle, Delete, Edit, History, Schedule, Warning } from '@mui/icons-material';
 import {
@@ -25,6 +26,7 @@ export interface LoansPageProps {
   onDeleteLoan: (loan: Loan) => void;
   onAddSchedule: (loan: Loan) => void;
   onViewPaymentHistory: (loan: Loan) => void;
+  onViewIRRAnalysis: (summary: LoanSummary) => void;
 }
 
 export function LoansPage({
@@ -35,6 +37,7 @@ export function LoansPage({
   onDeleteLoan,
   onAddSchedule,
   onViewPaymentHistory,
+  onViewIRRAnalysis,
 }: LoansPageProps) {
   const formatCurrency = (amount: number, currency: string): string => {
     // Simple currency formatting - could be enhanced with proper locale support
@@ -48,9 +51,14 @@ export function LoansPage({
     return `${symbol}${amount.toLocaleString()}`;
   };
 
-  const formatInterestRate = (rate: number | undefined): string => {
-    if (rate === undefined) return 'N/A';
-    return `${rate.toFixed(2)}%`;
+  const formatEnhancedIRR = (
+    summary: LoanSummary
+  ): {
+    primary: string;
+    secondary: string;
+    tooltip: string;
+  } => {
+    return IRRAnalysisService.formatIRR(summary.irrAnalysis);
   };
 
   // Calculate total remaining balance across all loans
@@ -224,14 +232,45 @@ export function LoansPage({
                       <Typography variant="body2" color="text.secondary">
                         of {formatCurrency(loan.principalAmount, loan.currency)}
                       </Typography>
+                      {(() => {
+                        const irrFormatted = formatEnhancedIRR(summary);
+                        return (
+                          <Tooltip
+                            title={`${irrFormatted.tooltip}\n\nClick for detailed analysis`}
+                            arrow
+                          >
+                            <Box
+                              sx={{
+                                display: 'inline-block',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  bgcolor: 'action.hover',
+                                  borderRadius: 1,
+                                },
+                                p: 0.5,
+                                borderRadius: 1,
+                              }}
+                              onClick={() => onViewIRRAnalysis(summary)}
+                            >
+                              <Typography
+                                variant="caption"
+                                color="primary"
+                                sx={{ display: 'block', fontWeight: 'medium' }}
+                              >
+                                Interest: {irrFormatted.primary}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {irrFormatted.secondary} • Click for details
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        );
+                      })()}
                       <Typography
                         variant="caption"
                         color="text.secondary"
-                        sx={{ display: 'block' }}
+                        sx={{ display: 'block', mt: 0.5 }}
                       >
-                        Interest: {formatInterestRate(summary.effectiveInterestRate)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
                         Paid: {formatCurrency(summary.totalInterestPaid, loan.currency)}
                       </Typography>
                     </Box>

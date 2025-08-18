@@ -4,6 +4,7 @@ import { PaymentScheduleRepository } from '../../data/repositories/PaymentSchedu
 import { Loan } from '../entities/Loan';
 import { LoanPayment } from '../entities/LoanPayment';
 import { PaymentSchedule } from '../entities/PaymentSchedule';
+import { IRRAnalysis, IRRAnalysisService } from './IRRAnalysisService';
 
 export class LoanService {
   constructor(
@@ -76,6 +77,9 @@ export class LoanService {
     const payments = await this.loanPaymentRepository.findByLoanId(loanId);
     const schedules = await this.paymentScheduleRepository.findByLoanId(loanId);
 
+    // Calculate enhanced IRR analysis
+    const irrAnalysis = IRRAnalysisService.calculateIRRAnalysis(loan, payments);
+
     return {
       loan,
       totalPaid: loan.getTotalPaidAmount(payments),
@@ -84,6 +88,7 @@ export class LoanService {
       totalInterest: loan.getTotalInterest(payments),
       totalInterestPaid: loan.getTotalInterestPaid(payments),
       effectiveInterestRate: loan.calculateEffectiveInterestRate(payments),
+      irrAnalysis,
       isFullyPaid: loan.isFullyPaid(payments),
       nextPaymentDate: this.getNextPaymentDate(payments),
       overduePayments: payments.filter(p => p.isOverdue()),
@@ -175,6 +180,7 @@ export interface LoanSummary {
   totalInterest: number;
   totalInterestPaid: number;
   effectiveInterestRate: number | undefined;
+  irrAnalysis: IRRAnalysis;
   isFullyPaid: boolean;
   nextPaymentDate: Date | null;
   overduePayments: LoanPayment[];
