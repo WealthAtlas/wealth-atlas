@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AssetsContainer } from '../../containers/AssetsContainer';
 import { ExpensesContainer } from '../../containers/ExpensesContainer';
@@ -32,6 +32,12 @@ export function MainPage() {
 
   const [currentTab, setCurrentTab] = useState(getCurrentTab());
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+
+  // Keep tab selection in sync with the URL when navigation happens elsewhere
+  useEffect(() => {
+    setCurrentTab(getCurrentTab());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   const handleTabChange = (newValue: number) => {
     setCurrentTab(newValue);
