@@ -499,6 +499,47 @@ import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseServi
 - Auto-update registration type
 - Workbox for caching strategies
 
+## Sync (Encrypted, Local-First)
+
+Goal: simple, maintenance-first encrypted sync for a personal app.
+
+- Model: client-only encryption/decryption; server stores opaque blobs.
+- Conflict: last-writer-wins (no server-side conflict logic, no compression, no client history).
+- Passphrase: derive key via PBKDF2-SHA256; never store passphrase.
+
+Implementation locations:
+
+- `src/data/sync/crypto.ts` – Web Crypto helpers (PBKDF2-SHA256 + AES-256-GCM)
+- `src/data/sync/SyncService.ts` – export/import Dexie snapshot, encrypt/decrypt, call API
+- `src/data/sync/types.ts` – Snapshot, SyncStatus, RemoteDataResponse
+- `src/data/sync/state.ts` – localStorage helpers: keyId, lastRemoteVersion, lastSyncAt
+
+Snapshot payload (encrypted JSON):
+
+- `{ schemaVersion: <Dexie version>, data: { assets, assetTransactions, scheduledAssetTransactions, expenses, scheduledExpenses, loans, paymentSchedules, loanPayments, goals, assetGoalAllocations } }`
+- Uses current Dexie `database.ts` version (e.g., 7). Import clears then bulkPut in dependency order.
+
+Crypto meta (stored with payload, non-secret):
+
+- `{ enc: 'AES-GCM', kdf: 'PBKDF2-SHA256', iterations: ~250000, salt: base64(16B), iv: base64(12B), schemaVersion }`
+
+API contract (last-writer-wins):
+
+- `POST /data` → create dataset; returns `{ keyId, version: 1 }`
+- `GET /data/:keyId` → latest `{ keyId, version, payload, meta, updatedAt }`
+- `PUT /data/:keyId` → store `{ payload, meta }`, server increments version; returns `{ keyId, version }`
+- `DELETE /data/:keyId` (optional) → remove dataset
+
+Settings UI (container-presentational):
+
+- Presentational: `SettingsPage.tsx` renders sync controls (Setup, Link, Push, Pull, Change Passphrase, Unlink)
+- Container: `SettingsContainer.tsx` calls `SyncService` and shows simple alerts on errors
+
+Config & Hosting:
+
+- Frontend: static on GitHub Pages.
+- Backend: host API separately (e.g., Cloudflare Workers). Set API base URL in a small config if not `/data`.
+
 ## AI Coding Guidelines
 
 ### When Adding New Features
