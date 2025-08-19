@@ -4,6 +4,7 @@ import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRe
 import { Loan } from '@/domain/entities/loans/Loan';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { LoanService, LoanSummary } from '@/domain/services/LoanService';
+import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useState } from 'react';
 import { IRRAnalysisDialog } from '../components/Dialogs/IRRAnalysisDialog';
 import { LoansPage } from '../components/Pages/LoansPage';
@@ -43,8 +44,7 @@ export function LoansContainer() {
       setLoanSummaries(summaries);
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
-      // eslint-disable-next-line no-console
-      console.error('Failed to load loans:', error);
+      Logger.error('Failed to load loans:', error);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +97,8 @@ export function LoansContainer() {
 
       // Reload the loan list
       await loadLoans();
-    } catch (error) {
+    } catch (err) {
+      Logger.error('Failed to delete loan:', err);
       alert('Failed to delete loan. Please try again.');
     }
   };

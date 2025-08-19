@@ -11,16 +11,19 @@ export function ExpenseChart({ monthlyData }: ExpenseChartProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const getCurrencyColor = (_currency: string, index: number) => {
-    const colors = [
-      { essential: theme.palette.primary.main, nonEssential: theme.palette.primary.light },
-      { essential: theme.palette.secondary.main, nonEssential: theme.palette.secondary.light },
-      { essential: theme.palette.success.main, nonEssential: theme.palette.success.light },
-      { essential: theme.palette.warning.main, nonEssential: theme.palette.warning.light },
-      { essential: theme.palette.error.main, nonEssential: theme.palette.error.light },
-    ];
-    return colors[index % colors.length];
-  };
+  const getCurrencyColor = React.useCallback(
+    (_currency: string, index: number) => {
+      const colors = [
+        { essential: theme.palette.primary.main, nonEssential: theme.palette.primary.light },
+        { essential: theme.palette.secondary.main, nonEssential: theme.palette.secondary.light },
+        { essential: theme.palette.success.main, nonEssential: theme.palette.success.light },
+        { essential: theme.palette.warning.main, nonEssential: theme.palette.warning.light },
+        { essential: theme.palette.error.main, nonEssential: theme.palette.error.light },
+      ];
+      return colors[index % colors.length];
+    },
+    [theme]
+  );
 
   // Group data by month, then by currency
   const chartData = React.useMemo(() => {
@@ -72,7 +75,7 @@ export function ExpenseChart({ monthlyData }: ExpenseChartProps) {
     });
 
     return { data, series, displayMonths };
-  }, [monthlyData, isMobile]);
+  }, [monthlyData, isMobile, getCurrencyColor]);
 
   const formatMonthLabel = (month: string) => {
     const date = new Date(month + '-01');

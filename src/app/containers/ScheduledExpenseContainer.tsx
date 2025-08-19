@@ -1,5 +1,6 @@
 import { ScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
 import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';
+import { Logger } from '@/domain/utils/Logger';
 import React from 'react';
 import { ScheduledExpenseListDialog } from '../components/Dialogs/ScheduledExpenseListDialog';
 import { ScheduledExpenseFormDialog } from '../components/Forms/ScheduledExpenseFormDialog';
@@ -25,7 +26,7 @@ export function ScheduledExpenseContainer({ open, onClose }: ScheduledExpenseCon
       const allScheduledExpenses = await scheduledExpenseService.getAllScheduledExpenses();
       setScheduledExpenses(allScheduledExpenses);
     } catch (error) {
-      console.error('Failed to load scheduled expenses:', error);
+      Logger.error('Failed to load scheduled expenses:', error);
     } finally {
       setLoading(false);
     }
@@ -54,7 +55,7 @@ export function ScheduledExpenseContainer({ open, onClose }: ScheduledExpenseCon
       await scheduledExpenseService.deleteScheduledExpense(scheduledExpense.id);
       await loadScheduledExpenses();
     } catch (error) {
-      console.error('Failed to delete scheduled expense:', error);
+      Logger.error('Failed to delete scheduled expense:', error);
     }
   };
 
@@ -70,7 +71,7 @@ export function ScheduledExpenseContainer({ open, onClose }: ScheduledExpenseCon
       setScheduledExpenseToEdit(undefined);
       await loadScheduledExpenses();
     } catch (error) {
-      console.error('Failed to save scheduled expense:', error);
+      Logger.error('Failed to save scheduled expense:', error);
     }
   };
 

@@ -3,7 +3,7 @@ import { AssetTransactionRepository } from '@/data/repositories/AssetTransaction
 import { ScheduledAssetTransactionRepository } from '@/data/repositories/ScheduledAssetTransactionRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
-import { seedAssetData } from '@/utils/seedAssetData';
+import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useState } from 'react';
 import { SIPManagerDialog } from '../components/Dialogs/SIPManagerDialog';
 import { AssetsPage } from '../components/Pages/AssetsPage';
@@ -37,24 +37,11 @@ export function AssetsContainer() {
         transactionRepository.findAll(),
       ]);
 
-      // Seed sample data if no assets exist
-      if (loadedAssets.length === 0) {
-        await seedAssetData();
-        // Reload after seeding
-        const [newAssets, newTransactions] = await Promise.all([
-          assetRepository.findAll(),
-          transactionRepository.findAll(),
-        ]);
-        setAssets(newAssets);
-        setAllTransactions(newTransactions);
-      } else {
-        setAssets(loadedAssets);
-        setAllTransactions(loadedTransactions);
-      }
+      setAssets(loadedAssets);
+      setAllTransactions(loadedTransactions);
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
-      // eslint-disable-next-line no-console
-      console.error('Failed to load assets:', error);
+      Logger.error('Failed to load assets:', error);
     } finally {
       setIsLoading(false);
     }
@@ -105,8 +92,7 @@ export function AssetsContainer() {
       await loadAssets();
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
-      // eslint-disable-next-line no-console
-      console.error('Failed to delete asset:', error);
+      Logger.error('Failed to delete asset:', error);
     }
   };
 

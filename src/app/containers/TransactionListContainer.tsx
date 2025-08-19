@@ -1,6 +1,7 @@
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
+import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useState } from 'react';
 import { TransactionListDialog } from '../components/Dialogs/TransactionListDialog';
 
@@ -33,8 +34,7 @@ export function TransactionListContainer({
       setTransactions(assetTransactions);
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
-      // eslint-disable-next-line no-console
-      console.error('Failed to load transactions:', error);
+      Logger.error('Failed to load transactions:', error);
     }
   };
 
@@ -48,8 +48,7 @@ export function TransactionListContainer({
       onTransactionDeleted(); // Notify parent to reload assets
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
-      // eslint-disable-next-line no-console
-      console.error('Failed to delete transaction:', error);
+      Logger.error('Failed to delete transaction:', error);
     }
   };
 

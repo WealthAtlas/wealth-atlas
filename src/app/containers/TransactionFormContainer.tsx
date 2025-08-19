@@ -1,6 +1,7 @@
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
+import { Logger } from '@/domain/utils/Logger';
 import { useState } from 'react';
 import {
   TransactionFormData,
@@ -28,8 +29,7 @@ export function TransactionFormContainer({
 
   const handleSubmit = async (formData: TransactionFormData) => {
     if (!asset || !asset.id) {
-      // eslint-disable-next-line no-console
-      console.error('Asset or Asset ID is missing');
+      Logger.error('Asset or Asset ID is missing');
       return;
     }
 
@@ -51,8 +51,7 @@ export function TransactionFormContainer({
       onClose(); // Close the dialog
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
-      // eslint-disable-next-line no-console
-      console.error('Failed to save transaction:', error);
+      Logger.error('Failed to save transaction:', error);
     } finally {
       setIsLoading(false);
     }

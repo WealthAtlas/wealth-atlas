@@ -1,17 +1,23 @@
+import { Logger } from '@/domain/utils/Logger';
+import { Box, CircularProgress } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { CircularProgress, Box } from '@mui/material';
 
 import { AssetRepository } from '@/data/repositories/AssetRepository';
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
-import { LoanRepository } from '@/data/repositories/LoanRepository';
 import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
-import { DashboardAnalyticsService, DashboardMetrics } from '@/domain/services/DashboardAnalyticsService';
+import { LoanRepository } from '@/data/repositories/LoanRepository';
 import { Currency } from '@/domain/entities/shared/Currency';
+import {
+  DashboardAnalyticsService,
+  DashboardMetrics,
+  ExpenseTrendData,
+} from '@/domain/services/DashboardAnalyticsService';
 import { DashboardPage } from '../components/Pages/DashboardPage';
 
 export function DashboardContainer() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [expenseTrendData, setExpenseTrendData] = useState<ExpenseTrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +47,16 @@ export function DashboardContainer() {
         Currency.USD
       );
 
-      // Get dashboard metrics
-      const dashboardMetrics = await analyticsService.getDashboardMetrics();
+      // Get dashboard metrics and expense trend data
+      const [dashboardMetrics, expenseTrend] = await Promise.all([
+        analyticsService.getDashboardMetrics(),
+        analyticsService.getExpenseTrendData(),
+      ]);
+
       setMetrics(dashboardMetrics);
+      setExpenseTrendData(expenseTrend);
     } catch (err) {
-      console.error('Error loading dashboard data:', err);
+      Logger.error('Error loading dashboard data:', err);
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -54,12 +65,12 @@ export function DashboardContainer() {
 
   if (loading) {
     return (
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 'calc(100vh - 200px)' 
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: 'calc(100vh - 200px)',
         }}
       >
         <CircularProgress />
@@ -75,5 +86,11 @@ export function DashboardContainer() {
     );
   }
 
-  return <DashboardPage metrics={metrics} onRefresh={loadDashboardData} />;
+  return (
+    <DashboardPage
+      metrics={metrics}
+      expenseTrendData={expenseTrendData}
+      onRefresh={loadDashboardData}
+    />
+  );
 }

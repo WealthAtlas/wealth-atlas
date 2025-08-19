@@ -9,7 +9,8 @@ import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetGoalAllocation } from '@/domain/entities/goals/AssetGoalAllocation';
 import { Goal } from '@/domain/entities/goals/Goal';
 import { PortfolioService } from '@/domain/services/PortfolioService';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Logger } from '@/domain/utils/Logger';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 interface AllocationManagementContainerProps {
   open: boolean;
@@ -35,14 +36,7 @@ export const AllocationManagementContainer: React.FC<AllocationManagementContain
   const assetGoalAllocationRepository = useMemo(() => new AssetGoalAllocationRepository(), []);
   const portfolioService = useMemo(() => new PortfolioService(), []);
 
-  // Load data when dialog opens
-  useEffect(() => {
-    if (open && goal) {
-      loadAllocationData();
-    }
-  }, [open, goal]);
-
-  const loadAllocationData = async () => {
+  const loadAllocationData = useCallback(async () => {
     if (!goal?.id) return;
 
     try {
@@ -68,11 +62,24 @@ export const AllocationManagementContainer: React.FC<AllocationManagementContain
 
       setAssetCurrentValues(currentValues);
     } catch (error) {
-      console.error('Failed to load allocation data:', error);
+      Logger.error('Failed to load allocation data:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    goal?.id,
+    assetRepository,
+    assetTransactionRepository,
+    assetGoalAllocationRepository,
+    portfolioService,
+  ]);
+
+  // Load data when dialog opens
+  useEffect(() => {
+    if (open && goal) {
+      loadAllocationData();
+    }
+  }, [open, goal, loadAllocationData]);
 
   const handleSaveAllocations = async (allocations: AllocationData[]) => {
     if (!goal?.id) return;
@@ -125,7 +132,7 @@ export const AllocationManagementContainer: React.FC<AllocationManagementContain
       onClose();
       onSave();
     } catch (error) {
-      console.error('Failed to save allocations:', error);
+      Logger.error('Failed to save allocations:', error);
       alert('Failed to save allocations. Please try again.');
     } finally {
       setIsLoading(false);

@@ -389,10 +389,10 @@ export const AllocationManagementDialog: React.FC<AllocationManagementDialogProp
                 Over-allocation (total &gt; 100%) is allowed for conservative planning
               </Typography>
               <Typography component="li" variant="body2" color="text.secondary">
-                Each allocation percentage is based on the asset's current value
+                Each allocation percentage is based on the asset&apos;s current value
               </Typography>
               <Typography component="li" variant="body2" color="text.secondary">
-                Progress calculations use each asset's historical IRR for projections
+                Progress calculations use each asset&apos;s historical IRR for projections
               </Typography>
             </Box>
           </Box>

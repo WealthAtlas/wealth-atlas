@@ -1,5 +1,6 @@
 import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
 import { Expense } from '@/domain/entities/expenses/Expense';
+import { Logger } from '@/domain/utils/Logger';
 import React from 'react';
 import { ExpenseFormData, ExpenseFormDialog } from '../components/Forms/ExpenseFormDialog';
 
@@ -53,7 +54,7 @@ export function ExpenseFormContainer({
 
       onSave();
     } catch (error) {
-      console.error('Failed to save expense:', error);
+      Logger.error('Failed to save expense:', error);
       // TODO: Add proper error handling/notification
     } finally {
       setLoading(false);

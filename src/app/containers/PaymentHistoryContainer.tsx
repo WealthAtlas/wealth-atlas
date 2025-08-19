@@ -5,7 +5,8 @@ import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRe
 import { Loan } from '@/domain/entities/loans/Loan';
 import { LoanPayment } from '@/domain/entities/loans/LoanPayment';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
-import { useCallback, useEffect, useState } from 'react';
+import { Logger } from '@/domain/utils/Logger';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export interface PaymentHistoryContainerProps {
   isOpen: boolean;
@@ -28,8 +29,8 @@ export function PaymentHistoryContainer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loanPaymentRepository = new LoanPaymentRepository();
-  const paymentScheduleRepository = new PaymentScheduleRepository();
+  const loanPaymentRepository = useMemo(() => new LoanPaymentRepository(), []);
+  const paymentScheduleRepository = useMemo(() => new PaymentScheduleRepository(), []);
 
   const loadData = useCallback(async () => {
     try {
@@ -43,12 +44,13 @@ export function PaymentHistoryContainer({
         setPayments(loadedPayments);
         setSchedules(loadedSchedules);
       }
-    } catch (error) {
+    } catch (err) {
+      Logger.error('Failed to load payment data:', err);
       setError('Failed to load payment data');
     } finally {
       setIsLoading(false);
     }
-  }, [loan.id]);
+  }, [loan.id, loanPaymentRepository, paymentScheduleRepository]);
 
   useEffect(() => {
     if (isOpen && loan.id) {
@@ -71,7 +73,8 @@ export function PaymentHistoryContainer({
       await loanPaymentRepository.delete(paymentId);
       await loadData();
       onPaymentUpdated();
-    } catch (error) {
+    } catch (err) {
+      Logger.error('Failed to delete payment:', err);
       setError('Failed to delete payment');
     }
   };

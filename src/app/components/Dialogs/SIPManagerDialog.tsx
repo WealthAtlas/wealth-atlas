@@ -1,3 +1,4 @@
+import { Logger } from '@/domain/utils/Logger';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -24,7 +25,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AssetTransactionRepository } from '../../../data/repositories/AssetTransactionRepository';
 import { ScheduledAssetTransactionRepository } from '../../../data/repositories/ScheduledAssetTransactionRepository';
 import { Asset } from '../../../domain/entities/assets/Asset';
@@ -49,20 +50,17 @@ export const SIPManagerDialog: React.FC<SIPManagerDialogProps> = ({ open, onClos
   const [error, setError] = useState<string | null>(null);
   const [editingSIP, setEditingSIP] = useState<ScheduledAssetTransaction | null>(null);
 
-  const scheduledTransactionRepository = new ScheduledAssetTransactionRepository();
-  const assetTransactionRepository = new AssetTransactionRepository();
-  const investmentService = new InvestmentScheduleService(
-    scheduledTransactionRepository,
-    assetTransactionRepository
+  const scheduledTransactionRepository = useMemo(
+    () => new ScheduledAssetTransactionRepository(),
+    []
+  );
+  const assetTransactionRepository = useMemo(() => new AssetTransactionRepository(), []);
+  const investmentService = useMemo(
+    () => new InvestmentScheduleService(scheduledTransactionRepository, assetTransactionRepository),
+    [scheduledTransactionRepository, assetTransactionRepository]
   );
 
-  useEffect(() => {
-    if (asset && open) {
-      loadSIPSummaries();
-    }
-  }, [asset, open]);
-
-  const loadSIPSummaries = async () => {
+  const loadSIPSummaries = useCallback(async () => {
     if (!asset?.id) return;
 
     try {
@@ -77,11 +75,17 @@ export const SIPManagerDialog: React.FC<SIPManagerDialogProps> = ({ open, onClos
       setSipSummaries(summaries);
     } catch (err) {
       setError('Failed to load SIP data');
-      console.error('Error loading SIP summaries:', err);
+      Logger.error('Error loading SIP summaries:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [asset?.id, investmentService]);
+
+  useEffect(() => {
+    if (asset && open) {
+      loadSIPSummaries();
+    }
+  }, [asset, open, loadSIPSummaries]);
 
   const handleCreateSIP = async (scheduledTransaction: Partial<ScheduledAssetTransaction>) => {
     try {
@@ -114,7 +118,7 @@ export const SIPManagerDialog: React.FC<SIPManagerDialogProps> = ({ open, onClos
       setEditingSIP(null);
     } catch (err) {
       setError(editingSIP ? 'Failed to update SIP' : 'Failed to create SIP');
-      console.error('Error managing SIP:', err);
+      Logger.error('Error managing SIP:', err);
     }
   };
 
@@ -144,7 +148,7 @@ export const SIPManagerDialog: React.FC<SIPManagerDialogProps> = ({ open, onClos
       await loadSIPSummaries();
     } catch (err) {
       setError('Failed to update SIP status');
-      console.error('Error updating SIP:', err);
+      Logger.error('Error updating SIP:', err);
     }
   };
 
@@ -165,7 +169,7 @@ export const SIPManagerDialog: React.FC<SIPManagerDialogProps> = ({ open, onClos
       await loadSIPSummaries();
     } catch (err) {
       setError('Failed to delete SIP');
-      console.error('Error deleting SIP:', err);
+      Logger.error('Error deleting SIP:', err);
     }
   };
 
@@ -257,7 +261,7 @@ export const SIPManagerDialog: React.FC<SIPManagerDialogProps> = ({ open, onClos
                     <TableRow>
                       <TableCell colSpan={6} align="center">
                         <Typography variant="body2" color="text.secondary">
-                          No SIPs configured. Click "Create SIP" to get started.
+                          No SIPs configured. Click &quot;Create SIP&quot; to get started.
                         </Typography>
                       </TableCell>
                     </TableRow>

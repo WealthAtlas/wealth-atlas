@@ -69,6 +69,13 @@ export interface ExpenseMetrics {
   currency: string;
 }
 
+export interface ExpenseTrendData {
+  month: string;
+  essentialAmount: number;
+  nonEssentialAmount: number;
+  totalAmount: number;
+}
+
 export class DashboardAnalyticsService {
   private portfolioService: PortfolioService;
 
@@ -368,5 +375,49 @@ export class DashboardAnalyticsService {
         });
       }
     });
+  }
+
+  /**
+   * Get expense trend data for the last 6 months
+   */
+  async getExpenseTrendData(): Promise<ExpenseTrendData[]> {
+    const expenses = await this.expenseRepository.findAll();
+    const trendData: ExpenseTrendData[] = [];
+
+    // Generate last 6 months
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      // Filter expenses for this month
+      const monthExpenses = expenses.filter(e => e.getMonthYear() === monthKey);
+
+      let essentialAmount = 0;
+      let nonEssentialAmount = 0;
+
+      monthExpenses.forEach(expense => {
+        const amountInHome = CurrencyConversionService.convertToHomeCurrency(
+          expense.amount,
+          expense.currency,
+          this.homeCurrency
+        );
+
+        if (expense.isEssential) {
+          essentialAmount += amountInHome;
+        } else {
+          nonEssentialAmount += amountInHome;
+        }
+      });
+
+      trendData.push({
+        month: monthKey,
+        essentialAmount,
+        nonEssentialAmount,
+        totalAmount: essentialAmount + nonEssentialAmount,
+      });
+    }
+
+    return trendData;
   }
 }

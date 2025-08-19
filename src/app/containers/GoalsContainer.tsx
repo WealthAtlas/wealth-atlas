@@ -7,6 +7,7 @@ import { AssetTransactionRepository } from '@/data/repositories/AssetTransaction
 import { GoalRepository } from '@/data/repositories/GoalRepository';
 import { Goal } from '@/domain/entities/goals/Goal';
 import { GoalPlanningService, GoalProgressResult } from '@/domain/services/GoalPlanningService';
+import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 export const GoalsContainer: React.FC = () => {
@@ -60,7 +61,7 @@ export const GoalsContainer: React.FC = () => {
 
       setGoalProgressResults(progressResults);
     } catch (error) {
-      console.error('Failed to load goals:', error);
+      Logger.error('Failed to load goals:', error);
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +107,7 @@ export const GoalsContainer: React.FC = () => {
         // Reload data
         await loadGoalsAndProgress();
       } catch (error) {
-        console.error('Failed to delete goal:', error);
+        Logger.error('Failed to delete goal:', error);
         alert('Failed to delete goal. Please try again.');
       }
     }
@@ -174,7 +175,7 @@ export const GoalsContainer: React.FC = () => {
       setGoalToEdit(undefined);
       await loadGoalsAndProgress();
     } catch (error) {
-      console.error('Failed to save goal:', error);
+      Logger.error('Failed to save goal:', error);
       alert('Failed to save goal. Please try again.');
     } finally {
       setIsSubmitting(false);

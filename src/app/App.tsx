@@ -1,3 +1,4 @@
+import { Logger } from '@/domain/utils/Logger';
 import { useEffect } from 'react';
 import { AssetTransactionRepository } from '../data/repositories/AssetTransactionRepository';
 import { ScheduledAssetTransactionRepository } from '../data/repositories/ScheduledAssetTransactionRepository';
@@ -16,7 +17,7 @@ export default function App() {
 
         await investmentService.autoConvertScheduledTransactions();
       } catch (error) {
-        console.error('Failed to auto-convert scheduled transactions:', error);
+        Logger.error('Failed to auto-convert scheduled transactions:', error);
       }
     };
 

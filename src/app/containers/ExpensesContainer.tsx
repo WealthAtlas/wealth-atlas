@@ -2,9 +2,8 @@ import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
 import { Expense } from '@/domain/entities/expenses/Expense';
 import { ExpenseAnalyticsService } from '@/domain/services/ExpenseAnalyticsService';
 import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';
+import { Logger } from '@/domain/utils/Logger';
 import React from 'react';
-import { seedExpenseData } from '../../utils/seedExpenseData';
-import { seedScheduledExpenseData } from '../../utils/seedScheduledExpenseData';
 import { ExpensesPage } from '../components/Pages/ExpensesPage';
 import { ExpenseFormContainer } from './ExpenseFormContainer';
 import { ScheduledExpenseContainer } from './ScheduledExpenseContainer';
@@ -22,19 +21,12 @@ export function ExpensesContainer() {
   const loadExpenses = React.useCallback(async () => {
     try {
       setLoading(true);
-
-      // Seed scheduled expenses data if none exist
-      await seedScheduledExpenseData();
-
       // Process scheduled expenses first (auto-generation)
       await scheduledExpenseService.processScheduledExpenses();
-
-      // Seed sample data if no expenses exist
-      await seedExpenseData();
       const allExpenses = await expenseRepository.findAll();
       setExpenses(allExpenses);
     } catch (error) {
-      console.error('Failed to load expenses:', error);
+      Logger.error('Failed to load expenses:', error);
     } finally {
       setLoading(false);
     }
@@ -61,7 +53,7 @@ export function ExpensesContainer() {
       await expenseRepository.delete(expense.id);
       await loadExpenses();
     } catch (error) {
-      console.error('Failed to delete expense:', error);
+      Logger.error('Failed to delete expense:', error);
     }
   };
 

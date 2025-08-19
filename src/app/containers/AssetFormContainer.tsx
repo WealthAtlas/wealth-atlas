@@ -2,6 +2,7 @@ import { AssetRepository } from '@/data/repositories/AssetRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
 import { AssetPricingConfig } from '@/domain/entities/assets/AssetPricingConfig';
+import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useState } from 'react';
 import { AssetFormData, AssetFormDialog } from '../components/Forms/AssetFormDialog';
 
@@ -72,8 +73,7 @@ export function AssetFormContainer({
       onClose();
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
-      // eslint-disable-next-line no-console
-      console.error('Failed to save asset:', error);
+      Logger.error('Failed to save asset:', error);
     } finally {
       setIsSubmitting(false);
     }

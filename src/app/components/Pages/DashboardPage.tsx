@@ -2,14 +2,18 @@ import { AccountBalance, Assessment, Receipt, Refresh, TrendingUp } from '@mui/i
 import { Alert, Box, Card, CardContent, Grid, IconButton, Paper, Typography } from '@mui/material';
 
 import { CurrencyConversionService } from '@/domain/services/CurrencyConversionService';
-import { DashboardMetrics } from '@/domain/services/DashboardAnalyticsService';
+import { DashboardMetrics, ExpenseTrendData } from '@/domain/services/DashboardAnalyticsService';
+import { AssetAllocationChart } from '../Charts/AssetAllocationChart';
+import { ExpenseTrendChart } from '../Charts/ExpenseTrendChart';
+import { PortfolioGrowthChart } from '../Charts/PortfolioGrowthChart';
 
 interface DashboardPageProps {
   metrics: DashboardMetrics | null;
+  expenseTrendData: ExpenseTrendData[];
   onRefresh: () => Promise<void>;
 }
 
-export function DashboardPage({ metrics, onRefresh }: DashboardPageProps) {
+export function DashboardPage({ metrics, expenseTrendData, onRefresh }: DashboardPageProps) {
   if (!metrics) {
     return (
       <Box sx={{ p: 3 }}>
@@ -206,6 +210,37 @@ export function DashboardPage({ metrics, onRefresh }: DashboardPageProps) {
             </Paper>
           </Grid>
         )}
+      </Grid>
+
+      {/* Charts Section */}
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        {/* Portfolio Growth Timeline */}
+        {metrics.portfolio.growthTimeline.length > 0 && (
+          <Grid item xs={12}>
+            <PortfolioGrowthChart
+              data={metrics.portfolio.growthTimeline}
+              currency={metrics.portfolio.currency}
+              height={400}
+            />
+          </Grid>
+        )}
+
+        {/* Asset Allocation and Expense Trend */}
+        <Grid item xs={12} lg={6}>
+          <AssetAllocationChart
+            data={metrics.portfolio.assetBreakdown}
+            currency={metrics.portfolio.currency}
+            height={400}
+          />
+        </Grid>
+
+        <Grid item xs={12} lg={6}>
+          <ExpenseTrendChart
+            data={expenseTrendData}
+            currency={metrics.expenses.currency}
+            height={400}
+          />
+        </Grid>
       </Grid>
     </Box>
   );

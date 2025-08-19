@@ -52,7 +52,7 @@ export class InvestmentScheduleService {
     upToDate: Date
   ): Promise<AssetTransaction[]> {
     const transactions: AssetTransaction[] = [];
-    let currentDate = new Date(scheduled.scheduledDate);
+    const currentDate = new Date(scheduled.scheduledDate);
     const frequencyMonths = INVESTMENT_FREQUENCY_MONTHS[scheduled.frequency];
     let occurrenceCount = 0;
 
@@ -219,7 +219,7 @@ export class InvestmentScheduleService {
     if (scheduled.isExecuted || !scheduled.isActive) return null;
 
     const today = new Date();
-    let nextDate = new Date(scheduled.scheduledDate);
+    const nextDate = new Date(scheduled.scheduledDate);
     const frequencyMonths = INVESTMENT_FREQUENCY_MONTHS[scheduled.frequency];
 
     // Find the next date that's in the future

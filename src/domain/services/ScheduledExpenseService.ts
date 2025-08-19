@@ -2,6 +2,7 @@ import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
 import { ScheduledExpenseRepository } from '@/data/repositories/ScheduledExpenseRepository';
 import { Expense } from '@/domain/entities/expenses/Expense';
 import { ScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
+import { Logger } from '@/domain/utils/Logger';
 
 export class ScheduledExpenseService {
   private scheduledExpenseRepository: ScheduledExpenseRepository;
@@ -25,7 +26,7 @@ export class ScheduledExpenseService {
         await this.generateExpensesForSchedule(schedule, today);
       }
     } catch (error) {
-      console.error('Failed to process scheduled expenses:', error);
+      Logger.error('Failed to process scheduled expenses:', error);
     }
   }
 

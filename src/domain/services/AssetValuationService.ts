@@ -65,7 +65,7 @@ export class AssetValuationService {
         return this.calculateMaturityBasedValue(asset, transactions);
 
       case AssetPricingModel.MARKET_BASED:
-      default:
+      default: {
         const currentGrowthRate = this.calculateMarketBasedGrowthRate(asset, transactions);
         const projectedGrowthRate = options.includeScheduledTransactions
           ? this.calculateProjectedGrowthRate(asset, transactions, scheduledTransactions, options)
@@ -78,6 +78,7 @@ export class AssetValuationService {
           projectedGrowthRate,
           isCalculated: false,
         };
+      }
     }
   }
 
