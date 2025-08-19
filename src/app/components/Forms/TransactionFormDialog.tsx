@@ -150,6 +150,7 @@ export function TransactionFormDialog({
             />
 
             <TextField
+              name="transactionDate"
               label="Transaction Date"
               value={formData.date}
               onChange={e =>

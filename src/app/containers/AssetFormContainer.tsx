@@ -1,6 +1,7 @@
 import { AssetRepository } from '@/data/repositories/AssetRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
+import { AssetPricingConfig } from '@/domain/entities/assets/AssetPricingConfig';
 import { useEffect, useState } from 'react';
 import { AssetFormData, AssetFormDialog } from '../components/Forms/AssetFormDialog';
 
@@ -23,6 +24,7 @@ export function AssetFormContainer({
     category: assetToEdit?.category || AssetCategory.STOCKS,
     currency: assetToEdit?.currency || 'USD',
     currentMarketValue: assetToEdit?.currentMarketValue,
+    pricingConfig: assetToEdit?.pricingConfig,
   }));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +32,7 @@ export function AssetFormContainer({
 
   const handleFieldChange = (
     field: keyof AssetFormData,
-    value: string | number | AssetCategory | undefined
+    value: string | number | AssetCategory | AssetPricingConfig | undefined
   ) => {
     setFormData(prev => ({
       ...prev,
@@ -50,7 +52,8 @@ export function AssetFormContainer({
         formData.category,
         formData.currency,
         formData.currentMarketValue,
-        formData.currentMarketValue ? new Date() : undefined
+        formData.currentMarketValue ? new Date() : undefined,
+        formData.pricingConfig
       );
 
       await assetRepository.save(asset);
@@ -62,6 +65,7 @@ export function AssetFormContainer({
         category: AssetCategory.STOCKS,
         currency: 'USD',
         currentMarketValue: undefined,
+        pricingConfig: undefined,
       });
 
       onSuccess();
@@ -84,6 +88,7 @@ export function AssetFormContainer({
         category: assetToEdit?.category || AssetCategory.STOCKS,
         currency: assetToEdit?.currency || 'USD',
         currentMarketValue: assetToEdit?.currentMarketValue,
+        pricingConfig: assetToEdit?.pricingConfig,
       });
       onClose();
     }
@@ -98,6 +103,7 @@ export function AssetFormContainer({
         category: assetToEdit?.category || AssetCategory.STOCKS,
         currency: assetToEdit?.currency || 'USD',
         currentMarketValue: assetToEdit?.currentMarketValue,
+        pricingConfig: assetToEdit?.pricingConfig,
       });
     }
   }, [open, assetToEdit]);

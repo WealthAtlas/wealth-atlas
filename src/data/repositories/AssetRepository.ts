@@ -10,7 +10,8 @@ export class AssetRepository {
       record.category,
       record.currency,
       record.currentMarketValue,
-      record.valueUpdatedAt
+      record.valueUpdatedAt,
+      record.pricingConfig
     );
   }
 
@@ -22,6 +23,7 @@ export class AssetRepository {
       currency: asset.currency,
       currentMarketValue: asset.currentMarketValue,
       valueUpdatedAt: asset.valueUpdatedAt,
+      pricingConfig: asset.pricingConfig,
     };
   }
 
@@ -52,7 +54,8 @@ export class AssetRepository {
         asset.category,
         asset.currency,
         asset.currentMarketValue,
-        asset.valueUpdatedAt
+        asset.valueUpdatedAt,
+        asset.pricingConfig
       );
     }
   }

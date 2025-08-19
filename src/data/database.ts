@@ -1,6 +1,7 @@
 import Dexie, { Table } from 'dexie';
 import { IAsset } from '../domain/entities/assets/Asset';
 import { IAssetTransaction } from '../domain/entities/assets/AssetTransaction';
+import { IScheduledAssetTransaction } from '../domain/entities/assets/ScheduledAssetTransaction';
 import { IExpense } from '../domain/entities/expenses/Expense';
 import { ILoan } from '../domain/entities/loans/Loan';
 import { ILoanPayment } from '../domain/entities/loans/LoanPayment';
@@ -9,6 +10,7 @@ import { IPaymentSchedule } from '../domain/entities/loans/PaymentSchedule';
 export class WealthAtlasDB extends Dexie {
   assets!: Table<IAsset>;
   assetTransactions!: Table<IAssetTransaction>;
+  scheduledAssetTransactions!: Table<IScheduledAssetTransaction>;
   expenses!: Table<IExpense>;
   loans!: Table<ILoan>;
   paymentSchedules!: Table<IPaymentSchedule>;
@@ -41,6 +43,19 @@ export class WealthAtlasDB extends Dexie {
     this.version(4).stores({
       assets: '++id, name, description, category, currency, currentMarketValue, valueUpdatedAt',
       assetTransactions: '++id, assetId, transactionType, quantity, price, date',
+      expenses: '++id, amount, currency, date, category, isEssential, description',
+      loans: '++id, name, lenderName, principalAmount, currency, startDate, description',
+      paymentSchedules:
+        '++id, loanId, name, amount, frequency, startDate, endDate, lastGeneratedDate',
+      loanPayments: '++id, loanId, date, amount, isPaid, description',
+    });
+
+    // Version 5: Add Scheduled Asset Transactions (SIP) table
+    this.version(5).stores({
+      assets: '++id, name, description, category, currency, currentMarketValue, valueUpdatedAt',
+      assetTransactions: '++id, assetId, transactionType, quantity, price, date',
+      scheduledAssetTransactions:
+        '++id, assetId, transactionType, quantity, price, scheduledDate, frequency, endDate, totalOccurrences, isActive, isExecuted, executedTransactionId',
       expenses: '++id, amount, currency, date, category, isEssential, description',
       loans: '++id, name, lenderName, principalAmount, currency, startDate, description',
       paymentSchedules:

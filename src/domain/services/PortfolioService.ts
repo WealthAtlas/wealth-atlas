@@ -1,5 +1,6 @@
 import { Asset } from '../entities/assets/Asset';
 import { AssetTransaction } from '../entities/assets/AssetTransaction';
+import { AssetValuationService } from './AssetValuationService';
 
 export class PortfolioService {
   /**
@@ -12,16 +13,20 @@ export class PortfolioService {
     totalInvested: number;
     currentHoldings: number;
     currentValue: number | undefined;
+    calculatedValue: number | undefined;
     profitLoss: number | undefined;
     profitLossPercentage: number | undefined;
+    growthRate: number | undefined;
+    isCalculated: boolean;
   } {
     const totalInvested = asset.getTotalInvestedAmount(transactions);
     const currentHoldings = asset.getCurrentHoldings(transactions);
-    const profitLoss = asset.getProfitLoss(transactions);
 
-    const currentValue = asset.currentMarketValue
-      ? currentHoldings * asset.currentMarketValue
-      : undefined;
+    // Use new valuation service for enhanced calculations
+    const valuationResult = AssetValuationService.calculateCurrentValue(asset, transactions);
+
+    const currentValue = valuationResult.currentValue;
+    const profitLoss = currentValue !== undefined ? currentValue - totalInvested : undefined;
 
     const profitLossPercentage =
       profitLoss !== undefined && totalInvested > 0
@@ -32,8 +37,11 @@ export class PortfolioService {
       totalInvested,
       currentHoldings,
       currentValue,
+      calculatedValue: valuationResult.calculatedValue,
       profitLoss,
       profitLossPercentage,
+      growthRate: valuationResult.growthRate,
+      isCalculated: valuationResult.isCalculated,
     };
   }
 

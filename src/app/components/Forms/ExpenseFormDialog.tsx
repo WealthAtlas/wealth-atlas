@@ -137,6 +137,7 @@ export function ExpenseFormDialog({
           </FormControl>
 
           <TextField
+            name="expenseDate"
             label="Date"
             type="date"
             value={formData.date}

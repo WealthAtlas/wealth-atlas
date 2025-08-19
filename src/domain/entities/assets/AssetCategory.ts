@@ -7,5 +7,8 @@ export enum AssetCategory {
   COMMODITIES = 'Commodities',
   CASH_AND_CASH_EQUIVALENTS = 'Cash and Cash Equivalents',
   FIXED_DEPOSITS = 'Fixed Deposits',
+  INSURANCE_POLICIES = 'Insurance Policies',
+  GOVERNMENT_BONDS = 'Government Bonds',
+  CORPORATE_BONDS = 'Corporate Bonds',
   OTHER = 'Other',
 }
