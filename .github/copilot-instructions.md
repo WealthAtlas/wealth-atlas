@@ -295,6 +295,17 @@ export class Asset implements IAsset {
 - **Multi-Currency Support** - Expenses support different currencies using Currency enum
 - **Category Classification** - Expenses are categorized (FOOD, TRANSPORT, HOUSING, etc.)
 - **Essential vs Non-Essential** - Track whether expenses are essential or discretionary
+- **Scheduled Expenses** - Recurring expenses that auto-generate actual expense records
+
+#### Scheduled Expense Model
+
+- **Scheduled Expenses** represent recurring expense patterns for auto-generation of actual expenses
+- **Auto-Generation Pattern** - Follows loan payment pattern for converting scheduled to actual expenses
+- **Expense Frequency** - Support for daily, weekly, monthly, quarterly, semi-annual, and annual expenses
+- **Application Startup Auto-Conversion** - Automatically processes due scheduled expenses when application opens
+- **Optional End Date** - Scheduled expenses can run indefinitely or until a specified end date
+- **Future-Only Editing** - Changes to scheduled expenses only affect future generated expenses
+- **Clear Attribution** - Generated expenses include "Generated from: [Schedule Name]" in description
 
 #### Loan Management Model
 
@@ -320,6 +331,16 @@ export class Asset implements IAsset {
 3. **Category Classification** - Mandatory expense categorization for analytics
 4. **Essential Tracking** - Distinguish between essential and discretionary spending
 5. **Real-time Analytics** - Calculate monthly totals and trends dynamically
+
+#### Scheduled Expense Management Rules
+
+1. **Schedule-First Approach** - Focus on scheduled expense tracking with automatic conversion to actual expenses
+2. **Auto-Conversion Logic** - Convert due scheduled expenses to actual expenses on application startup
+3. **Future-Only Editing** - When editing scheduled expenses, changes only affect future generated expenses
+4. **Optional End Date** - Scheduled expenses can run indefinitely or until a specified end date
+5. **Separate Management** - Dedicated "Scheduled Expenses" dialog for viewing and managing recurring expenses
+6. **Clear Attribution** - Generated expenses show origin schedule in description for transparency
+7. **Frequency Support** - Daily, weekly, monthly, quarterly, semi-annual, and yearly scheduling options
 
 #### Loan Management Rules
 
@@ -389,10 +410,12 @@ export class Asset implements IAsset {
   - `AssetFormDialog.tsx` - Asset creation/editing form
   - `TransactionFormDialog.tsx` - Transaction creation/editing form
   - `ExpenseFormDialog.tsx` - Expense creation/editing form
+  - `ScheduledExpenseFormDialog.tsx` - Scheduled expense creation/editing form
   - `LoanFormDialog.tsx` - Loan creation/editing form
   - `PaymentFormDialog.tsx` - Payment creation/editing form
 - **Dialogs** (`src/app/components/Dialogs/`) - Modal dialog components
   - `TransactionListDialog.tsx` - Transaction listing and management
+  - `ScheduledExpenseListDialog.tsx` - Scheduled expense listing and management
   - `PaymentListDialog.tsx` - Payment listing and management
   - `IRRAnalysisDialog.tsx` - Detailed IRR analysis display
 - **Pages** (`src/app/components/Pages/`) - Page-level presentational components
@@ -402,6 +425,7 @@ export class Asset implements IAsset {
   - `TransactionListContainer.tsx` - Transaction list business logic
   - `ExpensesContainer.tsx` - Expense management and analytics
   - `ExpenseFormContainer.tsx` - Expense form business logic
+  - `ScheduledExpenseContainer.tsx` - Scheduled expense management and orchestration
   - `LoansContainer.tsx` - Loan management and IRR analysis orchestration
   - `LoanFormContainer.tsx` - Loan form business logic
   - `PaymentFormContainer.tsx` - Payment form business logic
@@ -428,6 +452,7 @@ import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
 // Expense domain imports
 import { Expense } from '@/domain/entities/expenses/Expense';
 import { ExpenseCategory } from '@/domain/entities/expenses/ExpenseCategory';
+import { ScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
 
 // Loan domain imports
 import { Loan } from '@/domain/entities/loans/Loan';
@@ -446,6 +471,7 @@ import { Currency } from '@/domain/entities/shared/Currency';
 import { PortfolioService } from '@/domain/services/PortfolioService';
 import { IRRAnalysisService } from '@/domain/services/IRRAnalysisService';
 import { GoalPlanningService } from '@/domain/services/GoalPlanningService';
+import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';
 ```
 
 ## Development Workflow
@@ -493,8 +519,8 @@ The project follows strategic testing focused on complex business logic:
    - Use descriptive test names that explain business scenarios
 2. **Test Content Focus**:
    - **Financial Calculations** - IRR analysis, Newton-Raphson convergence, loan metrics
-   - **Business Logic Validation** - Entity validation, payment scheduling, risk assessment
-   - **Edge Cases** - Small amounts, overpayments, future dates, invalid data
+   - **Business Logic Validation** - Entity validation, payment scheduling, expense scheduling, risk assessment
+   - **Edge Cases** - Small amounts, overpayments, future dates, invalid data, infinite recurring schedules
 3. **Test Organization**:
    - Group related tests with `describe` blocks
    - Use `beforeEach` for common test setup
@@ -634,6 +660,10 @@ The project implements a comprehensive loan management system:
 - Use simple interest calculations instead of IRR for loan analysis
 - Skip risk assessment in loan management
 - Store computed interest rates instead of calculating from payment history
+- Store computed expense totals instead of calculating them at runtime
+- Mix essential and non-essential expenses without proper categorization
+- Skip scheduled expense auto-generation in favor of manual entry only
+- Store computed recurring expense totals instead of calculating at runtime
 - Import entities from old flat paths (use the new organized structure)
 - Mix domain concerns across bounded contexts (assets, expenses, loans, shared)
 - Route main pages directly to containers instead of through `MainContainer`
@@ -666,6 +696,9 @@ The project implements a comprehensive loan management system:
 - Use Currency enum for all currency-related fields with dropdown selection
 - Implement monthly grouping for time-based data organization
 - Calculate analytics and totals at runtime rather than storing computed values
+- Implement scheduled expense auto-generation following the established patterns
+- Use clear attribution for auto-generated expenses from scheduled sources
+- Follow the PaymentSchedule pattern for recurring expense management
 - Use comprehensive IRR analysis for accurate loan interest rate calculations
 - Implement unified payment tracking with LoanPayment entities
 - Leverage Newton-Raphson method for precise IRR calculations
