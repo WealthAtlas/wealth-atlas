@@ -1,3 +1,13 @@
+import type { IAsset } from '@/domain/entities/assets/Asset';
+import type { IAssetTransaction } from '@/domain/entities/assets/AssetTransaction';
+import type { IScheduledAssetTransaction } from '@/domain/entities/assets/ScheduledAssetTransaction';
+import type { IExpense } from '@/domain/entities/expenses/Expense';
+import type { IScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
+import type { IAssetGoalAllocation } from '@/domain/entities/goals/AssetGoalAllocation';
+import type { IGoal } from '@/domain/entities/goals/Goal';
+import type { ILoan } from '@/domain/entities/loans/Loan';
+import type { ILoanPayment } from '@/domain/entities/loans/LoanPayment';
+import type { IPaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { db } from '../../data/database';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
@@ -102,7 +112,18 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
         db.assetTransactions.clear(),
         db.assets.clear(),
       ]);
-      const d = snapshot.data as any;
+      const d = snapshot.data as {
+        assets?: IAsset[];
+        assetTransactions?: IAssetTransaction[];
+        scheduledAssetTransactions?: IScheduledAssetTransaction[];
+        expenses?: IExpense[];
+        scheduledExpenses?: IScheduledExpense[];
+        loans?: ILoan[];
+        paymentSchedules?: IPaymentSchedule[];
+        loanPayments?: ILoanPayment[];
+        goals?: IGoal[];
+        assetGoalAllocations?: IAssetGoalAllocation[];
+      };
       // Order respects dependencies
       await db.assets.bulkPut(d.assets || []);
       await db.assetTransactions.bulkPut(d.assetTransactions || []);

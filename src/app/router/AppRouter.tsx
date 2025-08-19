@@ -3,8 +3,10 @@ import { MainContainer } from '../containers/MainContainer';
 import { SettingsContainer } from '../containers/SettingsContainer';
 
 export function AppRouter() {
+  // Vite exposes the configured base as import.meta.env.BASE_URL; use it for GH Pages routing
+  const basename = import.meta.env.BASE_URL || '/';
   return (
-    <Router>
+    <Router basename={basename}>
       <Routes>
         <Route path="/" element={<MainContainer />} />
         <Route path="/dashboard" element={<MainContainer />} />

@@ -1,11 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { SyncService } from '../../data/sync/SyncService';
 import { SettingsPage } from '../components/Pages/SettingsPage';
 
 export function SettingsContainer() {
-  const [statusVersion, setStatusVersion] = useState(0); // trigger re-render
-
-  const status = useMemo(() => SyncService.getStatus(), [statusVersion]);
+  const [, setStatusVersion] = useState(0); // trigger re-render only
+  const status = SyncService.getStatus();
 
   const wrap = (fn: () => Promise<unknown>) =>
     fn()
