@@ -529,6 +529,30 @@ The project implements a comprehensive transaction management system:
 - **Dialog Orchestration** - Parent containers coordinate multiple dialog states
 - **Data Flow** - Containers handle all data operations, components handle presentation
 
+### UI Layout Patterns
+
+The project follows consistent layout patterns across all main pages:
+
+1. **Main Layout Integration** - All primary pages must render through `MainContainer` and `MainLayout`
+   - Routes in `AppRouter.tsx` should use `MainContainer` for dashboard, assets, loans, expenses, and goals
+   - This ensures consistent app bar, bottom navigation, and page structure
+   - Settings and utility pages can use direct containers for full-screen experiences
+
+2. **Page Container Standards** - All main pages follow consistent styling patterns
+   - Container padding: `sx={{ p: 3, pb: 10 }}` (3 units padding, 10 bottom for nav clearance)
+   - Loading states: Centered `CircularProgress` with `height: 'calc(100vh - 200px)'`
+   - Page headers: `Typography variant="h4" component="h1"` with consistent title naming
+
+3. **Floating Action Button (FAB)** - Primary actions use consistent FAB placement
+   - Position: `{ position: 'fixed', bottom: 80, right: 16 }` (above bottom navigation)
+   - Use for main page actions (Add Asset, Create Goal, etc.)
+   - Supplement empty state CTAs rather than replace them
+
+4. **Tab State Synchronization** - `MainPage` maintains navigation state consistency
+   - Tab selection syncs with URL changes via `useEffect` on `location.pathname`
+   - Enables deep linking and proper navigation state for direct page access
+   - Router navigation updates both URL and tab selection simultaneously
+
 ### Loan Management Pattern
 
 The project implements a comprehensive loan management system:
@@ -612,6 +636,10 @@ The project implements a comprehensive loan management system:
 - Store computed interest rates instead of calculating from payment history
 - Import entities from old flat paths (use the new organized structure)
 - Mix domain concerns across bounded contexts (assets, expenses, loans, shared)
+- Route main pages directly to containers instead of through `MainContainer`
+- Use inconsistent page padding or loading state patterns across main pages
+- Place floating action buttons in non-standard positions or skip them on main pages
+- Allow tab state to become desynchronized with the current URL/route
 
 ✅ **Do:**
 
@@ -648,6 +676,10 @@ The project implements a comprehensive loan management system:
 - Calculate interest rates dynamically from payment history and cash flows
 - Use the organized domain structure with proper bounded contexts (assets/, expenses/, loans/, shared/)
 - Follow established import patterns for the new domain organization
+- Route main pages through `MainContainer` to ensure consistent layout and navigation
+- Use consistent page container styling with proper padding and loading states
+- Implement floating action buttons (FAB) for primary page actions with standard positioning
+- Maintain tab state synchronization between URL and navigation in `MainPage`
 
 ## Future Evolution
 
