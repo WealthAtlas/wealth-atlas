@@ -30,7 +30,6 @@ interface MainLayoutProps {
   onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
   onMenuClose: () => void;
   onSettingsClick: () => void;
-  onAssetTypesClick: () => void;
 }
 
 export function MainLayout({
@@ -41,7 +40,6 @@ export function MainLayout({
   onMenuOpen,
   onMenuClose,
   onSettingsClick,
-  onAssetTypesClick,
 }: MainLayoutProps) {
   const theme = useTheme();
   const isTablet = useMediaQuery(theme.breakpoints.up('md'));
@@ -89,7 +87,6 @@ export function MainLayout({
             }}
           >
             <MenuItem onClick={onSettingsClick}>Settings</MenuItem>
-            <MenuItem onClick={onAssetTypesClick}>Manage Asset Types</MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>

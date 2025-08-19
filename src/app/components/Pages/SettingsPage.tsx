@@ -1,27 +1,12 @@
-import { Notifications, Palette, Security, Storage } from '@mui/icons-material';
+import { Palette } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemIcon, ListItemText, Paper, Typography } from '@mui/material';
 
 export function SettingsPage() {
   const settingsOptions = [
     {
-      title: 'Appearance',
-      description: 'Theme, colors, and display preferences',
+      title: 'Home Currency',
+      description: 'Set your home currency',
       icon: <Palette />,
-    },
-    {
-      title: 'Security',
-      description: 'Password, privacy, and data protection',
-      icon: <Security />,
-    },
-    {
-      title: 'Notifications',
-      description: 'Alerts, reminders, and communication preferences',
-      icon: <Notifications />,
-    },
-    {
-      title: 'Data Management',
-      description: 'Import, export, and backup options',
-      icon: <Storage />,
     },
   ];
 

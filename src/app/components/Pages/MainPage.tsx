@@ -75,11 +75,6 @@ export function MainPage() {
     navigate('/settings');
   };
 
-  const handleAssetTypesClick = () => {
-    handleMenuClose();
-    navigate('/asset-types');
-  };
-
   // Render appropriate page content based on current tab
   const renderPageContent = () => {
     switch (currentTab) {
@@ -106,7 +101,6 @@ export function MainPage() {
       onMenuOpen={handleMenuOpen}
       onMenuClose={handleMenuClose}
       onSettingsClick={handleSettingsClick}
-      onAssetTypesClick={handleAssetTypesClick}
     >
       {renderPageContent()}
     </MainLayout>
