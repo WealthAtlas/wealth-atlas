@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AssetsContainer } from '../../containers/AssetsContainer';
 import { ExpensesContainer } from '../../containers/ExpensesContainer';
+import { GoalsContainer } from '../../containers/GoalsContainer';
 import { LoansContainer } from '../../containers/LoansContainer';
 import { MainLayout } from '../Layout/MainLayout';
 import { DashboardPage } from '../Pages/DashboardPage';
@@ -22,6 +23,8 @@ export function MainPage() {
         return 2;
       case '/expenses':
         return 3;
+      case '/goals':
+        return 4;
       default:
         return 0;
     }
@@ -46,6 +49,9 @@ export function MainPage() {
         break;
       case 3:
         navigate('/expenses');
+        break;
+      case 4:
+        navigate('/goals');
         break;
     }
   };
@@ -79,6 +85,8 @@ export function MainPage() {
         return <LoansContainer />;
       case 3:
         return <ExpensesContainer />;
+      case 4:
+        return <GoalsContainer />;
       default:
         return <DashboardPage />;
     }

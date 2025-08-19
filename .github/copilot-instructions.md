@@ -96,6 +96,7 @@ src/
 │   │   ├── assets/   # Asset management domain
 │   │   ├── expenses/ # Expense tracking domain
 │   │   ├── loans/    # Loan management domain
+│   │   ├── goals/    # Goal planning domain
 │   │   └── shared/   # Cross-domain entities (Currency, etc.)
 │   ├── services/     # Domain services and business logic
 │   └── value-objects/ # Domain value objects
@@ -110,6 +111,7 @@ src/
      - `assets/` - Asset management entities (Asset, AssetTransaction, AssetCategory)
      - `expenses/` - Expense tracking entities (Expense, ExpenseCategory)
      - `loans/` - Loan management entities (Loan, LoanPayment, PaymentSchedule, PaymentFrequency)
+     - `goals/` - Goal planning entities (Goal, AssetGoalAllocation)
      - `shared/` - Cross-domain entities (Currency, etc.)
    - **Services** (`src/domain/services/`) - Domain services and business logic
    - **Value Objects** (`src/domain/value-objects/`) - Domain value objects
@@ -338,6 +340,27 @@ export class Asset implements IAsset {
 6. **Progress Analytics** - Track total invested vs expected investment amounts with completion status
 7. **Investment Frequency Support** - Monthly, quarterly, semi-annual, and annual scheduling options
 
+#### Goal Management Model
+
+- **Goals** represent financial objectives with target amounts, maturity dates, and inflation adjustments
+- **Asset-Goal Allocations** track percentage-based allocation of assets to specific goals
+- **Progress Tracking** - Real-time calculation of goal achievement probability using asset IRR
+- **Multi-Asset Support** - Single goals can have allocations from multiple assets
+- **Currency Independence** - Goals have independent currency settings with future conversion support
+
+#### Goal Management Rules
+
+1. **Simple Goal Structure** - Flat goal hierarchy without categories or sub-goals
+2. **Static Percentage Allocation** - User-defined fixed percentages, no automatic adjustments
+3. **Over-allocation Allowed** - Intentional buffer allocation beyond 100% for conservative planning
+4. **Inflation-Adjusted Targeting** - Dynamic calculation of inflation-adjusted target amounts
+5. **Progress Visualization** - Multi-color progress bars (green/yellow/red) based on achievement probability
+6. **Asset Integration** - Simple count display showing goal allocation count per asset
+7. **Currency Flexibility** - Independent goal currency with placeholder for future conversion logic
+8. **Allocation Validation** - Strict 1-100% range validation with form submission blocking
+9. **Real-time Updates** - Automatic progress recalculation when asset values change
+10. **Clean Deletion** - Goal deletion removes all associated allocations without impact warnings
+
 #### Asset Management Rules
 
 1. **Comprehensive Deletion** - Asset deletion removes associated transactions and scheduled investments (SIPs)
@@ -412,12 +435,17 @@ import { LoanPayment } from '@/domain/entities/loans/LoanPayment';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { PaymentFrequency } from '@/domain/entities/loans/PaymentFrequency';
 
+// Goal domain imports
+import { Goal } from '@/domain/entities/goals/Goal';
+import { AssetGoalAllocation } from '@/domain/entities/goals/AssetGoalAllocation';
+
 // Shared domain imports
 import { Currency } from '@/domain/entities/shared/Currency';
 
 // Domain services
 import { PortfolioService } from '@/domain/services/PortfolioService';
 import { IRRAnalysisService } from '@/domain/services/IRRAnalysisService';
+import { GoalPlanningService } from '@/domain/services/GoalPlanningService';
 ```
 
 ## Development Workflow

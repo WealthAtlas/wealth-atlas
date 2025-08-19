@@ -5,6 +5,7 @@ import {
   Dashboard,
   MoreVert,
   Receipt,
+  TrendingUp,
 } from '@mui/icons-material';
 import {
   AppBar,
@@ -50,6 +51,7 @@ export function MainLayout({
     { label: 'Assets', icon: <AccountBalance />, value: 1 },
     { label: 'Loans', icon: <CreditCard />, value: 2 },
     { label: 'Expenses', icon: <Receipt />, value: 3 },
+    { label: 'Goals', icon: <TrendingUp />, value: 4 },
   ];
 
   return (
