@@ -15,6 +15,8 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
+  Fab,
   Grid,
   IconButton,
   LinearProgress,
@@ -85,24 +87,27 @@ export const GoalsPage: React.FC<GoalsPageProps> = ({
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <Typography>Loading goals...</Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: 'calc(100vh - 200px)',
+        }}
+      >
+        <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box>
+    <Box sx={{ p: 3, pb: 10 }}>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
-          Financial Goals
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Goals
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={onCreateGoal} size="large">
-          Create Goal
-        </Button>
       </Box>
-
       {/* Goals List */}
       {goals.length === 0 ? (
         <Card>
@@ -321,6 +326,16 @@ export const GoalsPage: React.FC<GoalsPageProps> = ({
           })}
         </Grid>
       )}
+
+      {/* Floating Action Button */}
+      <Fab
+        color="primary"
+        aria-label="add goal"
+        onClick={onCreateGoal}
+        sx={{ position: 'fixed', bottom: 80, right: 16 }}
+      >
+        <AddIcon />
+      </Fab>
     </Box>
   );
 };
