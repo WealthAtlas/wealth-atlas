@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Build and Deploy to wealthatlas.github.io
 
 on:
   push:
@@ -8,8 +8,7 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -39,22 +38,17 @@ jobs:
 
       - name: Build
         env:
-          # makes Vite set correct base automatically (read in vite.config.ts)
+          # ensure base is '/'
+          VITE_BASE_OVERRIDE: /
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: pnpm run build && cp dist/index.html dist/404.html
+        run: pnpm run build && cp dist/index.html dist/404.html && touch dist/.nojekyll
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+    - name: Deploy to GitHub Pages repo
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      external_repository: ${{ secrets.PAGES_EXTERNAL_REPO || format('{0}/{0}.github.io', github.repository_owner) }}
+      publish_branch: ${{ secrets.PAGES_BRANCH || 'main' }}
+          publish_dir: ./dist
+          personal_token: ${{ secrets.GH_PAT }}
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com

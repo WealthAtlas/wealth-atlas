@@ -6,8 +6,10 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // Detect GitHub Pages repository name to set correct base path when building in CI.
 // For user/organization pages (repo ends with .github.io), base should be '/'.
+// Allow override via env (useful when publishing build to a separate orgname.github.io repo).
 const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
-const base = repoName && !repoName.endsWith('.github.io') ? `/${repoName}/` : '/';
+const derivedBase = repoName && !repoName.endsWith('.github.io') ? `/${repoName}/` : '/';
+const base = process.env.VITE_BASE_OVERRIDE || derivedBase;
 
 export default defineConfig({
   base,
