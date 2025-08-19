@@ -1,16 +1,13 @@
-import { Box, CircularProgress } from '@mui/material';
 import { useEffect, useState } from 'react';
+import { CircularProgress, Box } from '@mui/material';
 
 import { AssetRepository } from '@/data/repositories/AssetRepository';
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
-import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
 import { LoanRepository } from '@/data/repositories/LoanRepository';
+import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
+import { DashboardAnalyticsService, DashboardMetrics } from '@/domain/services/DashboardAnalyticsService';
 import { Currency } from '@/domain/entities/shared/Currency';
-import {
-  DashboardAnalyticsService,
-  DashboardMetrics,
-} from '@/domain/services/DashboardAnalyticsService';
 import { DashboardPage } from '../components/Pages/DashboardPage';
 
 export function DashboardContainer() {
@@ -57,12 +54,12 @@ export function DashboardContainer() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: 'calc(100vh - 200px)',
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: 'calc(100vh - 200px)' 
         }}
       >
         <CircularProgress />

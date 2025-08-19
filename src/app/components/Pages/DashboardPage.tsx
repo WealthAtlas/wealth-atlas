@@ -1,43 +1,81 @@
-import { AccountBalance, Assessment, Receipt, TrendingUp } from '@mui/icons-material';
-import { Box, Card, CardContent, Grid, Paper, Typography } from '@mui/material';
+import { AccountBalance, Assessment, Receipt, Refresh, TrendingUp } from '@mui/icons-material';
+import { Alert, Box, Card, CardContent, Grid, IconButton, Paper, Typography } from '@mui/material';
 
-export function DashboardPage() {
-  // Mock data - in real implementation, this would come from props
+import { CurrencyConversionService } from '@/domain/services/CurrencyConversionService';
+import { DashboardMetrics } from '@/domain/services/DashboardAnalyticsService';
+
+interface DashboardPageProps {
+  metrics: DashboardMetrics | null;
+  onRefresh: () => Promise<void>;
+}
+
+export function DashboardPage({ metrics, onRefresh }: DashboardPageProps) {
+  if (!metrics) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="info">No data available</Alert>
+      </Box>
+    );
+  }
+
   const stats = [
     {
-      title: 'Total Assets',
-      value: '$125,430',
+      title: 'Total Portfolio Value',
+      value: CurrencyConversionService.formatCurrency(
+        metrics.portfolio.currentValue,
+        metrics.portfolio.currency
+      ),
       icon: <AccountBalance color="primary" />,
-      change: '+5.2%',
+      change: `${metrics.portfolio.profitLossPercentage >= 0 ? '+' : ''}${metrics.portfolio.profitLossPercentage.toFixed(1)}%`,
+      changeColor: metrics.portfolio.profitLossPercentage >= 0 ? 'success.main' : 'error.main',
     },
     {
       title: 'Portfolio Growth',
-      value: '$8,540',
+      value: CurrencyConversionService.formatCurrency(
+        metrics.portfolio.profitLoss,
+        metrics.portfolio.currency
+      ),
       icon: <TrendingUp color="success" />,
-      change: '+12.4%',
+      change: `Invested: ${CurrencyConversionService.formatCurrency(metrics.portfolio.totalInvested, metrics.portfolio.currency)}`,
+      changeColor: 'text.secondary',
     },
     {
-      title: 'Active Loans',
-      value: '$45,200',
+      title: 'Outstanding Loans',
+      value: CurrencyConversionService.formatCurrency(
+        metrics.loans.totalOutstanding,
+        metrics.loans.currency
+      ),
       icon: <Assessment color="warning" />,
-      change: '-2.1%',
+      change: `Pending: ${CurrencyConversionService.formatCurrency(metrics.loans.totalPending, metrics.loans.currency)}`,
+      changeColor: 'text.secondary',
     },
     {
       title: 'Monthly Expenses',
-      value: '$3,280',
+      value: CurrencyConversionService.formatCurrency(
+        metrics.expenses.currentMonthTotal,
+        metrics.expenses.currency
+      ),
       icon: <Receipt color="error" />,
-      change: '+1.8%',
+      change: `${metrics.expenses.monthOverMonthPercentage >= 0 ? '+' : ''}${metrics.expenses.monthOverMonthPercentage.toFixed(1)}% from last month`,
+      changeColor: metrics.expenses.monthOverMonthPercentage >= 0 ? 'error.main' : 'success.main',
     },
   ];
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Dashboard
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Welcome back! Here&apos;s an overview of your financial portfolio.
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <div>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Dashboard
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Welcome back! Here&apos;s an overview of your financial portfolio.
+          </Typography>
+        </div>
+        <IconButton onClick={onRefresh} color="primary">
+          <Refresh />
+        </IconButton>
+      </Box>
 
       <Grid container spacing={3}>
         {stats.map((stat, index) => (
@@ -53,11 +91,8 @@ export function DashboardPage() {
                 <Typography variant="h4" component="div" gutterBottom>
                   {stat.value}
                 </Typography>
-                <Typography
-                  variant="body2"
-                  color={stat.change.startsWith('+') ? 'success.main' : 'error.main'}
-                >
-                  {stat.change} from last month
+                <Typography variant="body2" color={stat.changeColor}>
+                  {stat.change}
                 </Typography>
               </CardContent>
             </Card>
@@ -65,16 +100,113 @@ export function DashboardPage() {
         ))}
       </Grid>
 
-      <Box sx={{ mt: 4 }}>
-        <Paper elevation={2} sx={{ p: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            Recent Activity
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Your recent transactions and portfolio changes will appear here.
-          </Typography>
-        </Paper>
-      </Box>
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        {/* Portfolio Breakdown */}
+        {metrics.portfolio.assetBreakdown.length > 0 && (
+          <Grid item xs={12} md={6}>
+            <Paper elevation={2} sx={{ p: 3 }}>
+              <Typography variant="h5" gutterBottom>
+                Asset Breakdown
+              </Typography>
+              {metrics.portfolio.assetBreakdown.slice(0, 5).map((asset, index) => (
+                <Box key={index} sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" fontWeight="medium">
+                      {asset.assetName}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {asset.percentage.toFixed(1)}%
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2">
+                      {CurrencyConversionService.formatCurrency(
+                        asset.currentValue,
+                        metrics.portfolio.currency
+                      )}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color={asset.profitLoss >= 0 ? 'success.main' : 'error.main'}
+                    >
+                      {asset.profitLoss >= 0 ? '+' : ''}
+                      {CurrencyConversionService.formatCurrency(
+                        asset.profitLoss,
+                        metrics.portfolio.currency
+                      )}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Paper>
+          </Grid>
+        )}
+
+        {/* Expense Summary */}
+        <Grid item xs={12} md={6}>
+          <Paper elevation={2} sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              Expense Summary
+            </Typography>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Essential Expenses
+              </Typography>
+              <Typography variant="h6">
+                {CurrencyConversionService.formatCurrency(
+                  metrics.expenses.currentMonthEssential,
+                  metrics.expenses.currency
+                )}
+              </Typography>
+            </Box>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Non-Essential Expenses
+              </Typography>
+              <Typography variant="h6">
+                {CurrencyConversionService.formatCurrency(
+                  metrics.expenses.currentMonthNonEssential,
+                  metrics.expenses.currency
+                )}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                Previous Month
+              </Typography>
+              <Typography variant="body1">
+                {CurrencyConversionService.formatCurrency(
+                  metrics.expenses.previousMonthTotal,
+                  metrics.expenses.currency
+                )}
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* Next Payment Due */}
+        {metrics.loans.nextPaymentDue && (
+          <Grid item xs={12} md={6}>
+            <Paper elevation={2} sx={{ p: 3 }}>
+              <Typography variant="h5" gutterBottom>
+                Next Payment Due
+              </Typography>
+              <Typography variant="h6" gutterBottom>
+                {metrics.loans.nextPaymentDue.loanName}
+              </Typography>
+              <Typography variant="h4" color="warning.main" gutterBottom>
+                {CurrencyConversionService.formatCurrency(
+                  metrics.loans.nextPaymentDue.amount,
+                  metrics.loans.currency
+                )}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Due: {metrics.loans.nextPaymentDue.date?.toLocaleDateString() || 'No date set'}
+              </Typography>
+            </Paper>
+          </Grid>
+        )}
+      </Grid>
     </Box>
   );
 }

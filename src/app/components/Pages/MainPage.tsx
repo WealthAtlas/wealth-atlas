@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AssetsContainer } from '../../containers/AssetsContainer';
+import { DashboardContainer } from '../../containers/DashboardContainer';
 import { ExpensesContainer } from '../../containers/ExpensesContainer';
 import { GoalsContainer } from '../../containers/GoalsContainer';
 import { LoansContainer } from '../../containers/LoansContainer';
 import { MainLayout } from '../Layout/MainLayout';
-import { DashboardPage } from '../Pages/DashboardPage';
 
 export function MainPage() {
   const navigate = useNavigate();
@@ -84,7 +84,7 @@ export function MainPage() {
   const renderPageContent = () => {
     switch (currentTab) {
       case 0:
-        return <DashboardPage />;
+        return <DashboardContainer />;
       case 1:
         return <AssetsContainer />;
       case 2:
@@ -94,7 +94,7 @@ export function MainPage() {
       case 4:
         return <GoalsContainer />;
       default:
-        return <DashboardPage />;
+        return <DashboardContainer />;
     }
   };
 
