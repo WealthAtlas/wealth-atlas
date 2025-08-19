@@ -10,9 +10,11 @@ import {
   Edit as EditIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -38,6 +40,7 @@ interface ExpensesPageProps {
   onAddExpense: () => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (expense: Expense) => void;
+  onManageScheduledExpenses: () => void;
   loading?: boolean;
 }
 
@@ -48,6 +51,7 @@ export function ExpensesPage({
   onAddExpense,
   onEditExpense,
   onDeleteExpense,
+  onManageScheduledExpenses,
 }: ExpensesPageProps) {
   // Auto-expand current month by default
   const currentMonthYear = new Date().toISOString().slice(0, 7); // YYYY-MM format
@@ -121,9 +125,12 @@ export function ExpensesPage({
 
   return (
     <Box sx={{ p: 3, pb: 10 }}>
-      <Typography variant="h4" gutterBottom>
-        Expenses
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">Expenses</Typography>
+        <Button variant="outlined" startIcon={<ScheduleIcon />} onClick={onManageScheduledExpenses}>
+          Scheduled Expenses
+        </Button>
+      </Box>
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>

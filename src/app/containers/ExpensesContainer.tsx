@@ -1,22 +1,34 @@
 import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
 import { Expense } from '@/domain/entities/expenses/Expense';
 import { ExpenseAnalyticsService } from '@/domain/services/ExpenseAnalyticsService';
+import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';
 import React from 'react';
 import { seedExpenseData } from '../../utils/seedExpenseData';
+import { seedScheduledExpenseData } from '../../utils/seedScheduledExpenseData';
 import { ExpensesPage } from '../components/Pages/ExpensesPage';
 import { ExpenseFormContainer } from './ExpenseFormContainer';
+import { ScheduledExpenseContainer } from './ScheduledExpenseContainer';
 
 export function ExpensesContainer() {
   const [expenses, setExpenses] = React.useState<Expense[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [formOpen, setFormOpen] = React.useState(false);
   const [expenseToEdit, setExpenseToEdit] = React.useState<Expense | undefined>();
+  const [scheduledExpenseDialogOpen, setScheduledExpenseDialogOpen] = React.useState(false);
 
   const expenseRepository = React.useMemo(() => new ExpenseRepository(), []);
+  const scheduledExpenseService = React.useMemo(() => new ScheduledExpenseService(), []);
 
   const loadExpenses = React.useCallback(async () => {
     try {
       setLoading(true);
+
+      // Seed scheduled expenses data if none exist
+      await seedScheduledExpenseData();
+
+      // Process scheduled expenses first (auto-generation)
+      await scheduledExpenseService.processScheduledExpenses();
+
       // Seed sample data if no expenses exist
       await seedExpenseData();
       const allExpenses = await expenseRepository.findAll();
@@ -26,7 +38,7 @@ export function ExpensesContainer() {
     } finally {
       setLoading(false);
     }
-  }, [expenseRepository]);
+  }, [expenseRepository, scheduledExpenseService]);
 
   React.useEffect(() => {
     loadExpenses();
@@ -64,6 +76,16 @@ export function ExpensesContainer() {
     await loadExpenses();
   };
 
+  const handleManageScheduledExpenses = () => {
+    setScheduledExpenseDialogOpen(true);
+  };
+
+  const handleScheduledExpenseDialogClose = () => {
+    setScheduledExpenseDialogOpen(false);
+    // Reload expenses in case new scheduled expenses were generated
+    loadExpenses();
+  };
+
   // Calculate analytics data
   const monthlyData = React.useMemo(() => {
     return ExpenseAnalyticsService.getMonthlyExpenseSummary(expenses);
@@ -82,6 +104,7 @@ export function ExpensesContainer() {
         onAddExpense={handleAddExpense}
         onEditExpense={handleEditExpense}
         onDeleteExpense={handleDeleteExpense}
+        onManageScheduledExpenses={handleManageScheduledExpenses}
         loading={loading}
       />
 
@@ -90,6 +113,11 @@ export function ExpensesContainer() {
         onClose={handleFormClose}
         onSave={handleFormSave}
         expenseToEdit={expenseToEdit}
+      />
+
+      <ScheduledExpenseContainer
+        open={scheduledExpenseDialogOpen}
+        onClose={handleScheduledExpenseDialogClose}
       />
     </>
   );
