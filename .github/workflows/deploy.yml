@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  contents: write
 
 concurrency:
   group: pages
@@ -42,12 +41,11 @@ jobs:
           VITE_BASE_OVERRIDE: /
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pnpm run build && cp dist/index.html dist/404.html && touch dist/.nojekyll
-
-    - name: Deploy to GitHub Pages repo
+      - name: Deploy to GitHub Pages repo
         uses: peaceiris/actions-gh-pages@v3
         with:
-      external_repository: ${{ secrets.PAGES_EXTERNAL_REPO || format('{0}/{0}.github.io', github.repository_owner) }}
-      publish_branch: ${{ secrets.PAGES_BRANCH || 'main' }}
+          external_repository: '${{ secrets.PAGES_EXTERNAL_REPO }}'
+          publish_branch: "${{ secrets.PAGES_BRANCH || 'main' }}"
           publish_dir: ./dist
           personal_token: ${{ secrets.GH_PAT }}
           user_name: github-actions[bot]
