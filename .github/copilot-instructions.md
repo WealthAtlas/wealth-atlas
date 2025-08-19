@@ -277,6 +277,15 @@ export class Asset implements IAsset {
 - **No Computed Storage** - Calculate portfolio metrics at runtime
 - **Money-First Approach** - Always prioritize monetary tracking over quantity
 
+#### SIP (Systematic Investment Plan) Model
+
+- **Scheduled Asset Transactions** represent recurring investment plans for assets
+- **Auto-Conversion Pattern** - Follows loan payment pattern for converting scheduled to actual transactions
+- **Investment Frequency** - Support for monthly, quarterly, semi-annual, and annual investments
+- **Progress Tracking** - Monitor total invested vs expected investment amounts
+- **SIP Lifecycle Management** - Create, edit, pause/resume, and delete SIPs with transaction preservation options
+- **Application Startup Auto-Conversion** - Automatically processes due SIPs when application opens
+
 #### Expense Tracking Model
 
 - **Expenses** represent personal expenditures with categorization and analytics
@@ -318,6 +327,23 @@ export class Asset implements IAsset {
 4. **Risk Assessment** - Categorize loans by risk level (LOW/MEDIUM/HIGH) based on payment history and rates
 5. **Cash Flow Analysis** - Build comprehensive cash flow models for accurate financial metrics
 6. **Overdue Detection** - Automatic identification of missed payments with aging analysis
+
+#### SIP Management Rules
+
+1. **Schedule-First Approach** - Focus on scheduled investment tracking with automatic conversion to actual transactions
+2. **Auto-Conversion Logic** - Convert due scheduled investments to actual transactions on application startup
+3. **Edit with History** - When editing SIPs, automatically create actual transactions for past due dates
+4. **Pause/Resume Capability** - Toggle SIP active status without losing configuration or transaction history
+5. **Flexible Deletion** - Option to keep or remove existing transactions when deleting SIPs
+6. **Progress Analytics** - Track total invested vs expected investment amounts with completion status
+7. **Investment Frequency Support** - Monthly, quarterly, semi-annual, and annual scheduling options
+
+#### Asset Management Rules
+
+1. **Comprehensive Deletion** - Asset deletion removes associated transactions and scheduled investments (SIPs)
+2. **Data Integrity** - Proper cleanup of all related data when assets are deleted
+3. **User Confirmation** - Clear warnings about permanent deletion and data loss
+4. **Streamlined UI** - Remove redundant actions (transaction creation available in transaction list dialog)
 
 #### Portfolio Calculations (Runtime)
 
