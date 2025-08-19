@@ -1,14 +1,27 @@
-import { Palette } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemIcon, ListItemText, Paper, Typography } from '@mui/material';
+import { Cloud, CloudDownload, CloudUpload, Key, Link, LinkOff } from '@mui/icons-material';
+import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
+import { useState } from 'react';
 
-export function SettingsPage() {
-  const settingsOptions = [
-    {
-      title: 'Home Currency',
-      description: 'Set your home currency',
-      icon: <Palette />,
-    },
-  ];
+export interface SettingsPageProps {
+  // Sync status
+  keyId?: string;
+  lastRemoteVersion?: number;
+  lastSyncAt?: string;
+  // Handlers
+  onSetup: (passphrase: string) => void;
+  onLink: (keyId: string, passphrase: string) => void;
+  onPush: (passphrase: string) => void;
+  onPull: (passphrase: string) => void;
+  onChangePassphrase: (oldPass: string, newPass: string) => void;
+  onUnlink: () => void;
+}
+
+export function SettingsPage(props: SettingsPageProps) {
+  const [pass, setPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [kidInput, setKidInput] = useState('');
+
+  const isLinked = Boolean(props.keyId);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -16,18 +29,131 @@ export function SettingsPage() {
         Settings
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Configure your application preferences and account settings.
+        Configure your preferences and sync.
       </Typography>
 
-      <Paper elevation={2}>
-        <List>
-          {settingsOptions.map((option, index) => (
-            <ListItem key={index} button>
-              <ListItemIcon>{option.icon}</ListItemIcon>
-              <ListItemText primary={option.title} secondary={option.description} />
-            </ListItem>
-          ))}
-        </List>
+      <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
+        <Stack spacing={2}>
+          <Typography variant="h6">
+            <Cloud sx={{ mr: 1, verticalAlign: 'middle' }} /> Sync
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Key ID: {props.keyId ?? 'not set'} | Remote version: {props.lastRemoteVersion ?? '-'} |
+            Last sync: {props.lastSyncAt ?? '-'}
+          </Typography>
+
+          {!isLinked && (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                fullWidth
+                label="Passphrase"
+                type="password"
+                value={pass}
+                onChange={e => setPass(e.target.value)}
+              />
+              <Button
+                variant="contained"
+                startIcon={<Key />}
+                onClick={() => props.onSetup(pass)}
+                disabled={!pass}
+              >
+                Setup
+              </Button>
+            </Stack>
+          )}
+
+          {!isLinked && (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                fullWidth
+                label="Key ID"
+                value={kidInput}
+                onChange={e => setKidInput(e.target.value)}
+              />
+              <TextField
+                fullWidth
+                label="Passphrase"
+                type="password"
+                value={pass}
+                onChange={e => setPass(e.target.value)}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<Link />}
+                onClick={() => props.onLink(kidInput, pass)}
+                disabled={!kidInput || !pass}
+              >
+                Link
+              </Button>
+            </Stack>
+          )}
+
+          {isLinked && (
+            <>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <TextField
+                  fullWidth
+                  label="Passphrase"
+                  type="password"
+                  value={pass}
+                  onChange={e => setPass(e.target.value)}
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<CloudUpload />}
+                  onClick={() => props.onPush(pass)}
+                  disabled={!pass}
+                >
+                  Push
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<CloudDownload />}
+                  onClick={() => props.onPull(pass)}
+                  disabled={!pass}
+                >
+                  Pull
+                </Button>
+              </Stack>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <TextField
+                  fullWidth
+                  label="Old passphrase"
+                  type="password"
+                  value={pass}
+                  onChange={e => setPass(e.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  label="New passphrase"
+                  type="password"
+                  value={newPass}
+                  onChange={e => setNewPass(e.target.value)}
+                />
+                <Button
+                  variant="text"
+                  startIcon={<Key />}
+                  onClick={() => props.onChangePassphrase(pass, newPass)}
+                  disabled={!pass || !newPass}
+                >
+                  Change passphrase
+                </Button>
+              </Stack>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <Button
+                  color="error"
+                  variant="outlined"
+                  startIcon={<LinkOff />}
+                  onClick={() => props.onUnlink()}
+                >
+                  Unlink
+                </Button>
+              </Stack>
+            </>
+          )}
+        </Stack>
       </Paper>
     </Box>
   );
