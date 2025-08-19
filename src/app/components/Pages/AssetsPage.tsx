@@ -1,4 +1,4 @@
-import { Asset } from '@/domain/entities/Asset';
+import { Asset } from '@/domain/entities/assets/Asset';
 import { Add, Edit, List, TrendingUp } from '@mui/icons-material';
 import {
   Box,

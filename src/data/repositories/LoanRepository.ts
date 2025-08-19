@@ -1,4 +1,4 @@
-import { ILoan, Loan } from '../../domain/entities/Loan';
+import { ILoan, Loan } from '../../domain/entities/loans/Loan';
 import { db } from '../database';
 
 export class LoanRepository {

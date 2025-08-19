@@ -1,5 +1,5 @@
-import { Expense } from '@/domain/entities/Expense';
-import { EXPENSE_CATEGORY_LABELS } from '@/domain/entities/ExpenseCategory';
+import { Expense } from '@/domain/entities/expenses/Expense';
+import { EXPENSE_CATEGORY_LABELS } from '@/domain/entities/expenses/ExpenseCategory';
 import {
   CurrencyTotalSummary,
   MonthlyExpenseSummary,

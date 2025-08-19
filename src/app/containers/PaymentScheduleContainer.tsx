@@ -1,9 +1,9 @@
 import { PaymentScheduleListDialog } from '@/app/components/Dialogs/PaymentScheduleListDialog';
 import { PaymentScheduleFormDialog } from '@/app/components/Forms/PaymentScheduleFormDialog';
 import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRepository';
-import { Loan } from '@/domain/entities/Loan';
-import { PaymentFrequency } from '@/domain/entities/PaymentFrequency';
-import { PaymentSchedule } from '@/domain/entities/PaymentSchedule';
+import { Loan } from '@/domain/entities/loans/Loan';
+import { PaymentFrequency } from '@/domain/entities/loans/PaymentFrequency';
+import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface PaymentScheduleContainerProps {

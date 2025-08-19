@@ -1,10 +1,10 @@
 import Dexie, { Table } from 'dexie';
-import { IAsset } from '../domain/entities/Asset';
-import { IAssetTransaction } from '../domain/entities/AssetTransaction';
-import { IExpense } from '../domain/entities/Expense';
-import { ILoan } from '../domain/entities/Loan';
-import { ILoanPayment } from '../domain/entities/LoanPayment';
-import { IPaymentSchedule } from '../domain/entities/PaymentSchedule';
+import { IAsset } from '../domain/entities/assets/Asset';
+import { IAssetTransaction } from '../domain/entities/assets/AssetTransaction';
+import { IExpense } from '../domain/entities/expenses/Expense';
+import { ILoan } from '../domain/entities/loans/Loan';
+import { ILoanPayment } from '../domain/entities/loans/LoanPayment';
+import { IPaymentSchedule } from '../domain/entities/loans/PaymentSchedule';
 
 export class WealthAtlasDB extends Dexie {
   assets!: Table<IAsset>;

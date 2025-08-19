@@ -1,5 +1,5 @@
-import { AssetCategory } from '@/domain/entities/AssetCategory';
-import { Currency } from '@/domain/entities/Currency';
+import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
+import { Currency } from '@/domain/entities/shared/Currency';
 import {
   Box,
   Button,

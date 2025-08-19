@@ -1,4 +1,4 @@
-import { PaymentSchedule } from '@/domain/entities/PaymentSchedule';
+import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import {
   Box,
   Button,

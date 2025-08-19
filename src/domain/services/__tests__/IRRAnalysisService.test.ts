@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Loan } from '../../entities/Loan';
-import { LoanPayment } from '../../entities/LoanPayment';
+import { Loan } from '../../entities/loans/Loan';
+import { LoanPayment } from '../../entities/loans/LoanPayment';
 import { IRRAnalysisService } from '../IRRAnalysisService';
 
 describe('IRRAnalysisService', () => {

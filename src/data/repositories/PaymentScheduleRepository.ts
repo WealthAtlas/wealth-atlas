@@ -1,5 +1,5 @@
-import { PaymentFrequency } from '../../domain/entities/PaymentFrequency';
-import { IPaymentSchedule, PaymentSchedule } from '../../domain/entities/PaymentSchedule';
+import { PaymentFrequency } from '../../domain/entities/loans/PaymentFrequency';
+import { IPaymentSchedule, PaymentSchedule } from '../../domain/entities/loans/PaymentSchedule';
 import { db } from '../database';
 
 export class PaymentScheduleRepository {

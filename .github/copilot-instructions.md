@@ -91,7 +91,14 @@ The project follows a clean DDD architecture with clear separation of concerns:
 
 ```
 src/
-├── domain/           # Pure business logic (entities, value objects)
+├── domain/           # Pure business logic (entities, value objects, services)
+│   ├── entities/     # Domain entities organized by bounded context
+│   │   ├── assets/   # Asset management domain
+│   │   ├── expenses/ # Expense tracking domain
+│   │   ├── loans/    # Loan management domain
+│   │   └── shared/   # Cross-domain entities (Currency, etc.)
+│   ├── services/     # Domain services and business logic
+│   └── value-objects/ # Domain value objects
 ├── data/             # Data access layer (repositories, database)
 └── app/              # Application layer (components, containers, routing)
 ```
@@ -99,10 +106,15 @@ src/
 ### Key Architectural Rules
 
 1. **Domain Layer** (`src/domain/`)
-   - Contains pure business entities and logic
-   - No dependencies on external frameworks or libraries
+   - **Entities** (`src/domain/entities/`) - Organized by bounded context:
+     - `assets/` - Asset management entities (Asset, AssetTransaction, AssetCategory)
+     - `expenses/` - Expense tracking entities (Expense, ExpenseCategory)
+     - `loans/` - Loan management entities (Loan, LoanPayment, PaymentSchedule, PaymentFrequency)
+     - `shared/` - Cross-domain entities (Currency, etc.)
+   - **Services** (`src/domain/services/`) - Domain services and business logic
+   - **Value Objects** (`src/domain/value-objects/`) - Domain value objects
+   - Contains pure business entities and logic with no external dependencies
    - Entities should evolve from interfaces to classes with business methods
-   - Example: `Asset` entity will become a class with validation and business logic
 
 2. **Data Layer** (`src/data/`)
    - **Repositories** (`src/data/repositories/`) - Data access using domain interfaces directly
@@ -354,6 +366,34 @@ export class Asset implements IAsset {
 4. Relative imports last
 5. Use path mapping `@/*` when beneficial
 
+### Domain Import Patterns
+
+With the organized domain structure, use these import patterns:
+
+```typescript
+// Asset domain imports
+import { Asset } from '@/domain/entities/assets/Asset';
+import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
+import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
+
+// Expense domain imports
+import { Expense } from '@/domain/entities/expenses/Expense';
+import { ExpenseCategory } from '@/domain/entities/expenses/ExpenseCategory';
+
+// Loan domain imports
+import { Loan } from '@/domain/entities/loans/Loan';
+import { LoanPayment } from '@/domain/entities/loans/LoanPayment';
+import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
+import { PaymentFrequency } from '@/domain/entities/loans/PaymentFrequency';
+
+// Shared domain imports
+import { Currency } from '@/domain/entities/shared/Currency';
+
+// Domain services
+import { PortfolioService } from '@/domain/services/PortfolioService';
+import { IRRAnalysisService } from '@/domain/services/IRRAnalysisService';
+```
+
 ## Development Workflow
 
 ### Scripts Usage
@@ -516,6 +556,8 @@ The project implements a comprehensive loan management system:
 - Use simple interest calculations instead of IRR for loan analysis
 - Skip risk assessment in loan management
 - Store computed interest rates instead of calculating from payment history
+- Import entities from old flat paths (use the new organized structure)
+- Mix domain concerns across bounded contexts (assets, expenses, loans, shared)
 
 ✅ **Do:**
 
@@ -550,6 +592,8 @@ The project implements a comprehensive loan management system:
 - Use IRR-based analysis for professional-grade loan management
 - Include risk assessment in all loan analysis workflows
 - Calculate interest rates dynamically from payment history and cash flows
+- Use the organized domain structure with proper bounded contexts (assets/, expenses/, loans/, shared/)
+- Follow established import patterns for the new domain organization
 
 ## Future Evolution
 

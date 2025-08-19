@@ -1,6 +1,6 @@
 import { AssetRepository } from '@/data/repositories/AssetRepository';
-import { Asset } from '@/domain/entities/Asset';
-import { AssetTransaction } from '@/domain/entities/AssetTransaction';
+import { Asset } from '@/domain/entities/assets/Asset';
+import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
 import { useEffect, useState } from 'react';
 import { AssetsPage } from '../components/Pages/AssetsPage';
 import { AssetFormContainer } from './AssetFormContainer';

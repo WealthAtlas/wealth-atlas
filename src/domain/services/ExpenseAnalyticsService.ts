@@ -1,4 +1,4 @@
-import { Expense } from '../entities/Expense';
+import { Expense } from '../entities/expenses/Expense';
 
 export interface MonthlyExpenseSummary {
   month: string; // YYYY-MM format

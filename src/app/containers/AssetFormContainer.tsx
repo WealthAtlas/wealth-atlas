@@ -1,6 +1,6 @@
 import { AssetRepository } from '@/data/repositories/AssetRepository';
-import { Asset } from '@/domain/entities/Asset';
-import { AssetCategory } from '@/domain/entities/AssetCategory';
+import { Asset } from '@/domain/entities/assets/Asset';
+import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
 import { useEffect, useState } from 'react';
 import { AssetFormData, AssetFormDialog } from '../components/Forms/AssetFormDialog';
 

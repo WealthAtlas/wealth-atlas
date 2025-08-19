@@ -1,4 +1,4 @@
-import { Asset, IAsset } from '../../domain/entities/Asset';
+import { Asset, IAsset } from '../../domain/entities/assets/Asset';
 import { db } from '../database';
 
 export class AssetRepository {

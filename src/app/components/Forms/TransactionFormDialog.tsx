@@ -1,5 +1,5 @@
-import { Asset } from '@/domain/entities/Asset';
-import { AssetTransaction } from '@/domain/entities/AssetTransaction';
+import { Asset } from '@/domain/entities/assets/Asset';
+import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
 import {
   Box,
   Button,

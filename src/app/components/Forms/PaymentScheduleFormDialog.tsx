@@ -1,4 +1,4 @@
-import { PaymentFrequency } from '@/domain/entities/PaymentFrequency';
+import { PaymentFrequency } from '@/domain/entities/loans/PaymentFrequency';
 import {
   Alert,
   Button,

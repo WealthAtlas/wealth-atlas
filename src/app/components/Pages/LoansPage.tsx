@@ -1,4 +1,4 @@
-import { Loan } from '@/domain/entities/Loan';
+import { Loan } from '@/domain/entities/loans/Loan';
 import { IRRAnalysisService } from '@/domain/services/IRRAnalysisService';
 import { LoanSummary } from '@/domain/services/LoanService';
 import { Add, CheckCircle, Delete, Edit, History, Schedule, Warning } from '@mui/icons-material';

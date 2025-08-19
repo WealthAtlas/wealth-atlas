@@ -1,9 +1,9 @@
 import { LoanPaymentRepository } from '../../data/repositories/LoanPaymentRepository';
 import { LoanRepository } from '../../data/repositories/LoanRepository';
 import { PaymentScheduleRepository } from '../../data/repositories/PaymentScheduleRepository';
-import { Loan } from '../entities/Loan';
-import { LoanPayment } from '../entities/LoanPayment';
-import { PaymentSchedule } from '../entities/PaymentSchedule';
+import { Loan } from '../entities/loans/Loan';
+import { LoanPayment } from '../entities/loans/LoanPayment';
+import { PaymentSchedule } from '../entities/loans/PaymentSchedule';
 import { IRRAnalysis, IRRAnalysisService } from './IRRAnalysisService';
 
 export class LoanService {

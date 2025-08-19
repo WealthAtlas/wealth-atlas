@@ -2,9 +2,9 @@ import { PaymentHistoryListDialog } from '@/app/components/Dialogs/PaymentHistor
 import { LoanPaymentFormDialog } from '@/app/components/Forms/LoanPaymentFormDialog';
 import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
 import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRepository';
-import { Loan } from '@/domain/entities/Loan';
-import { LoanPayment } from '@/domain/entities/LoanPayment';
-import { PaymentSchedule } from '@/domain/entities/PaymentSchedule';
+import { Loan } from '@/domain/entities/loans/Loan';
+import { LoanPayment } from '@/domain/entities/loans/LoanPayment';
+import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface PaymentHistoryContainerProps {

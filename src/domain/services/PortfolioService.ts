@@ -1,5 +1,5 @@
-import { Asset } from '../entities/Asset';
-import { AssetTransaction } from '../entities/AssetTransaction';
+import { Asset } from '../entities/assets/Asset';
+import { AssetTransaction } from '../entities/assets/AssetTransaction';
 
 export class PortfolioService {
   /**

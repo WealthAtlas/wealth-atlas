@@ -1,6 +1,6 @@
 import { LoanRepository } from '@/data/repositories/LoanRepository';
-import { Currency } from '@/domain/entities/Currency';
-import { Loan } from '@/domain/entities/Loan';
+import { Loan } from '@/domain/entities/loans/Loan';
+import { Currency } from '@/domain/entities/shared/Currency';
 import { useState } from 'react';
 import { LoanFormDialog } from '../components/Forms/LoanFormDialog';
 

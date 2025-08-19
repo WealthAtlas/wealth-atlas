@@ -1,4 +1,4 @@
-import { AssetTransaction, IAssetTransaction } from '../../domain/entities/AssetTransaction';
+import { AssetTransaction, IAssetTransaction } from '../../domain/entities/assets/AssetTransaction';
 import { db } from '../database';
 
 export class AssetTransactionRepository {

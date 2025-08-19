@@ -1,5 +1,5 @@
 import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
-import { Expense } from '@/domain/entities/Expense';
+import { Expense } from '@/domain/entities/expenses/Expense';
 import React from 'react';
 import { ExpenseFormData, ExpenseFormDialog } from '../components/Forms/ExpenseFormDialog';
 

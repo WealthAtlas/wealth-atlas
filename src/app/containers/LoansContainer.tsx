@@ -1,8 +1,8 @@
 import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
 import { LoanRepository } from '@/data/repositories/LoanRepository';
 import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRepository';
-import { Loan } from '@/domain/entities/Loan';
-import { PaymentSchedule } from '@/domain/entities/PaymentSchedule';
+import { Loan } from '@/domain/entities/loans/Loan';
+import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { LoanService, LoanSummary } from '@/domain/services/LoanService';
 import { useEffect, useState } from 'react';
 import { IRRAnalysisDialog } from '../components/Dialogs/IRRAnalysisDialog';

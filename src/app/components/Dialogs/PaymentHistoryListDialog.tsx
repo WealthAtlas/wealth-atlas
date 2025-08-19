@@ -1,5 +1,5 @@
-import { Loan } from '@/domain/entities/Loan';
-import { LoanPayment } from '@/domain/entities/LoanPayment';
+import { Loan } from '@/domain/entities/loans/Loan';
+import { LoanPayment } from '@/domain/entities/loans/LoanPayment';
 import { Add, Delete, Edit, Payment } from '@mui/icons-material';
 import {
   Box,

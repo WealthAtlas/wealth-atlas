@@ -1,5 +1,5 @@
 import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
-import { Expense } from '@/domain/entities/Expense';
+import { Expense } from '@/domain/entities/expenses/Expense';
 import { ExpenseAnalyticsService } from '@/domain/services/ExpenseAnalyticsService';
 import React from 'react';
 import { seedExpenseData } from '../../utils/seedExpenseData';

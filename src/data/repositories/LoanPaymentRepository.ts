@@ -1,4 +1,4 @@
-import { ILoanPayment, LoanPayment } from '../../domain/entities/LoanPayment';
+import { ILoanPayment, LoanPayment } from '../../domain/entities/loans/LoanPayment';
 import { db } from '../database';
 
 export class LoanPaymentRepository {

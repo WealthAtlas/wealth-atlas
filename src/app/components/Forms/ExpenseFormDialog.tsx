@@ -1,5 +1,8 @@
-import { Currency } from '@/domain/entities/Currency';
-import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/domain/entities/ExpenseCategory';
+import {
+  EXPENSE_CATEGORY_LABELS,
+  ExpenseCategory,
+} from '@/domain/entities/expenses/ExpenseCategory';
+import { Currency } from '@/domain/entities/shared/Currency';
 import {
   Box,
   Button,

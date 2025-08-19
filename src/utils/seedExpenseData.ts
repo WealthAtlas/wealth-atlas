@@ -1,6 +1,6 @@
 import { ExpenseRepository } from '../data/repositories/ExpenseRepository';
-import { Expense } from '../domain/entities/Expense';
-import { ExpenseCategory } from '../domain/entities/ExpenseCategory';
+import { Expense } from '../domain/entities/expenses/Expense';
+import { ExpenseCategory } from '../domain/entities/expenses/ExpenseCategory';
 
 export async function seedExpenseData() {
   const expenseRepository = new ExpenseRepository();

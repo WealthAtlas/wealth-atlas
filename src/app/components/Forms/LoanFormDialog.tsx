@@ -1,4 +1,4 @@
-import { Currency } from '@/domain/entities/Currency';
+import { Currency } from '@/domain/entities/shared/Currency';
 import {
   Alert,
   Button,

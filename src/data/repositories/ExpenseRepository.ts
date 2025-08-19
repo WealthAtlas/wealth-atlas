@@ -1,4 +1,4 @@
-import { Expense, IExpense } from '@/domain/entities/Expense';
+import { Expense, IExpense } from '@/domain/entities/expenses/Expense';
 import { database } from '../database';
 
 export class ExpenseRepository {

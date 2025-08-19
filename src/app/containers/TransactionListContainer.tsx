@@ -1,6 +1,6 @@
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
-import { Asset } from '@/domain/entities/Asset';
-import { AssetTransaction } from '@/domain/entities/AssetTransaction';
+import { Asset } from '@/domain/entities/assets/Asset';
+import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
 import { useEffect, useState } from 'react';
 import { TransactionListDialog } from '../components/Dialogs/TransactionListDialog';
 
