@@ -19,6 +19,8 @@ export interface SyncStatus {
   keyId?: string;
   lastRemoteVersion?: number;
   lastSyncAt?: string;
+  autoSyncEnabled: boolean;
+  hasStoredPassphrase: boolean;
 }
 
 export interface RemoteDataResponse<TMeta = unknown> {

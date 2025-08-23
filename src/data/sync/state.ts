@@ -3,6 +3,8 @@
 const KEY_ID = 'sync.keyId';
 const LAST_VERSION = 'sync.lastRemoteVersion';
 const LAST_SYNC_AT = 'sync.lastSyncAt';
+const PASSPHRASE = 'sync.passphrase';
+const AUTO_SYNC_ENABLED = 'sync.autoSyncEnabled';
 
 export function getKeyId(): string | undefined {
   return localStorage.getItem(KEY_ID) || undefined;
@@ -30,4 +32,21 @@ export function getLastSyncAt(): string | undefined {
 export function setLastSyncAt(iso: string | undefined): void {
   if (iso) localStorage.setItem(LAST_SYNC_AT, iso);
   else localStorage.removeItem(LAST_SYNC_AT);
+}
+
+export function getPassphrase(): string | undefined {
+  return localStorage.getItem(PASSPHRASE) || undefined;
+}
+
+export function setPassphrase(passphrase: string | undefined): void {
+  if (passphrase) localStorage.setItem(PASSPHRASE, passphrase);
+  else localStorage.removeItem(PASSPHRASE);
+}
+
+export function getAutoSyncEnabled(): boolean {
+  return localStorage.getItem(AUTO_SYNC_ENABLED) === 'true';
+}
+
+export function setAutoSyncEnabled(enabled: boolean): void {
+  localStorage.setItem(AUTO_SYNC_ENABLED, String(enabled));
 }

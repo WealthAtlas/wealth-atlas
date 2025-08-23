@@ -1,5 +1,14 @@
 import { Cloud, CloudDownload, CloudUpload, Key, Link, LinkOff } from '@mui/icons-material';
-import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  FormControlLabel,
+  Paper,
+  Stack,
+  Switch,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useState } from 'react';
 
 export interface SettingsPageProps {
@@ -7,19 +16,23 @@ export interface SettingsPageProps {
   keyId?: string;
   lastRemoteVersion?: number;
   lastSyncAt?: string;
+  autoSyncEnabled: boolean;
+  hasStoredPassphrase: boolean;
   // Handlers
-  onSetup: (passphrase: string) => void;
-  onLink: (keyId: string, passphrase: string) => void;
-  onPush: (passphrase: string) => void;
-  onPull: (passphrase: string) => void;
+  onSetup: (passphrase: string, enableAutoSync: boolean) => void;
+  onLink: (keyId: string, passphrase: string, enableAutoSync: boolean) => void;
+  onPush: (passphrase?: string) => void;
+  onPull: (passphrase?: string) => void;
   onChangePassphrase: (oldPass: string, newPass: string) => void;
   onUnlink: () => void;
+  onToggleAutoSync: (enabled: boolean) => void;
 }
 
 export function SettingsPage(props: SettingsPageProps) {
   const [pass, setPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [kidInput, setKidInput] = useState('');
+  const [enableAutoSync, setEnableAutoSync] = useState(false);
 
   const isLinked = Boolean(props.keyId);
 
@@ -40,56 +53,17 @@ export function SettingsPage(props: SettingsPageProps) {
           <Typography variant="body2" color="text.secondary">
             Key ID: {props.keyId ?? 'not set'} | Remote version: {props.lastRemoteVersion ?? '-'} |
             Last sync: {props.lastSyncAt ?? '-'}
+            {isLinked && (
+              <>
+                <br />
+                Auto-sync: {props.autoSyncEnabled ? 'enabled' : 'disabled'} | Passphrase stored:{' '}
+                {props.hasStoredPassphrase ? 'yes' : 'no'}
+              </>
+            )}
           </Typography>
 
           {!isLinked && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                fullWidth
-                label="Passphrase"
-                type="password"
-                value={pass}
-                onChange={e => setPass(e.target.value)}
-              />
-              <Button
-                variant="contained"
-                startIcon={<Key />}
-                onClick={() => props.onSetup(pass)}
-                disabled={!pass}
-              >
-                Setup
-              </Button>
-            </Stack>
-          )}
-
-          {!isLinked && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                fullWidth
-                label="Key ID"
-                value={kidInput}
-                onChange={e => setKidInput(e.target.value)}
-              />
-              <TextField
-                fullWidth
-                label="Passphrase"
-                type="password"
-                value={pass}
-                onChange={e => setPass(e.target.value)}
-              />
-              <Button
-                variant="outlined"
-                startIcon={<Link />}
-                onClick={() => props.onLink(kidInput, pass)}
-                disabled={!kidInput || !pass}
-              >
-                Link
-              </Button>
-            </Stack>
-          )}
-
-          {isLinked && (
-            <>
+            <Stack spacing={2}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 <TextField
                   fullWidth
@@ -100,17 +74,98 @@ export function SettingsPage(props: SettingsPageProps) {
                 />
                 <Button
                   variant="contained"
-                  startIcon={<CloudUpload />}
-                  onClick={() => props.onPush(pass)}
+                  startIcon={<Key />}
+                  onClick={() => props.onSetup(pass, enableAutoSync)}
                   disabled={!pass}
+                >
+                  Setup
+                </Button>
+              </Stack>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={enableAutoSync}
+                    onChange={e => setEnableAutoSync(e.target.checked)}
+                  />
+                }
+                label="Enable auto-sync (stores passphrase locally)"
+              />
+            </Stack>
+          )}
+
+          {!isLinked && (
+            <Stack spacing={2}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <TextField
+                  fullWidth
+                  label="Key ID"
+                  value={kidInput}
+                  onChange={e => setKidInput(e.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  label="Passphrase"
+                  type="password"
+                  value={pass}
+                  onChange={e => setPass(e.target.value)}
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<Link />}
+                  onClick={() => props.onLink(kidInput, pass, enableAutoSync)}
+                  disabled={!kidInput || !pass}
+                >
+                  Link
+                </Button>
+              </Stack>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={enableAutoSync}
+                    onChange={e => setEnableAutoSync(e.target.checked)}
+                  />
+                }
+                label="Enable auto-sync (stores passphrase locally)"
+              />
+            </Stack>
+          )}
+
+          {isLinked && (
+            <>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={props.autoSyncEnabled}
+                    onChange={e => props.onToggleAutoSync(e.target.checked)}
+                  />
+                }
+                label="Auto-sync on app startup (requires stored passphrase)"
+              />
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <TextField
+                  fullWidth
+                  label="Passphrase"
+                  type="password"
+                  value={pass}
+                  onChange={e => setPass(e.target.value)}
+                  placeholder={
+                    props.hasStoredPassphrase ? 'Using stored passphrase' : 'Enter passphrase'
+                  }
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<CloudUpload />}
+                  onClick={() => props.onPush(pass || undefined)}
+                  disabled={!pass && !props.hasStoredPassphrase}
                 >
                   Push
                 </Button>
                 <Button
                   variant="outlined"
                   startIcon={<CloudDownload />}
-                  onClick={() => props.onPull(pass)}
-                  disabled={!pass}
+                  onClick={() => props.onPull(pass || undefined)}
+                  disabled={!pass && !props.hasStoredPassphrase}
                 >
                   Pull
                 </Button>
