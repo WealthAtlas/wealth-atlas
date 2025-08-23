@@ -9,6 +9,7 @@ import type { ILoan } from '@/domain/entities/loans/Loan';
 import type { ILoanPayment } from '@/domain/entities/loans/LoanPayment';
 import type { IPaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { db } from '../../data/database';
+import { buildSyncApiUrl } from './config';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
   getKeyId,
@@ -20,9 +21,10 @@ import {
 } from './state';
 import { RemoteDataResponse, Snapshot, SyncStatus } from './types';
 
-// Simple fetch wrapper
-async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, {
+// Simple fetch wrapper with configurable API base URL
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const url = buildSyncApiUrl(path);
+  const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   });
