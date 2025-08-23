@@ -552,6 +552,37 @@ Config & Hosting:
 
 ## AI Coding Guidelines
 
+### Development Approach & Mindset
+
+**Think Holistically - Minimize Back-and-Forth**
+
+When implementing features or making changes, adopt a comprehensive perspective:
+
+1. **Product Owner Perspective** - Consider business value, user goals, and feature completeness
+   - What is the end-to-end user journey?
+   - What edge cases or scenarios might users encounter?
+   - How does this feature integrate with the overall application flow?
+
+2. **User Experience Perspective** - Focus on intuitive, clean, and efficient interactions
+   - Remove unnecessary friction and confusing elements
+   - Anticipate user needs and provide helpful defaults
+   - Make interfaces self-explanatory and reduce cognitive load
+   - Consider accessibility and responsive design
+
+3. **Application Usage Perspective** - Think about real-world usage patterns
+   - How will users actually use this feature day-to-day?
+   - What information do they need readily available vs. hidden?
+   - What actions should be quick vs. require confirmation?
+   - How does this fit into their workflow?
+
+4. **Implementation Strategy**
+   - **Ask Clarifying Questions** - If requirements seem incomplete, ask specific questions about user flows, edge cases, and integration points
+   - **Summarize Understanding** - Before implementing, summarize the complete solution including UI, UX, data flow, and integration points
+   - **Think Beyond the Immediate Ask** - Consider related improvements, consistency with existing patterns, and potential future needs
+   - **Propose Enhancements** - Suggest improvements that align with user needs and application consistency
+
+**Goal: Deliver complete, polished features that feel native to the application with minimal revision cycles.**
+
 ### When Adding New Features
 
 1. **Start with Domain** - Define entities and business logic first
