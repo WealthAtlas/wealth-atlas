@@ -472,7 +472,17 @@ import { PortfolioService } from '@/domain/services/PortfolioService';
 import { IRRAnalysisService } from '@/domain/services/IRRAnalysisService';
 import { GoalPlanningService } from '@/domain/services/GoalPlanningService';
 import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';
+
+// Utilities (for logging and other cross-cutting concerns)
+import { Logger } from '@/domain/utils/Logger';
 ```
+
+### Logging Standards
+
+- **Use Logger Utility** - Import and use `Logger` from `@/domain/utils/Logger` instead of direct `console.*` calls
+- **Centralized Logging** - The Logger utility centralizes all logging and satisfies ESLint no-console rules
+- **Available Methods** - Use `Logger.error()`, `Logger.warn()`, `Logger.info()`, and `Logger.log()` for all logging needs
+- **Lint Compliance** - Logger utility has the necessary ESLint disable comment to allow console usage in one place
 
 ## Development Workflow
 
@@ -711,6 +721,7 @@ The project implements a comprehensive loan management system:
 - Use inconsistent page padding or loading state patterns across main pages
 - Place floating action buttons in non-standard positions or skip them on main pages
 - Allow tab state to become desynchronized with the current URL/route
+- Use direct `console.*` calls instead of the centralized Logger utility
 
 ✅ **Do:**
 
@@ -754,6 +765,7 @@ The project implements a comprehensive loan management system:
 - Use consistent page container styling with proper padding and loading states
 - Implement floating action buttons (FAB) for primary page actions with standard positioning
 - Maintain tab state synchronization between URL and navigation in `MainPage`
+- Use the centralized Logger utility instead of direct console calls for lint compliance
 
 ## Future Evolution
 

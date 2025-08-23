@@ -24,6 +24,7 @@ import {
   setPassphrase,
 } from './state';
 import { RemoteDataResponse, Snapshot, SyncStatus } from './types';
+import { Logger } from '../../domain/utils/Logger';
 
 // Simple fetch wrapper with configurable API base URL
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -289,7 +290,7 @@ export class SyncService {
       return await this.pull();
     } catch (error) {
       // Log error but don't throw - auto-sync should be non-intrusive
-      console.warn('Auto-sync failed:', error);
+      Logger.warn('Auto-sync failed:', error);
       return { version: null };
     }
   }
