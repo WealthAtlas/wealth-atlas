@@ -1,7 +1,7 @@
 import { AssetPricingModel } from './AssetPricingModel';
 import { CompoundingFrequency } from './CompoundingFrequency';
 
-export interface AssetPricingConfig {
+export interface AssetValuationConfig {
   pricingModel: AssetPricingModel;
 
   // Fixed Income specifics (FDs, Bonds)
@@ -12,5 +12,6 @@ export interface AssetPricingConfig {
   // Maturity-based specifics (Insurance Policies, Endowment Plans)
   maturityAmount?: number; // Fixed amount at maturity
 
-  // Market-based uses existing currentMarketValue in Asset entity
+  // Market-based specifics (Stocks, Mutual Funds, REITs)
+  apiPath?: string; // API path to fetch current market value per unit
 }

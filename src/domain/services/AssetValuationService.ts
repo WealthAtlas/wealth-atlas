@@ -9,7 +9,7 @@ import { ScheduledAssetTransaction } from '../entities/assets/ScheduledAssetTran
 
 export interface AssetValuationResult {
   currentValue: number | undefined;
-  calculatedValue: number | undefined; // Value calculated from pricing model
+  calculatedValue: number | undefined; // Value calculated from valuation model
   growthRate: number | undefined; // Annualized growth rate (IRR)
   projectedGrowthRate: number | undefined; // IRR including future scheduled transactions
   isCalculated: boolean; // Whether value is calculated vs manual
@@ -23,7 +23,7 @@ export interface EnhancedAssetValuationOptions {
 
 export class AssetValuationService {
   /**
-   * Calculate current value based on asset pricing model
+   * Calculate current value based on asset valuation model
    */
   static calculateCurrentValue(
     asset: Asset,
@@ -41,7 +41,7 @@ export class AssetValuationService {
     scheduledTransactions: ScheduledAssetTransaction[],
     options: EnhancedAssetValuationOptions = {}
   ): AssetValuationResult {
-    if (!asset.pricingConfig) {
+    if (!asset.valuationConfig) {
       // Fallback to existing manual market value
       const currentGrowthRate = this.calculateMarketBasedGrowthRate(asset, transactions);
       const projectedGrowthRate = options.includeScheduledTransactions
@@ -57,7 +57,7 @@ export class AssetValuationService {
       };
     }
 
-    switch (asset.pricingConfig.pricingModel) {
+    switch (asset.valuationConfig.pricingModel) {
       case AssetPricingModel.FIXED_INCOME:
         return this.calculateFixedIncomeValue(asset, transactions);
 
@@ -89,7 +89,7 @@ export class AssetValuationService {
     asset: Asset,
     transactions: AssetTransaction[]
   ): AssetValuationResult {
-    const config = asset.pricingConfig!;
+    const config = asset.valuationConfig!;
     if (!config.interestRate) {
       return {
         currentValue: asset.currentMarketValue,
@@ -175,7 +175,7 @@ export class AssetValuationService {
     asset: Asset,
     transactions: AssetTransaction[]
   ): AssetValuationResult {
-    const config = asset.pricingConfig!;
+    const config = asset.valuationConfig!;
     if (!config.maturityAmount || !config.maturityDate) {
       return {
         currentValue: asset.currentMarketValue,

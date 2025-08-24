@@ -1,6 +1,6 @@
 import { AssetCategory } from './AssetCategory';
-import { AssetPricingConfig } from './AssetPricingConfig';
 import { AssetTransaction } from './AssetTransaction';
+import { AssetValuationConfig } from './AssetValuationConfig';
 
 export interface IAsset {
   id?: number;
@@ -10,7 +10,7 @@ export interface IAsset {
   currency: string;
   currentMarketValue: number | undefined;
   valueUpdatedAt: Date | undefined;
-  pricingConfig?: AssetPricingConfig; // Optional pricing configuration for enhanced valuation
+  valuationConfig?: AssetValuationConfig; // Optional valuation configuration for enhanced valuation
 }
 
 export class Asset implements IAsset {
@@ -22,7 +22,7 @@ export class Asset implements IAsset {
     public readonly currency: string,
     public readonly currentMarketValue: number | undefined,
     public readonly valueUpdatedAt: Date | undefined,
-    public readonly pricingConfig?: AssetPricingConfig
+    public readonly valuationConfig?: AssetValuationConfig
   ) {}
 
   // Business methods to compute portfolio metrics

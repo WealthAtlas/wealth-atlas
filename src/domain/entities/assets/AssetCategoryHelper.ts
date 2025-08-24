@@ -3,7 +3,7 @@ import { AssetPricingModel } from './AssetPricingModel';
 import { CompoundingFrequency } from './CompoundingFrequency';
 
 /**
- * Get suggested pricing model based on asset category
+ * Get suggested valuation model based on asset category
  */
 export function getSuggestedPricingModel(category: AssetCategory): AssetPricingModel {
   switch (category) {
