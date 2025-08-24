@@ -26,6 +26,9 @@ importers:
       dexie:
         specifier: ^4.0.11
         version: 4.0.11
+      financial:
+        specifier: ^0.2.4
+        version: 0.2.4
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -38,6 +41,9 @@ importers:
       web-vitals:
         specifier: ^3.5.2
         version: 3.5.2
+      xirr:
+        specifier: ^1.1.0
+        version: 1.1.0
     devDependencies:
       '@eslint/js':
         specifier: ^9.33.0
@@ -1924,6 +1930,10 @@ packages:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
     engines: {node: '>=8'}
 
+  financial@0.2.4:
+    resolution: {integrity: sha512-FNmbPW7o8oARCEJVOqb311oZp639fsnCkNltrXXahuqei7O8rm5QLTHEDbreRrrZAAmXjTGx5I8T0yPI3yyd9A==}
+    engines: {node: '>=18'}
+
   find-root@1.1.0:
     resolution: {integrity: sha512-NKfW6bec6GfKc0SGx1e07QZY9PE99u0Bft/0rzSD5k3sO/vwkVUpDUKVm5Gpp5Ue3YfShPFTX2070tDs5kB9Ng==}
 
@@ -2382,6 +2392,9 @@ packages:
 
   natural-compare@1.4.0:
     resolution: {integrity: sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=}
+
+  newton-raphson-method@1.0.2:
+    resolution: {integrity: sha512-UoBJJxNVVQhviRvled1bL76IjmPls4dNLPeF661FW2eNrv/pKKfRDpOdlN+vo9XamZvj8OMt/KtjOBTFN6I0gw==}
 
   node-releases@2.0.19:
     resolution: {integrity: sha512-xxOWJsBKtzAq7DY0J+DTzuz58K8e7sJbdgwkbMWQe8UYB6ekmsQ45q0M/tJDsGaZmbC+l7n57UV8Hl5tHxO9uw==}
@@ -3152,6 +3165,9 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  xirr@1.1.0:
+    resolution: {integrity: sha512-Ivl/gbn5rCkJqig0B+40GQyk1Rqjo0SMW7pTnplV+VG7zlXEzJ6SYdukYmjejCWFY1TGerqPbdwenR0LK5yAWw==}
 
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
@@ -5289,6 +5305,8 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
+  financial@0.2.4: {}
+
   find-root@1.1.0: {}
 
   find-up@5.0.0:
@@ -5747,6 +5765,8 @@ snapshots:
   nanoid@3.3.11: {}
 
   natural-compare@1.4.0: {}
+
+  newton-raphson-method@1.0.2: {}
 
   node-releases@2.0.19: {}
 
@@ -6650,6 +6670,10 @@ snapshots:
   wrappy@1.0.2: {}
 
   ws@8.18.3: {}
+
+  xirr@1.1.0:
+    dependencies:
+      newton-raphson-method: 1.0.2
 
   xml-name-validator@5.0.0: {}
 

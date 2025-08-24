@@ -1,3 +1,4 @@
+import xirrModule from 'xirr';
 import { Asset } from '../entities/assets/Asset';
 import { AssetPricingModel } from '../entities/assets/AssetPricingModel';
 import { AssetTransaction } from '../entities/assets/AssetTransaction';
@@ -6,6 +7,8 @@ import {
   CompoundingFrequency,
 } from '../entities/assets/CompoundingFrequency';
 import { ScheduledAssetTransaction } from '../entities/assets/ScheduledAssetTransaction';
+
+const xirr = typeof xirrModule === 'function' ? xirrModule : xirrModule.xirr;
 
 export interface AssetValuationResult {
   currentValue: number | undefined;
@@ -271,18 +274,42 @@ export class AssetValuationService {
     const currentTotalValue = currentHoldings * asset.currentMarketValue;
 
     // Build cash flows for IRR calculation
-    const cashFlows = assetTransactions.map(t => ({
-      date: t.date,
-      amount: t.transactionType === 'buy' ? -t.getTotalAmount() : t.getTotalAmount(),
-    }));
-
-    // Add current value as final cash flow
-    cashFlows.push({
-      date: new Date(),
-      amount: currentTotalValue,
+    const cashFlows = assetTransactions.map(t => {
+      // Investments (buy) are negative, redemptions (sell) are positive
+      const amt =
+        t.transactionType === 'buy' ? -Math.abs(t.getTotalAmount()) : Math.abs(t.getTotalAmount());
+      return {
+        date: t.date,
+        amount: amt,
+      };
     });
 
-    return this.calculateIRR(cashFlows);
+    // Add current value as final cash flow (always positive, as of today)
+    const now = new Date();
+    cashFlows.push({
+      date: now,
+      amount: Math.abs(currentTotalValue),
+    });
+
+    // If less than 1 year between first and last cash flow, use absolute return
+    if (cashFlows.length >= 2) {
+      const first = cashFlows[0];
+      const last = cashFlows[cashFlows.length - 1];
+      const days = (last.date.getTime() - first.date.getTime()) / (1000 * 60 * 60 * 24);
+      if (days < 365) {
+        const invested = cashFlows
+          .filter(cf => cf.amount < 0)
+          .reduce((sum, cf) => sum + Math.abs(cf.amount), 0);
+        const returned = cashFlows
+          .filter(cf => cf.amount > 0)
+          .reduce((sum, cf) => sum + cf.amount, 0);
+        if (invested > 0) {
+          return ((returned - invested) / invested) * 100;
+        }
+      }
+    }
+
+    return this.calculateXIRR(cashFlows);
   }
 
   /**
@@ -318,53 +345,19 @@ export class AssetValuationService {
   }
 
   /**
-   * Calculate IRR using Newton-Raphson method (simplified version)
+   * Calculate XIRR (Extended Internal Rate of Return) using Newton-Raphson method
+   * This handles irregular cash flow dates, which is more accurate for real-world scenarios
    */
-  private static calculateIRR(cashFlows: { date: Date; amount: number }[]): number | undefined {
+  private static calculateXIRR(cashFlows: { date: Date; amount: number }[]): number | undefined {
     if (cashFlows.length < 2) return undefined;
 
-    // Sort cash flows by date
-    const sortedFlows = [...cashFlows].sort((a, b) => a.date.getTime() - b.date.getTime());
-    const baseDate = sortedFlows[0].date;
-
-    // Convert to periods (in years from base date)
-    const flows = sortedFlows.map(cf => ({
-      period: (cf.date.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25),
-      amount: cf.amount,
-    }));
-
-    // Newton-Raphson iteration
-    let rate = 0.1; // Initial guess: 10%
-    const maxIterations = 100;
-    const tolerance = 1e-6;
-
-    for (let i = 0; i < maxIterations; i++) {
-      let npv = 0;
-      let dnpv = 0;
-
-      for (const flow of flows) {
-        const discountFactor = Math.pow(1 + rate, -flow.period);
-        npv += flow.amount * discountFactor;
-        dnpv -= (flow.amount * flow.period * discountFactor) / (1 + rate);
-      }
-
-      if (Math.abs(npv) < tolerance) {
-        return rate * 100; // Convert to percentage
-      }
-
-      if (Math.abs(dnpv) < tolerance) {
-        break; // Avoid division by zero
-      }
-
-      rate = rate - npv / dnpv;
-
-      // Ensure rate stays reasonable
-      if (rate < -0.99 || rate > 10) {
-        break;
-      }
-    }
-
-    return undefined; // Failed to converge
+    return xirr(
+      cashFlows.map(cf => ({
+        amount: cf.amount,
+        when: cf.date,
+      })),
+      0.1
+    );
   }
 
   /**
@@ -424,6 +417,6 @@ export class AssetValuationService {
       amount: projectedFinalValue,
     });
 
-    return this.calculateIRR(cashFlows);
+    return this.calculateXIRR(cashFlows);
   }
 }

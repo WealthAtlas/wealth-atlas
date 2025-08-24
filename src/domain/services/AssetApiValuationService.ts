@@ -1,6 +1,7 @@
+import { AssetRepository } from '@/data/repositories/AssetRepository';
+import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { Asset } from '../entities/assets/Asset';
 import { AssetPricingModel } from '../entities/assets/AssetPricingModel';
-import { AssetTransaction } from '../entities/assets/AssetTransaction';
 import { Logger } from '../utils/Logger';
 
 export interface ApiValuationResult {
@@ -20,10 +21,21 @@ export class AssetApiValuationService {
   private static readonly DEFAULT_TIMEOUT = 5000; // 5 seconds
   private static readonly DEFAULT_VALUE_FIELD = 'value';
 
+  private assetRepository: AssetRepository;
+  private assetTransactionRepository: AssetTransactionRepository;
+
+  constructor(
+    assetRepository: AssetRepository,
+    assetTransactionRepository: AssetTransactionRepository
+  ) {
+    this.assetRepository = assetRepository;
+    this.assetTransactionRepository = assetTransactionRepository;
+  }
+
   /**
    * Fetch current market value from API for market-based assets
    */
-  static async fetchApiValue(
+  private async fetchApiValue(
     asset: Asset,
     apiConfig: ApiConfiguration
   ): Promise<ApiValuationResult> {
@@ -42,7 +54,7 @@ export class AssetApiValuationService {
       const controller = new AbortController();
       const timeoutId = setTimeout(
         () => controller.abort(),
-        apiConfig.timeout || this.DEFAULT_TIMEOUT
+        apiConfig.timeout || AssetApiValuationService.DEFAULT_TIMEOUT
       );
 
       try {
@@ -64,7 +76,7 @@ export class AssetApiValuationService {
         }
 
         const data = await response.json();
-        const valueField = apiConfig.valueField || this.DEFAULT_VALUE_FIELD;
+        const valueField = apiConfig.valueField || AssetApiValuationService.DEFAULT_VALUE_FIELD;
         const value = data[valueField];
 
         if (typeof value !== 'number' || isNaN(value) || value < 0) {
@@ -95,69 +107,75 @@ export class AssetApiValuationService {
   /**
    * Update asset's current market value using API
    */
-  static async updateAssetValueFromApi(
-    asset: Asset,
-    transactions: AssetTransaction[],
+  async updateAssetValueFromApi(
+    assetId: number,
     apiConfig: ApiConfiguration
-  ): Promise<{ asset: Asset; result: ApiValuationResult }> {
-    const result = await this.fetchApiValue(asset, apiConfig);
+  ): Promise<{ asset: Asset | null; result: ApiValuationResult }> {
+    try {
+      const asset = await this.assetRepository.findById(assetId);
+      if (!asset) {
+        return {
+          asset: null,
+          result: { success: false, error: 'Asset not found' },
+        };
+      }
+      const transactions = await this.assetTransactionRepository.findByAssetId(assetId);
+      const result = await this.fetchApiValue(asset, apiConfig);
 
-    if (result.success && result.value !== undefined) {
-      // Calculate total value based on current holdings
-      const currentHoldings = asset.getCurrentHoldings(transactions);
-      const totalMarketValue = currentHoldings * result.value;
+      if (result.success && result.value !== undefined) {
+        // Calculate total value based on current holdings
+        const currentHoldings = asset.getCurrentHoldings(transactions);
+        const totalMarketValue = currentHoldings * result.value;
 
-      // Create updated asset with new market value
-      const updatedAsset = new Asset(
-        asset.id,
-        asset.name,
-        asset.description,
-        asset.category,
-        asset.currency,
-        totalMarketValue,
-        result.fetchedAt,
-        asset.valuationConfig
-      );
+        // Create updated asset with new market value
+        const updatedAsset = new Asset(
+          asset.id,
+          asset.name,
+          asset.description,
+          asset.category,
+          asset.currency,
+          totalMarketValue,
+          result.fetchedAt,
+          asset.valuationConfig
+        );
+
+        return {
+          asset: updatedAsset,
+          result,
+        };
+      }
 
       return {
-        asset: updatedAsset,
+        asset,
         result,
       };
+    } catch (error) {
+      Logger.error('Failed to update asset value from API:', error);
+      return {
+        asset: null,
+        result: {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+      };
     }
-
-    return {
-      asset,
-      result,
-    };
   }
 
   /**
    * Batch update multiple assets from their respective APIs
    */
-  static async batchUpdateAssetsFromApi(
-    assets: Asset[],
-    transactionsByAsset: Map<number, AssetTransaction[]>,
+  async batchUpdateAssetsFromApi(
+    assetIds: number[],
     apiConfig: ApiConfiguration
-  ): Promise<Map<number, { asset: Asset; result: ApiValuationResult }>> {
-    const results = new Map<number, { asset: Asset; result: ApiValuationResult }>();
-
-    // Filter assets that can be updated via API
-    const apiEnabledAssets = assets.filter(
-      asset =>
-        asset.valuationConfig?.pricingModel === AssetPricingModel.MARKET_BASED &&
-        asset.valuationConfig?.apiPath &&
-        asset.id !== undefined
-    );
+  ): Promise<Map<number, { asset: Asset | null; result: ApiValuationResult }>> {
+    const results = new Map<number, { asset: Asset | null; result: ApiValuationResult }>();
 
     // Process in parallel but with some rate limiting
-    const promises = apiEnabledAssets.map(async asset => {
-      const transactions = transactionsByAsset.get(asset.id!) || [];
-      const updateResult = await this.updateAssetValueFromApi(asset, transactions, apiConfig);
-
-      if (asset.id !== undefined) {
-        results.set(asset.id, updateResult);
+    const promises = assetIds.map(async assetId => {
+      const updateResult = await this.updateAssetValueFromApi(assetId, apiConfig);
+      if (assetId !== undefined) {
+        results.set(assetId, updateResult);
       }
-
       return updateResult;
     });
 

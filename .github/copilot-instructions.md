@@ -47,7 +47,25 @@ src/
 - **No Custom CSS** - Use Material-UI's styling solutions exclusively
 - **Theme System** - Leverage Material-UI's theming for consistency
 
+### 5. **Domain Service Input Pattern**
+
+- **Service methods should accept only IDs (not full domain objects)**
+- **Services must fetch required data internally using repositories**
+- **Prevents leaking data-fetching responsibility to consumers**
+
 ## Critical Development Patterns
+
+### Domain Service Input Example
+
+```typescript
+// BAD: Service expects full Asset object from consumer
+async updateAssetValueFromApi(asset: Asset, ...)
+
+// GOOD: Service expects only assetId and fetches Asset internally
+async updateAssetValueFromApi(assetId: number, ...)
+```
+
+// Always inject repositories into services that need to fetch data.
 
 ### Repository Pattern
 
