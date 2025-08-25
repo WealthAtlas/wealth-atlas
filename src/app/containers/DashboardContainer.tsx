@@ -1,60 +1,90 @@
+import { AssetService } from '@/domain/services/AssetService';
+import { ExpenseService } from '@/domain/services/ExpenseService';
+import { LoanService } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
 import { Box, CircularProgress } from '@mui/material';
 import { useEffect, useState } from 'react';
-
-import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
-import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
-import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
-import { LoanPaymentRepository } from '@/data/repositories/loan/LoanPaymentRepository';
-import { LoanRepository } from '@/data/repositories/loan/LoanRepository';
-import { Currency } from '@/domain/entities/shared/Currency';
-import {
-  DashboardAnalyticsService,
-  DashboardMetrics,
-  ExpenseTrendData,
-} from '@/domain/services/DashboardAnalyticsService';
 import { DashboardPage } from '../components/Pages/DashboardPage';
 
+export interface ExpenseTrendData {
+  date: string;
+  amount: number;
+  month: string;
+  essentialAmount: number;
+  nonEssentialAmount: number;
+  totalAmount: number;
+}
+
 export function DashboardContainer() {
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [expenseTrendData, setExpenseTrendData] = useState<ExpenseTrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  const [metrics, setMetrics] = useState<{
+    totalInvested: number;
+    currentValue: number;
+    pendingLoanAmount: number;
+    currentMonthExpenses: number;
+    lastMonthExpenses: number;
+  } | null>(null);
+  const [expenseTrendData, setExpenseTrendData] = useState<ExpenseTrendData[]>([]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Initialize repositories
-      const assetRepository = new AssetRepository();
-      const assetTransactionRepository = new AssetTransactionRepository();
-      const expenseRepository = new ExpenseRepository();
-      const loanRepository = new LoanRepository();
-      const loanPaymentRepository = new LoanPaymentRepository();
+      const assetService = new AssetService();
+      const loanService = new LoanService();
+      const expenseService = new ExpenseService();
 
-      // Initialize analytics service with USD as default home currency
-      const analyticsService = new DashboardAnalyticsService(
-        assetRepository,
-        assetTransactionRepository,
-        expenseRepository,
-        loanRepository,
-        loanPaymentRepository,
-        Currency.USD
-      );
-
-      // Get dashboard metrics and expense trend data
-      const [dashboardMetrics, expenseTrend] = await Promise.all([
-        analyticsService.getDashboardMetrics(),
-        analyticsService.getExpenseTrendData(),
+      const [assets, loans, expenses] = await Promise.all([
+        assetService.getAssets(),
+        loanService.getLoans(),
+        expenseService.getAllExpenses(),
       ]);
 
-      setMetrics(dashboardMetrics);
-      setExpenseTrendData(expenseTrend);
+      const totalInvested = assets.reduce(
+        (sum, asset) => sum + asset.getTotalInvestedAmount(asset.getTransactions(new Date(), true)),
+        0
+      );
+      const currentValue = assets.reduce((sum, asset) => sum + (asset.getValue() || 0), 0);
+      const pendingLoanAmount = loans.reduce(
+        (sum, loan) => sum + loan.getOutstandingPrincipal(),
+        0
+      );
+
+      const currentMonth = new Date().getMonth();
+      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const currentMonthExpenses = expenses
+        .filter(expense => new Date(expense.date).getMonth() === currentMonth)
+        .reduce((sum, expense) => sum + expense.amount, 0);
+      const lastMonthExpenses = expenses
+        .filter(expense => new Date(expense.date).getMonth() === lastMonth)
+        .reduce((sum, expense) => sum + expense.amount, 0);
+
+      setMetrics({
+        totalInvested,
+        currentValue,
+        pendingLoanAmount,
+        currentMonthExpenses,
+        lastMonthExpenses,
+      } as {
+        totalInvested: number;
+        currentValue: number;
+        pendingLoanAmount: number;
+        currentMonthExpenses: number;
+        lastMonthExpenses: number;
+      });
+
+      setExpenseTrendData(
+        expenses.map(expense => ({
+          date: expense.date.toString(),
+          amount: expense.amount,
+          month: new Date(expense.date).toLocaleString('default', { month: 'short' }),
+          essentialAmount: expense.isEssential ? expense.amount : 0,
+          nonEssentialAmount: !expense.isEssential ? expense.amount : 0,
+          totalAmount: expense.amount,
+        }))
+      );
     } catch (err) {
       Logger.error('Error loading dashboard data:', err);
       setError('Failed to load dashboard data');
@@ -62,6 +92,10 @@ export function DashboardContainer() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
   if (loading) {
     return (
@@ -84,6 +118,10 @@ export function DashboardContainer() {
         <div>Error: {error}</div>
       </Box>
     );
+  }
+
+  if (!metrics) {
+    return null; // Ensure `DashboardPage` is not rendered when `metrics` is null
   }
 
   return (

@@ -75,4 +75,13 @@ export class Loan implements ILoan {
       valueUpdatedOn: this.startDate,
     });
   }
+
+  public getOutstandingPrincipal(): number {
+    const totalInterest = IRRCalculator.getInstance().calculateFutureValueOnIRR(
+      this.payments.map(payment => ({ date: payment.date, amount: payment.amount })),
+      this.getIRR(),
+      new Date()
+    );
+    return this.principalAmount + totalInterest;
+  }
 }

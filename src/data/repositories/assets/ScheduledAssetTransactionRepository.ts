@@ -1,5 +1,5 @@
-import { IScheduledAssetTransaction } from '../../domain/entities/assets/ScheduledAssetTransaction';
-import { db } from '../database';
+import { IScheduledAssetTransaction } from '../../../domain/entities/assets/ScheduledAssetTransaction';
+import { db } from '../../database';
 
 export class ScheduledAssetTransactionRepository {
   async create(transaction: IScheduledAssetTransaction): Promise<IScheduledAssetTransaction> {
