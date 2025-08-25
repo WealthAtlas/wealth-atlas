@@ -1,63 +1,23 @@
-import { Asset, IAsset } from '../../domain/entities/assets/Asset';
+import { IAsset } from '../../domain/entities/assets/Asset';
 import { db } from '../database';
 
 export class AssetRepository {
-  private toDomain(record: IAsset): Asset {
-    return new Asset(
-      record.id,
-      record.name,
-      record.description,
-      record.category,
-      record.currency,
-      record.currentMarketValue,
-      record.valueUpdatedAt,
-      record.valuationConfig
-    );
+  async create(asset: IAsset): Promise<IAsset> {
+    const id = await db.assets.add(asset);
+    return { ...asset, id };
   }
 
-  private toRecord(asset: Asset): Omit<IAsset, 'id'> {
-    return {
-      name: asset.name,
-      description: asset.description,
-      category: asset.category,
-      currency: asset.currency,
-      currentMarketValue: asset.currentMarketValue,
-      valueUpdatedAt: asset.valueUpdatedAt,
-      valuationConfig: asset.valuationConfig,
-    };
+  async getAll(): Promise<IAsset[]> {
+    return await db.assets.toArray();
   }
 
-  async findAll(): Promise<Asset[]> {
-    const records = await db.assets.toArray();
-    return records.map(record => this.toDomain(record));
+  async getById(id: number): Promise<IAsset> {
+    return (await db.assets.get(id)) ?? Promise.reject(new Error('Asset not found'));
   }
 
-  async findById(id: number): Promise<Asset | null> {
-    const record = await db.assets.get(id);
-    return record ? this.toDomain(record) : null;
-  }
-
-  async save(asset: Asset): Promise<Asset> {
-    const recordData = this.toRecord(asset);
-
-    if (asset.id) {
-      // Update existing
-      await db.assets.update(asset.id, recordData);
-      return asset;
-    } else {
-      // Create new
-      const newId = await db.assets.add(recordData);
-      return new Asset(
-        newId,
-        asset.name,
-        asset.description,
-        asset.category,
-        asset.currency,
-        asset.currentMarketValue,
-        asset.valueUpdatedAt,
-        asset.valuationConfig
-      );
-    }
+  async update(updates: IAsset): Promise<IAsset> {
+    await db.assets.update(updates.id, updates);
+    return { ...updates };
   }
 
   async delete(id: number): Promise<void> {

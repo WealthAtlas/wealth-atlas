@@ -8,7 +8,8 @@ import type { IGoal } from '@/domain/entities/goals/Goal';
 import type { ILoan } from '@/domain/entities/loans/Loan';
 import type { ILoanPayment } from '@/domain/entities/loans/LoanPayment';
 import type { IPaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
-import { db } from '../../data/database';
+import { Logger } from '../../domain/utils/Logger';
+import { db } from '../database';
 import { buildSyncApiUrl } from './config';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
@@ -24,7 +25,6 @@ import {
   setPassphrase,
 } from './state';
 import { RemoteDataResponse, Snapshot, SyncStatus } from './types';
-import { Logger } from '../../domain/utils/Logger';
 
 // Simple fetch wrapper with configurable API base URL
 async function api<T>(path: string, init?: RequestInit): Promise<T> {

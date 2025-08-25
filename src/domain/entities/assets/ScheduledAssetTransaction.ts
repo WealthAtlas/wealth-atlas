@@ -1,98 +1,114 @@
+import { AssetTransaction } from './AssetTransaction';
 import { InvestmentFrequency } from './InvestmentFrequency';
 
 export interface IScheduledAssetTransaction {
-  id?: number;
-  assetId: number | undefined;
-  transactionType: 'buy' | 'sell';
-  quantity: number | undefined; // Optional for assets like FDs where quantity doesn't apply
-  price: number; // Unit price (includes fees)
-  scheduledDate: Date;
+  id: number | undefined;
+  assetId: number;
+  quantity: number | undefined;
+  price: number;
+  startDate: Date;
+  endDate: Date | undefined;
   frequency: InvestmentFrequency;
-  endDate?: Date; // Optional end date for the schedule
-  totalOccurrences?: number; // Alternative to endDate - specific number of transactions
-  isActive: boolean; // Whether this schedule is currently active
-  isExecuted: boolean; // Whether this specific scheduled transaction has been executed
-  executedTransactionId?: number; // Reference to actual transaction if executed
+  executedTill: Date | undefined;
 }
 
 export class ScheduledAssetTransaction implements IScheduledAssetTransaction {
-  constructor(
-    public readonly id: number | undefined,
-    public readonly assetId: number | undefined,
-    public readonly transactionType: 'buy' | 'sell',
-    public readonly quantity: number | undefined,
-    public readonly price: number,
-    public readonly scheduledDate: Date,
-    public readonly frequency: InvestmentFrequency,
-    public readonly endDate: Date | undefined,
-    public readonly totalOccurrences: number | undefined,
-    public readonly isActive: boolean,
-    public readonly isExecuted: boolean,
-    public readonly executedTransactionId?: number
-  ) {}
+  public readonly id: number | undefined;
+  public readonly assetId: number;
+  public readonly quantity: number | undefined;
+  public readonly price: number;
+  public readonly startDate: Date;
+  public readonly endDate: Date | undefined;
+  public readonly frequency: InvestmentFrequency;
+  public readonly executedTill: Date | undefined;
 
-  // Get total amount for this scheduled transaction
-  getTotalAmount(): number {
-    return (this.quantity || 1) * this.price;
+  constructor({
+    id,
+    assetId,
+    quantity,
+    price,
+    startDate,
+    endDate,
+    frequency,
+    executedTill,
+  }: IScheduledAssetTransaction) {
+    this.id = id;
+    this.assetId = assetId;
+    this.quantity = quantity;
+    this.price = price;
+    this.startDate = startDate;
+    this.endDate = endDate;
+    this.frequency = frequency;
+    this.executedTill = executedTill;
   }
 
-  // Check if this is a quantity-based asset (has meaningful quantity)
-  isQuantityBased(): boolean {
-    return this.quantity !== undefined && this.quantity !== null;
-  }
+  public getFuturePayments(till: Date): AssetTransaction[] {
+    const payments: AssetTransaction[] = [];
+    var nextPaymentDate = this.getInitialPaymentDate();
 
-  // Check if this scheduled transaction is due (scheduled date has passed)
-  isDue(): boolean {
-    return new Date() >= this.scheduledDate && !this.isExecuted;
-  }
-
-  // Check if this scheduled transaction is overdue (past scheduled date and not executed)
-  isOverdue(): boolean {
-    const today = new Date();
-    const scheduledDate = new Date(this.scheduledDate);
-    const daysDifference = Math.floor(
-      (today.getTime() - scheduledDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    return daysDifference > 0 && !this.isExecuted;
-  }
-
-  // Get the next scheduled date based on frequency
-  getNextScheduledDate(): Date {
-    const nextDate = new Date(this.scheduledDate);
-
-    switch (this.frequency) {
-      case InvestmentFrequency.MONTHLY:
-        nextDate.setMonth(nextDate.getMonth() + 1);
-        break;
-      case InvestmentFrequency.QUARTERLY:
-        nextDate.setMonth(nextDate.getMonth() + 3);
-        break;
-      case InvestmentFrequency.SEMI_ANNUALLY:
-        nextDate.setMonth(nextDate.getMonth() + 6);
-        break;
-      case InvestmentFrequency.ANNUALLY:
-        nextDate.setFullYear(nextDate.getFullYear() + 1);
-        break;
+    while (this.shouldAddPayment(nextPaymentDate, till)) {
+      payments.push(
+        new AssetTransaction({
+          id: undefined,
+          assetId: this.assetId,
+          date: nextPaymentDate,
+          quantity: this.quantity,
+          price: this.price,
+        })
+      );
+      nextPaymentDate = this.getNextOccurrenceDateTime(nextPaymentDate, this.frequency);
     }
 
-    return nextDate;
+    return payments;
   }
 
-  // Create a copy of this scheduled transaction for the next occurrence
-  createNextOccurrence(): ScheduledAssetTransaction {
-    return new ScheduledAssetTransaction(
-      undefined, // New transaction, so no ID
-      this.assetId,
-      this.transactionType,
-      this.quantity,
-      this.price,
-      this.getNextScheduledDate(),
-      this.frequency,
-      this.endDate,
-      this.totalOccurrences,
-      this.isActive,
-      false, // New occurrence is not executed
-      undefined
+  public getNextPayment(): AssetTransaction | undefined {
+    const nextPaymentDate = this.getInitialPaymentDate();
+
+    if (this.shouldAddPayment(nextPaymentDate, this.endDate)) {
+      return new AssetTransaction({
+        id: undefined,
+        assetId: this.assetId,
+        date: nextPaymentDate,
+        quantity: this.quantity,
+        price: this.price,
+      });
+    }
+
+    return undefined;
+  }
+
+  private shouldAddPayment(nextPaymentDate: Date, till?: Date) {
+    return (
+      nextPaymentDate <= (till ?? new Date()) &&
+      (this.endDate == null || nextPaymentDate < this.endDate)
     );
+  }
+
+  private getInitialPaymentDate(): Date {
+    return this.executedTill != null
+      ? this.getNextOccurrenceDateTime(this.executedTill!, this.frequency)
+      : this.startDate;
+  }
+
+  private getNextOccurrenceDateTime(dateTime: Date, frequency: InvestmentFrequency): Date {
+    switch (frequency) {
+      case InvestmentFrequency.DAILY:
+        return new Date(dateTime.setDate(dateTime.getDate() + 1));
+      case InvestmentFrequency.WEEKLY:
+        return new Date(dateTime.setDate(dateTime.getDate() + 7));
+      case InvestmentFrequency.BIWEEKLY:
+        return new Date(dateTime.setDate(dateTime.getDate() + 14));
+      case InvestmentFrequency.MONTHLY:
+        return new Date(dateTime.setMonth(dateTime.getMonth() + 1));
+      case InvestmentFrequency.QUARTERLY:
+        return new Date(dateTime.setMonth(dateTime.getMonth() + 3));
+      case InvestmentFrequency.SEMI_ANNUALLY:
+        return new Date(dateTime.setMonth(dateTime.getMonth() + 6));
+      case InvestmentFrequency.ANNUALLY:
+        return new Date(dateTime.setFullYear(dateTime.getFullYear() + 1));
+      default:
+        throw new Error('Invalid frequency');
+    }
   }
 }

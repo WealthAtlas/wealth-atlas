@@ -1,6 +1,6 @@
 import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
+import { LoanPaymentScheduleRepository } from '@/data/repositories/LoanPaymentScheduleRepository';
 import { LoanRepository } from '@/data/repositories/LoanRepository';
-import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRepository';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { LoanService, LoanSummary } from '@/domain/services/LoanService';
@@ -26,7 +26,7 @@ export function LoansContainer() {
   const [summaryForIRRAnalysis, setSummaryForIRRAnalysis] = useState<LoanSummary | null>(null);
 
   const loanRepository = new LoanRepository();
-  const paymentScheduleRepository = new PaymentScheduleRepository();
+  const paymentScheduleRepository = new LoanPaymentScheduleRepository();
   const loanPaymentRepository = new LoanPaymentRepository();
   const loanService = new LoanService(
     loanRepository,

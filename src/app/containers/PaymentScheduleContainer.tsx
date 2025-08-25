@@ -1,6 +1,6 @@
 import { PaymentScheduleListDialog } from '@/app/components/Dialogs/PaymentScheduleListDialog';
 import { PaymentScheduleFormDialog } from '@/app/components/Forms/PaymentScheduleFormDialog';
-import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRepository';
+import { LoanPaymentScheduleRepository } from '@/data/repositories/LoanPaymentScheduleRepository';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { PaymentFrequency } from '@/domain/entities/loans/PaymentFrequency';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
@@ -29,7 +29,7 @@ export function PaymentScheduleContainer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const paymentScheduleRepository = useMemo(() => new PaymentScheduleRepository(), []);
+  const paymentScheduleRepository = useMemo(() => new LoanPaymentScheduleRepository(), []);
 
   const loadSchedules = useCallback(async () => {
     try {

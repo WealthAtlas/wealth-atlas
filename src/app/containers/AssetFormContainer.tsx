@@ -24,8 +24,8 @@ export function AssetFormContainer({
     description: assetToEdit?.description || '',
     category: assetToEdit?.category || AssetCategory.STOCKS,
     currency: assetToEdit?.currency || 'USD',
-    currentMarketValue: assetToEdit?.currentMarketValue,
-    valueUpdatedAt: assetToEdit?.valueUpdatedAt,
+    currentMarketValue: assetToEdit?.value,
+    valueUpdatedAt: assetToEdit?.marketValueUpdatedAt,
     valuationConfig: assetToEdit?.valuationConfig,
   }));
 
@@ -89,8 +89,8 @@ export function AssetFormContainer({
         description: assetToEdit?.description || '',
         category: assetToEdit?.category || AssetCategory.STOCKS,
         currency: assetToEdit?.currency || 'USD',
-        currentMarketValue: assetToEdit?.currentMarketValue,
-        valueUpdatedAt: assetToEdit?.valueUpdatedAt,
+        currentMarketValue: assetToEdit?.value,
+        valueUpdatedAt: assetToEdit?.marketValueUpdatedAt,
         valuationConfig: assetToEdit?.valuationConfig,
       });
       onClose();
@@ -105,8 +105,8 @@ export function AssetFormContainer({
         description: assetToEdit?.description || '',
         category: assetToEdit?.category || AssetCategory.STOCKS,
         currency: assetToEdit?.currency || 'USD',
-        currentMarketValue: assetToEdit?.currentMarketValue,
-        valueUpdatedAt: assetToEdit?.valueUpdatedAt,
+        currentMarketValue: assetToEdit?.value,
+        valueUpdatedAt: assetToEdit?.marketValueUpdatedAt,
         valuationConfig: assetToEdit?.valuationConfig,
       });
     }

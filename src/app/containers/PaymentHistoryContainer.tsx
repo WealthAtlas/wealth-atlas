@@ -1,7 +1,7 @@
 import { PaymentHistoryListDialog } from '@/app/components/Dialogs/PaymentHistoryListDialog';
 import { LoanPaymentFormDialog } from '@/app/components/Forms/LoanPaymentFormDialog';
 import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
-import { PaymentScheduleRepository } from '@/data/repositories/PaymentScheduleRepository';
+import { LoanPaymentScheduleRepository } from '@/data/repositories/LoanPaymentScheduleRepository';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { LoanPayment } from '@/domain/entities/loans/LoanPayment';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
@@ -30,7 +30,7 @@ export function PaymentHistoryContainer({
   const [error, setError] = useState<string | null>(null);
 
   const loanPaymentRepository = useMemo(() => new LoanPaymentRepository(), []);
-  const paymentScheduleRepository = useMemo(() => new PaymentScheduleRepository(), []);
+  const paymentScheduleRepository = useMemo(() => new LoanPaymentScheduleRepository(), []);
 
   const loadData = useCallback(async () => {
     try {

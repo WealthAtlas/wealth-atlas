@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SyncService } from '../../data/sync/SyncService';
+import { SyncService } from '../../data/sync/Syncer';
 import { SettingsPage } from '../components/Pages/SettingsPage';
 
 export function SettingsContainer() {

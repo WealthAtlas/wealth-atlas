@@ -213,9 +213,9 @@ export function AssetsPage({
                           Calc: {formatCurrency(assetSummary.calculatedValue, asset.currency)}
                         </Typography>
                       )}
-                      {asset.valueUpdatedAt && (
+                      {asset.marketValueUpdatedAt && (
                         <Typography variant="caption" color="text.secondary" display="block">
-                          Updated: {asset.valueUpdatedAt.toLocaleDateString()}
+                          Updated: {asset.marketValueUpdatedAt.toLocaleDateString()}
                         </Typography>
                       )}
                     </Box>

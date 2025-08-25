@@ -1,7 +1,7 @@
-export enum PaymentFrequency {
+export enum ExpenseFrequency {
   DAILY = 'Daily',
   WEEKLY = 'Weekly',
-  BIWEEKLY = 'Biweekly',
+  BIWEEKLY = 'Bi-weekly',
   MONTHLY = 'Monthly',
   QUARTERLY = 'Quarterly',
   HALF_YEARLY = 'Half-yearly',

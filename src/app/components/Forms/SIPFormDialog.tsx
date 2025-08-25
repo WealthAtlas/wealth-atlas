@@ -50,7 +50,7 @@ export const SIPFormDialog: React.FC<SIPFormDialogProps> = ({
         price: editingSIP.price.toString(),
         quantity: editingSIP.quantity?.toString() || '1',
         frequency: editingSIP.frequency,
-        startDate: editingSIP.scheduledDate.toISOString().split('T')[0],
+        startDate: editingSIP.startDate.toISOString().split('T')[0],
         endDate: editingSIP.endDate ? editingSIP.endDate.toISOString().split('T')[0] : '',
         totalOccurrences: editingSIP.totalOccurrences?.toString() || '',
       });

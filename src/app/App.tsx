@@ -2,7 +2,7 @@ import { Logger } from '@/domain/utils/Logger';
 import { useEffect } from 'react';
 import { AssetTransactionRepository } from '../data/repositories/AssetTransactionRepository';
 import { ScheduledAssetTransactionRepository } from '../data/repositories/ScheduledAssetTransactionRepository';
-import { SyncService } from '../data/sync/SyncService';
+import { SyncService } from '../data/sync/Syncer';
 import { InvestmentScheduleService } from '../domain/services/InvestmentScheduleService';
 import { AppRouter } from './router/AppRouter';
 import { AppThemeProvider } from './theme/AppThemeProvider';
