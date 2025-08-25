@@ -67,7 +67,7 @@ export class ExpenseService {
   public async createScheduledExpenses(): Promise<void> {
     return this.getAllScheduledExpenses().then(async scheduledExpenses => {
       for (const scheduledExpense of scheduledExpenses) {
-        const pendingExpenses = scheduledExpense.getPendingExpenses();
+        const pendingExpenses = scheduledExpense.getPendingOccurences(new Date());
         for (const expense of pendingExpenses) {
           await this.expenseRepository.create(expense);
         }

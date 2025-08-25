@@ -138,7 +138,7 @@ export class Asset implements IAsset {
   public getTransactions(till: Date, considerFutureTransactions: boolean): AssetTransaction[] {
     let allTransactions = this.transactions.filter(t => t.date <= till);
     if (considerFutureTransactions) {
-      const futureTransactions = this.sips.map(sip => sip.getFuturePayments(till)).flat();
+      const futureTransactions = this.sips.map(sip => sip.getPendingOccurences(till)).flat();
       allTransactions = allTransactions.concat(futureTransactions);
     }
     return allTransactions;

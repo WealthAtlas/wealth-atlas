@@ -1,4 +1,4 @@
-import { IRRCalculator } from '../shared/IRRCalculator';
+import { IRRCalculator, Transaction } from '../shared/IRRCalculator';
 import { LoanPayment } from './LoanPayment';
 import { PaymentSchedule } from './PaymentSchedule';
 
@@ -46,25 +46,32 @@ export class Loan implements ILoan {
   }
 
   public getIRR(): number {
-    const transactions = [];
+    const transactions: Transaction[] = [];
+    //Initial loan disbursement
+    transactions.push({
+      date: this.startDate,
+      amount: -this.principalAmount,
+    });
+    // Loan repayments
     transactions.push(
       ...this.payments.map(payment => ({
         date: payment.date,
         amount: payment.amount,
       }))
     );
-    transactions.push({
-      date: this.startDate,
-      amount: this.principalAmount,
-    });
-    transactions.push(...this.paymentSchedules.map(schedule => schedule.lastGeneratedDate));
+    // Future loan repayments
+    transactions.push(
+      ...this.paymentSchedules.flatMap(schedule =>
+        schedule.getPendingOccurences().map(payment => ({
+          date: payment.date,
+          amount: payment.amount,
+        }))
+      )
+    );
 
     return IRRCalculator.getInstance().calculateIRR({
-      transactions: this.payments.map(payment => ({
-        date: payment.date,
-        amount: payment.amount,
-      })),
-      value: this.principalAmount,
+      transactions: transactions,
+      value: transactions.reduce((sum, t) => sum + t.amount, 0) - this.principalAmount,
       valueUpdatedOn: this.startDate,
     });
   }
