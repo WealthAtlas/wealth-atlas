@@ -38,4 +38,22 @@ export class GoalService {
       assetAllocations: allocations,
     });
   }
+  public async deleteGoal(goalId: number): Promise<void> {
+    await this.assetGoalAllocationRepository.deleteByGoal(goalId);
+    await this.goalRepository.delete(goalId);
+  }
+
+  public async getAllGoals(): Promise<Goal[]> {
+    const goals = await this.goalRepository.getAll();
+    return await Promise.all(goals.map(goal => this.toGoal(goal)));
+  }
+
+  public async updateGoal(goalId: number, goalData: IGoal): Promise<Goal> {
+    const updatedGoal: IGoal = {
+      ...goalData,
+      id: goalId,
+      createdAt: goalData.createdAt || new Date(),
+    };
+    return await this.goalRepository.create(updatedGoal).then(async g => this.toGoal(g));
+  }
 }

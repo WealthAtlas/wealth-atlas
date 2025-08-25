@@ -2,13 +2,10 @@ import {
   AllocationData,
   AllocationManagementDialog,
 } from '@/app/components/Dialogs/AllocationManagementDialog';
-import { AssetGoalAllocationRepository } from '@/data/repositories/AssetGoalAllocationRepository';
-import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
-import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetGoalAllocation } from '@/domain/entities/goals/AssetGoalAllocation';
-import { Goal } from '@/domain/entities/goals/Goal';
-import { PortfolioService } from '@/domain/services/PortfolioService';
+import { Goal, IGoal } from '@/domain/entities/goals/Goal';
+import { GoalService } from '@/domain/services/GoalService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -26,53 +23,26 @@ export const AllocationManagementContainer: React.FC<AllocationManagementContain
   onSave,
 }) => {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [existingAllocations, setExistingAllocations] = useState<AssetGoalAllocation[]>([]);
-  const [assetCurrentValues, setAssetCurrentValues] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [enrichedGoal, setEnrichedGoal] = useState<Goal | null>(null);
 
-  // Memoized repository instances
-  const assetRepository = useMemo(() => new AssetRepository(), []);
-  const assetTransactionRepository = useMemo(() => new AssetTransactionRepository(), []);
-  const assetGoalAllocationRepository = useMemo(() => new AssetGoalAllocationRepository(), []);
-  const portfolioService = useMemo(() => new PortfolioService(), []);
+  const goalService = useMemo(() => new GoalService(), []);
 
   const loadAllocationData = useCallback(async () => {
     if (!goal?.id) return;
 
     try {
       setIsLoading(true);
-
-      // Load all assets and transactions
-      const [allAssets, allTransactions, goalAllocations] = await Promise.all([
-        assetRepository.findAll(),
-        assetTransactionRepository.findAll(),
-        assetGoalAllocationRepository.findByGoalId(goal.id),
-      ]);
-
-      setAssets(allAssets);
-      setExistingAllocations(goalAllocations);
-
-      // Calculate current values for all assets
-      const currentValues: Record<number, number> = {};
-      allAssets.forEach(asset => {
-        const assetTransactions = allTransactions.filter(t => t.assetId === asset.id);
-        const assetSummary = portfolioService.getAssetSummary(asset, assetTransactions);
-        currentValues[asset.id!] = assetSummary.currentValue || 0;
-      });
-
-      setAssetCurrentValues(currentValues);
+      const fetchedGoal = await goalService.getAllGoals();
+      const currentGoal = fetchedGoal.find(g => g.id === goal.id) || null;
+      setEnrichedGoal(currentGoal);
+      setAssets(currentGoal?.assetAllocations.map(a => a.asset) || []);
     } catch (error) {
       Logger.error('Failed to load allocation data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [
-    goal?.id,
-    assetRepository,
-    assetTransactionRepository,
-    assetGoalAllocationRepository,
-    portfolioService,
-  ]);
+  }, [goal?.id, goalService]);
 
   // Load data when dialog opens
   useEffect(() => {
@@ -82,53 +52,38 @@ export const AllocationManagementContainer: React.FC<AllocationManagementContain
   }, [open, goal, loadAllocationData]);
 
   const handleSaveAllocations = async (allocations: AllocationData[]) => {
-    if (!goal?.id) return;
+    if (!goal?.id) {
+      Logger.error('Goal ID is undefined. Cannot save allocations.');
+      return;
+    }
+
+    const goalId = goal.id;
+    const goalData: IGoal = {
+      id: enrichedGoal!.id,
+      name: enrichedGoal!.name,
+      targetAmount: enrichedGoal!.targetAmount,
+      maturityDate: enrichedGoal!.maturityDate,
+      inflationRate: enrichedGoal!.inflationRate,
+      currency: enrichedGoal!.currency,
+      createdAt: enrichedGoal!.createdAt,
+    };
 
     try {
       setIsLoading(true);
 
-      // Delete existing allocations that are not in the new list
-      const existingIds = existingAllocations.map(a => a.id).filter(Boolean) as number[];
-      const newAllocationIds = allocations
-        .map(a => a.existingAllocationId)
-        .filter(Boolean) as number[];
+      const updatedAllocations = allocations.map(allocation => {
+        return new AssetGoalAllocation({
+          id: allocation.existingAllocationId,
+          assetId: allocation.assetId,
+          goalId: goalId,
+          allocationPercentage: allocation.allocationPercentage / 100,
+          asset: allocation.
+        });
+      });
 
-      const idsToDelete = existingIds.filter(id => !newAllocationIds.includes(id));
+      enrichedGoal!.assetAllocations = updatedAllocations;
+      await goalService.updateGoal(goalId, goalData);
 
-      for (const idToDelete of idsToDelete) {
-        await assetGoalAllocationRepository.delete(idToDelete);
-      }
-
-      // Save or update allocations
-      for (const allocation of allocations) {
-        if (allocation.existingAllocationId) {
-          // Update existing allocation
-          const existingAllocation = existingAllocations.find(
-            a => a.id === allocation.existingAllocationId
-          );
-
-          if (existingAllocation) {
-            const updatedAllocation = new AssetGoalAllocation(
-              allocation.assetId,
-              allocation.goalId,
-              allocation.allocationPercentage / 100, // Convert to decimal
-              existingAllocation.createdAt,
-              existingAllocation.id
-            );
-            await assetGoalAllocationRepository.save(updatedAllocation);
-          }
-        } else {
-          // Create new allocation
-          const newAllocation = AssetGoalAllocation.fromPercentageInput(
-            allocation.assetId,
-            allocation.goalId,
-            allocation.allocationPercentage
-          );
-          await assetGoalAllocationRepository.save(newAllocation);
-        }
-      }
-
-      // Close dialog and refresh parent data
       onClose();
       onSave();
     } catch (error) {
@@ -142,10 +97,10 @@ export const AllocationManagementContainer: React.FC<AllocationManagementContain
   return (
     <AllocationManagementDialog
       open={open}
-      goal={goal}
+      goal={enrichedGoal}
       assets={assets}
-      existingAllocations={existingAllocations}
-      assetCurrentValues={assetCurrentValues}
+      existingAllocations={enrichedGoal?.assetAllocations || []}
+      assetCurrentValues={{}}
       onClose={onClose}
       onSave={handleSaveAllocations}
       isLoading={isLoading}

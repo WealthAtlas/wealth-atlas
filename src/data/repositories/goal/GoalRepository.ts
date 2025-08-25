@@ -20,7 +20,12 @@ export class GoalRepository {
     return await database.goals.toArray();
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await database.goals.delete(id);
+  }
+
+  public async save(goal: IGoal): Promise<IGoal> {
+    // Placeholder for saving a goal to the database
+    return goal;
   }
 }

@@ -1,6 +1,5 @@
 import { Goal } from '@/domain/entities/goals/Goal';
 import { Currency } from '@/domain/entities/shared/Currency';
-import { GoalProgressResult } from '@/domain/services/GoalPlanningService';
 import {
   Add as AddIcon,
   CheckCircle as CheckCircleIcon,
@@ -28,7 +27,6 @@ import React from 'react';
 
 interface GoalsPageProps {
   goals: Goal[];
-  goalProgressResults: GoalProgressResult[];
   isLoading: boolean;
   onCreateGoal: () => void;
   onEditGoal: (goal: Goal) => void;
@@ -38,7 +36,6 @@ interface GoalsPageProps {
 
 export const GoalsPage: React.FC<GoalsPageProps> = ({
   goals,
-  goalProgressResults,
   isLoading,
   onCreateGoal,
   onEditGoal,

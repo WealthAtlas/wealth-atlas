@@ -41,13 +41,6 @@ interface AllocationManagementDialogProps {
   isLoading?: boolean;
 }
 
-export interface AllocationData {
-  assetId: number;
-  goalId: number;
-  allocationPercentage: number; // 1-100
-  existingAllocationId?: number; // for updates
-}
-
 interface AssetAllocationRow {
   asset: Asset;
   currentValue: number;

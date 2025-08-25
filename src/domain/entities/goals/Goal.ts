@@ -13,6 +13,7 @@ export interface IGoal {
   maturityDate: Date;
   inflationRate: number;
   currency: string;
+  createdAt: Date; // Added createdAt property
 }
 
 export class Goal implements IGoal {
@@ -23,6 +24,7 @@ export class Goal implements IGoal {
   inflationRate: number;
   currency: string;
   assetAllocations: AssetGoalAllocation[];
+  createdAt: Date;
 
   constructor({
     id,
@@ -32,7 +34,8 @@ export class Goal implements IGoal {
     inflationRate,
     currency,
     assetAllocations,
-  }: IGoal & { assetAllocations: AssetGoalAllocation[] }) {
+    createdAt,
+  }: IGoal & { assetAllocations: AssetGoalAllocation[]; createdAt: Date }) {
     this.id = id;
     this.name = name.trim();
     this.targetAmount = targetAmount;
@@ -40,6 +43,7 @@ export class Goal implements IGoal {
     this.inflationRate = inflationRate;
     this.currency = currency;
     this.assetAllocations = assetAllocations;
+    this.createdAt = createdAt;
   }
 
   /**
