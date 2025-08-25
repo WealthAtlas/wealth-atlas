@@ -24,20 +24,12 @@ export class AssetService {
 
   public async createAsset(asset: IAsset): Promise<Asset> {
     const createdAsset = await this.assetRepository.create(asset);
-    return new Asset({
-      ...createdAsset,
-      transactions: [],
-      sips: [],
-    });
+    return this.toAsset(createdAsset);
   }
 
   public async updateAsset(asset: IAsset): Promise<Asset> {
     const updatedAsset = await this.assetRepository.update(asset);
-    return new Asset({
-      ...updatedAsset,
-      transactions: [],
-      sips: [],
-    });
+    return this.toAsset(updatedAsset);
   }
 
   public async deleteAsset(id: number): Promise<void> {
@@ -49,11 +41,7 @@ export class AssetService {
 
   public async getAssetById(id: number): Promise<Asset> {
     return await this.assetRepository.getById(id).then(async asset => {
-      return new Asset({
-        ...asset,
-        transactions: await this.getTransactionsByAssetId(asset.id!),
-        sips: await this.getScheduledTransactionsByAssetId(asset.id!),
-      });
+      return this.toAsset(asset);
     });
   }
 
@@ -61,11 +49,7 @@ export class AssetService {
     const assets = await this.assetRepository.getAll();
     return Promise.all(
       assets.map(async asset => {
-        return new Asset({
-          ...asset,
-          transactions: await this.getTransactionsByAssetId(asset.id!),
-          sips: await this.getScheduledTransactionsByAssetId(asset.id!),
-        });
+        return this.toAsset(asset);
       })
     );
   }
@@ -141,6 +125,16 @@ export class AssetService {
           await this.assetRepository.update(updatedAsset);
         }
       }
+    });
+  }
+
+  private async toAsset(data: IAsset): Promise<Asset> {
+    const transactions = await this.getTransactionsByAssetId(data.id!);
+    const sips = await this.getScheduledTransactionsByAssetId(data.id!);
+    return new Asset({
+      ...data,
+      transactions,
+      sips,
     });
   }
 }

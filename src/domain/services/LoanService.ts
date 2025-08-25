@@ -1,7 +1,8 @@
 import { LoanPaymentRepository } from '../../data/repositories/LoanPaymentRepository';
 import { LoanPaymentScheduleRepository } from '../../data/repositories/LoanPaymentScheduleRepository';
 import { LoanRepository } from '../../data/repositories/LoanRepository';
-import { Loan } from '../entities/loans/Loan';
+import { ILoan, Loan } from '../entities/loans/Loan';
+import { PaymentSchedule } from '../entities/loans/PaymentSchedule';
 
 export class LoanService {
   constructor(
@@ -20,11 +21,7 @@ export class LoanService {
     return this.loanRepository.getAll().then(async loans => {
       return Promise.all(
         loans.map(async loan => {
-          return new Loan({
-            ...loan,
-            payments: await this.loanPaymentRepository.getByLoanId(loan.id!),
-            paymentSchedules: await this.paymentScheduleRepository.findByLoanId(loan.id!),
-          });
+          return this.toLoan(loan);
         })
       );
     });
@@ -32,27 +29,31 @@ export class LoanService {
 
   async getLoan(id: number): Promise<Loan> {
     return this.loanRepository.getById(id).then(async loan => {
-      return new Loan({
-        ...loan,
-        payments: await this.loanPaymentRepository.getByLoanId(loan.id!),
-        paymentSchedules: await this.paymentScheduleRepository.findByLoanId(loan.id!),
-      });
+      return this.toLoan(loan);
     });
   }
 
   async createLoan(loan: Loan): Promise<Loan> {
     return this.loanRepository.create(loan).then(createdLoan => {
-      return new Loan({ ...createdLoan, payments: [], paymentSchedules: [] });
+      return this.toLoan(createdLoan);
     });
   }
 
   async updateLoan(loan: Loan): Promise<Loan> {
     return this.loanRepository.update(loan).then(async updatedLoan => {
-      return new Loan({
-        ...updatedLoan,
-        payments: await this.loanPaymentRepository.getByLoanId(updatedLoan.id!),
-        paymentSchedules: await this.paymentScheduleRepository.findByLoanId(updatedLoan.id!),
-      });
+      return this.toLoan(updatedLoan);
+    });
+  }
+
+  private async toLoan(data: ILoan): Promise<Loan> {
+    const payments = await this.loanPaymentRepository.getByLoanId(data.id!);
+    const paymentSchedules = (await this.paymentScheduleRepository.findByLoanId(data.id!)).map(
+      schedule => new PaymentSchedule(schedule)
+    );
+    return new Loan({
+      ...data,
+      payments,
+      paymentSchedules,
     });
   }
 }

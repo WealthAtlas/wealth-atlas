@@ -1,4 +1,4 @@
-import { IPaymentSchedule, PaymentSchedule } from '../../domain/entities/loans/PaymentSchedule';
+import { IPaymentSchedule } from '../../domain/entities/loans/PaymentSchedule';
 import { db } from '../database';
 
 export class LoanPaymentScheduleRepository {
@@ -10,7 +10,7 @@ export class LoanPaymentScheduleRepository {
     return db.paymentSchedules.update(schedule.id, schedule).then(() => schedule);
   }
 
-  public async findByLoanId(loanId: number): Promise<PaymentSchedule[]> {
+  public async findByLoanId(loanId: number): Promise<IPaymentSchedule[]> {
     return db.paymentSchedules.where('loanId').equals(loanId).toArray();
   }
 
