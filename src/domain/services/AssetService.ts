@@ -128,6 +128,20 @@ export class AssetService {
     });
   }
 
+  public async createScheduledTransactions(): Promise<void> {
+    return this.getAssets().then(async assets => {
+      for (const asset of assets) {
+        const scheduledTransactions = await this.getScheduledTransactionsByAssetId(asset.id!);
+        for (const scheduledTransaction of scheduledTransactions) {
+          const pendingTransactions = scheduledTransaction.getPendingOccurences(new Date());
+          for (const transaction of pendingTransactions) {
+            await this.transactionRepository.create(transaction);
+          }
+        }
+      }
+    });
+  }
+
   private async toAsset(data: IAsset): Promise<Asset> {
     const transactions = await this.getTransactionsByAssetId(data.id!);
     const sips = await this.getScheduledTransactionsByAssetId(data.id!);

@@ -14,6 +14,10 @@ export class LoanPaymentScheduleRepository {
     return db.paymentSchedules.where('loanId').equals(loanId).toArray();
   }
 
+  public async getAll(): Promise<IPaymentSchedule[]> {
+    return db.paymentSchedules.toArray();
+  }
+
   public async delete(id: number): Promise<void> {
     return db.paymentSchedules.delete(id);
   }

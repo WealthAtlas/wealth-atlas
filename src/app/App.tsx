@@ -1,9 +1,9 @@
 import { Logger } from '@/domain/utils/Logger';
 import { useEffect } from 'react';
-import { AssetTransactionRepository } from '../data/repositories/AssetTransactionRepository';
-import { ScheduledAssetTransactionRepository } from '../data/repositories/ScheduledAssetTransactionRepository';
 import { SyncService } from '../data/sync/Syncer';
-import { InvestmentScheduleService } from '../domain/services/InvestmentScheduleService';
+import { AssetService } from '../domain/services/AssetService';
+import { ExpenseService } from '../domain/services/ExpenseService';
+import { LoanService } from '../domain/services/LoanService';
 import { AppRouter } from './router/AppRouter';
 import { AppThemeProvider } from './theme/AppThemeProvider';
 
@@ -13,10 +13,16 @@ export default function App() {
     const initializeApp = async () => {
       try {
         // Auto-convert scheduled transactions
-        const scheduledRepo = new ScheduledAssetTransactionRepository();
-        const transactionRepo = new AssetTransactionRepository();
-        const investmentService = new InvestmentScheduleService(scheduledRepo, transactionRepo);
-        await investmentService.autoConvertScheduledTransactions();
+        const investmentService = new AssetService();
+        await investmentService.createScheduledTransactions();
+        await investmentService.updateValues();
+
+        // Create scheduled expenses
+        const expenseService = new ExpenseService();
+        await expenseService.createScheduledExpenses();
+
+        const loanService = new LoanService();
+        await loanService.createScheduledLoanPayments();
 
         // Auto-sync if enabled
         const syncResult = await SyncService.autoSync();
