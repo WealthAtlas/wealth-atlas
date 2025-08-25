@@ -3,7 +3,7 @@ import {
   AllocationManagementDialog,
 } from '@/app/components/Dialogs/AllocationManagementDialog';
 import { AssetGoalAllocationRepository } from '@/data/repositories/AssetGoalAllocationRepository';
-import { AssetRepository } from '@/data/repositories/AssetRepository';
+import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetGoalAllocation } from '@/domain/entities/goals/AssetGoalAllocation';

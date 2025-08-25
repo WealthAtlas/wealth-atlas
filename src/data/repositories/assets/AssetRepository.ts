@@ -1,5 +1,5 @@
-import { IAsset } from '../../domain/entities/assets/Asset';
-import { db } from '../database';
+import { IAsset } from '../../../domain/entities/assets/Asset';
+import { db } from '../../database';
 
 export class AssetRepository {
   async create(asset: IAsset): Promise<IAsset> {

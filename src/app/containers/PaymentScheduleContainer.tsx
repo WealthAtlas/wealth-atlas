@@ -1,6 +1,6 @@
 import { PaymentScheduleListDialog } from '@/app/components/Dialogs/PaymentScheduleListDialog';
 import { PaymentScheduleFormDialog } from '@/app/components/Forms/PaymentScheduleFormDialog';
-import { LoanPaymentScheduleRepository } from '@/data/repositories/LoanPaymentScheduleRepository';
+import { LoanPaymentScheduleRepository } from '@/data/repositories/loan/LoanPaymentScheduleRepository';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { PaymentFrequency } from '@/domain/entities/loans/PaymentFrequency';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';

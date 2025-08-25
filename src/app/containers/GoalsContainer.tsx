@@ -2,7 +2,7 @@ import { GoalFormData, GoalFormDialog } from '@/app/components/Forms/GoalFormDia
 import { GoalsPage } from '@/app/components/Pages/GoalsPage';
 import { AllocationManagementContainer } from '@/app/containers/AllocationManagementContainer';
 import { AssetGoalAllocationRepository } from '@/data/repositories/AssetGoalAllocationRepository';
-import { AssetRepository } from '@/data/repositories/AssetRepository';
+import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { GoalRepository } from '@/data/repositories/GoalRepository';
 import { Goal } from '@/domain/entities/goals/Goal';

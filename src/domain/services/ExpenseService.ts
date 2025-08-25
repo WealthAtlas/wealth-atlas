@@ -1,5 +1,5 @@
-import { ExpenseRepository } from '../../data/repositories/ExpenseRepository';
-import { ScheduledExpenseRepository } from '../../data/repositories/ScheduledExpenseRepository';
+import { ExpenseRepository } from '../../data/repositories/expense/ExpenseRepository';
+import { ScheduledExpenseRepository } from '../../data/repositories/expense/ScheduledExpenseRepository';
 import { Expense, IExpense } from '../entities/expenses/Expense';
 import { IScheduledExpense, ScheduledExpense } from '../entities/expenses/ScheduledExpense';
 

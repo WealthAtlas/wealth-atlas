@@ -1,5 +1,5 @@
-import { IPaymentSchedule } from '../../domain/entities/loans/PaymentSchedule';
-import { db } from '../database';
+import { IPaymentSchedule } from '../../../domain/entities/loans/PaymentSchedule';
+import { db } from '../../database';
 
 export class LoanPaymentScheduleRepository {
   public async create(schedule: IPaymentSchedule): Promise<IPaymentSchedule> {

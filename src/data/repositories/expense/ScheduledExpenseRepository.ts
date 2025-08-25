@@ -1,5 +1,5 @@
-import { IScheduledExpense } from '../../domain/entities/expenses/ScheduledExpense';
-import { database } from '../database';
+import { IScheduledExpense } from '../../../domain/entities/expenses/ScheduledExpense';
+import { database } from '../../database';
 
 export class ScheduledExpenseRepository {
   public async create(scheduledExpense: IScheduledExpense): Promise<IScheduledExpense> {

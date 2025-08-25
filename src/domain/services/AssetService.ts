@@ -1,7 +1,7 @@
 import { ValueFetcher } from '../../data/apis/ValueFetcher';
-import { AssetRepository } from '../../data/repositories/AssetRepository';
-import { AssetTransactionRepository } from '../../data/repositories/AssetTransactionRepository';
-import { ScheduledAssetTransactionRepository } from '../../data/repositories/ScheduledAssetTransactionRepository';
+import { AssetRepository } from '../../data/repositories/assets/AssetRepository';
+import { AssetTransactionRepository } from '../../data/repositories/assets/AssetTransactionRepository';
+import { ScheduledAssetTransactionRepository } from '../../data/repositories/assets/ScheduledAssetTransactionRepository';
 import { Asset, IAsset } from '../entities/assets/Asset';
 import { AssetTransaction, IAssetTransaction } from '../entities/assets/AssetTransaction';
 import {

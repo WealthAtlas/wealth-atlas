@@ -1,5 +1,5 @@
-import { IExpense } from '../../domain/entities/expenses/Expense';
-import { database } from '../database';
+import { IExpense } from '../../../domain/entities/expenses/Expense';
+import { database } from '../../database';
 
 export class ExpenseRepository {
   public async create(expense: IExpense): Promise<IExpense> {

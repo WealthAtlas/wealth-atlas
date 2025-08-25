@@ -1,6 +1,6 @@
-import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
-import { LoanPaymentScheduleRepository } from '@/data/repositories/LoanPaymentScheduleRepository';
-import { LoanRepository } from '@/data/repositories/LoanRepository';
+import { LoanPaymentRepository } from '@/data/repositories/loan/LoanPaymentRepository';
+import { LoanPaymentScheduleRepository } from '@/data/repositories/loan/LoanPaymentScheduleRepository';
+import { LoanRepository } from '@/data/repositories/loan/LoanRepository';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
 import { LoanService, LoanSummary } from '@/domain/services/LoanService';

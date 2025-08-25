@@ -1,4 +1,4 @@
-import { AssetRepository } from '@/data/repositories/AssetRepository';
+import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
 import { AssetValuationConfig } from '@/domain/entities/assets/AssetValuationConfig';

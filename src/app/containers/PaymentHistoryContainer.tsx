@@ -1,7 +1,7 @@
 import { PaymentHistoryListDialog } from '@/app/components/Dialogs/PaymentHistoryListDialog';
 import { LoanPaymentFormDialog } from '@/app/components/Forms/LoanPaymentFormDialog';
-import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
-import { LoanPaymentScheduleRepository } from '@/data/repositories/LoanPaymentScheduleRepository';
+import { LoanPaymentRepository } from '@/data/repositories/loan/LoanPaymentRepository';
+import { LoanPaymentScheduleRepository } from '@/data/repositories/loan/LoanPaymentScheduleRepository';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { LoanPayment } from '@/domain/entities/loans/LoanPayment';
 import { PaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';

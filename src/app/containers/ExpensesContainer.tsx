@@ -1,4 +1,4 @@
-import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
+import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
 import { Expense } from '@/domain/entities/expenses/Expense';
 import { ExpenseAnalyticsService } from '@/domain/services/ExpenseAnalyticsService';
 import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';

@@ -2,11 +2,11 @@ import { Logger } from '@/domain/utils/Logger';
 import { Box, CircularProgress } from '@mui/material';
 import { useEffect, useState } from 'react';
 
-import { AssetRepository } from '@/data/repositories/AssetRepository';
+import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
-import { ExpenseRepository } from '@/data/repositories/ExpenseRepository';
-import { LoanPaymentRepository } from '@/data/repositories/LoanPaymentRepository';
-import { LoanRepository } from '@/data/repositories/LoanRepository';
+import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
+import { LoanPaymentRepository } from '@/data/repositories/loan/LoanPaymentRepository';
+import { LoanRepository } from '@/data/repositories/loan/LoanRepository';
 import { Currency } from '@/domain/entities/shared/Currency';
 import {
   DashboardAnalyticsService,

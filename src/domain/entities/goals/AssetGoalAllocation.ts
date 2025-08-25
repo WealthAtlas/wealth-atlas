@@ -7,24 +7,24 @@ import { Asset } from '../assets/Asset';
  * what percentage of an asset's value is allocated toward achieving a specific goal.
  */
 export interface IAssetGoalAllocation {
-  id?: number;
+  id: number | undefined;
   assetId: number;
   goalId: number;
   allocationPercentage: number;
 }
 
 export class AssetGoalAllocation implements IAssetGoalAllocation {
-  id?: number;
+  id: number | undefined;
   assetId: number;
   goalId: number;
   allocationPercentage: number;
   asset: Asset;
 
   constructor({
+    id,
     assetId,
     goalId,
     allocationPercentage,
-    id,
     asset,
   }: IAssetGoalAllocation & { asset: Asset }) {
     this.id = id;

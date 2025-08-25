@@ -1,5 +1,5 @@
-import { ILoan } from '../../domain/entities/loans/Loan';
-import { db } from '../database';
+import { ILoan } from '../../../domain/entities/loans/Loan';
+import { db } from '../../database';
 
 export class LoanRepository {
   async create(loan: ILoan): Promise<ILoan> {
