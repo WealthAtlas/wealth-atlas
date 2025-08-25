@@ -1,7 +1,5 @@
-import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
+import { IAsset } from '@/domain/entities/assets/Asset';
 import { AssetPricingModel } from '@/domain/entities/assets/AssetPricingModel';
-import { AssetValuationConfig } from '@/domain/entities/assets/AssetValuationConfig';
-import { CompoundingFrequency } from '@/domain/entities/assets/CompoundingFrequency';
 import { Currency } from '@/domain/entities/shared/Currency';
 import {
   Box,
@@ -20,29 +18,24 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useEffect } from 'react';
 
-export interface AssetFormData {
-  name: string;
-  description: string;
-  category: AssetCategory;
-  currency: string;
-  currentMarketValue?: number;
-  valueUpdatedAt?: Date;
-  valuationConfig?: AssetValuationConfig;
+// Define AssetCategory enum locally
+export enum AssetCategory {
+  STOCKS = 'Stocks',
+  BONDS = 'Bonds',
+  REAL_ESTATE = 'Real Estate',
+  CRYPTO = 'Crypto',
+  OTHER = 'Other',
 }
 
 export interface AssetFormDialogProps {
   open: boolean;
   title: string;
-  formData: AssetFormData;
+  formData: IAsset;
   isSubmitting: boolean;
   onClose: () => void;
   onSubmit: () => void;
-  onFieldChange: (
-    field: keyof AssetFormData,
-    value: string | number | AssetCategory | AssetValuationConfig | Date | undefined
-  ) => void;
+  onFieldChange: (field: keyof IAsset, value: string | number | Date | undefined) => void;
 }
 
 export function AssetFormDialog({
@@ -54,16 +47,7 @@ export function AssetFormDialog({
   onSubmit,
   onFieldChange,
 }: AssetFormDialogProps) {
-  // Initialize valuation config with default values when form opens
-  useEffect(() => {
-    if (open && !formData.valuationConfig) {
-      onFieldChange('valuationConfig', {
-        pricingModel: AssetPricingModel.MARKET_BASED,
-      });
-    }
-  }, [open, formData.valuationConfig, onFieldChange]);
-
-  const currentModel = formData.valuationConfig?.pricingModel || AssetPricingModel.MARKET_BASED;
+  const currentModel = formData.pricingModel || AssetPricingModel.MARKET_BASED;
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -71,25 +55,18 @@ export function AssetFormDialog({
   };
 
   const handleValuationModelChange = (model: AssetPricingModel) => {
-    onFieldChange('valuationConfig', {
-      ...formData.valuationConfig,
-      pricingModel: model,
-      // Clear model-specific fields when switching models
-      ...(model !== AssetPricingModel.FIXED_INCOME && {
-        interestRate: undefined,
-        compoundingFrequency: undefined,
-      }),
-      ...(model !== AssetPricingModel.MATURITY_BASED && {
-        maturityAmount: undefined,
-      }),
-      ...(model !== AssetPricingModel.MARKET_BASED && {
-        apiPath: undefined,
-      }),
-      // Keep maturityDate for both FIXED_INCOME and MATURITY_BASED
-      ...(model === AssetPricingModel.MARKET_BASED && {
-        maturityDate: undefined,
-      }),
-    });
+    onFieldChange('pricingModel', model);
+    // Clear model-specific fields when switching models
+    if (model !== AssetPricingModel.FIXED_INCOME) {
+      onFieldChange('interestRate', undefined);
+      onFieldChange('maturityDate', undefined);
+    }
+    if (model !== AssetPricingModel.MATURITY_BASED) {
+      onFieldChange('maturityAmount', undefined);
+    }
+    if (model !== AssetPricingModel.MARKET_BASED) {
+      onFieldChange('apiPath', undefined);
+    }
   };
 
   return (
@@ -208,12 +185,12 @@ export function AssetFormDialog({
                       <Grid container spacing={3}>
                         <Grid item xs={12} sm={6}>
                           <TextField
-                            label="Current Market Value"
+                            label="Market Value"
                             type="number"
-                            value={formData.currentMarketValue || ''}
+                            value={formData.marketValue || ''}
                             onChange={e =>
                               onFieldChange(
-                                'currentMarketValue',
+                                'marketValue',
                                 e.target.value ? Number(e.target.value) : undefined
                               )
                             }
@@ -222,24 +199,23 @@ export function AssetFormDialog({
                               min: 0,
                               step: 0.01,
                             }}
-                            placeholder="Enter current value (optional)"
-                            helperText="Optional - can be fetched via API if configured"
+                            placeholder="Enter market value"
                           />
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
                           <TextField
-                            name="valueUpdatedAt"
-                            label="Value Updated Date"
+                            name="marketValueUpdatedAt"
+                            label="Market Value Updated At"
                             type="date"
                             value={
-                              formData.valueUpdatedAt
-                                ? formData.valueUpdatedAt.toISOString().split('T')[0]
+                              formData.marketValueUpdatedAt
+                                ? formData.marketValueUpdatedAt.toISOString().split('T')[0]
                                 : ''
                             }
                             onChange={e =>
                               onFieldChange(
-                                'valueUpdatedAt',
+                                'marketValueUpdatedAt',
                                 e.target.value ? new Date(e.target.value) : undefined
                               )
                             }
@@ -247,24 +223,16 @@ export function AssetFormDialog({
                             InputLabelProps={{
                               shrink: true,
                             }}
-                            helperText="When was the market value last updated?"
                           />
                         </Grid>
 
                         <Grid item xs={12}>
                           <TextField
-                            label="API Path (Optional)"
-                            value={formData.valuationConfig?.apiPath || ''}
-                            onChange={e =>
-                              onFieldChange('valuationConfig', {
-                                ...formData.valuationConfig,
-                                pricingModel: AssetPricingModel.MARKET_BASED,
-                                apiPath: e.target.value || undefined,
-                              })
-                            }
+                            label="API Path"
+                            value={formData.apiPath || ''}
+                            onChange={e => onFieldChange('apiPath', e.target.value || undefined)}
                             fullWidth
                             placeholder="e.g., /api/stocks/AAPL"
-                            helperText="API endpoint path to fetch current market value per unit"
                           />
                         </Grid>
                       </Grid>
@@ -282,13 +250,12 @@ export function AssetFormDialog({
                           <TextField
                             label="Interest Rate (%)"
                             type="number"
-                            value={formData.valuationConfig?.interestRate || ''}
+                            value={formData.interestRate || ''}
                             onChange={e =>
-                              onFieldChange('valuationConfig', {
-                                ...formData.valuationConfig,
-                                pricingModel: AssetPricingModel.FIXED_INCOME,
-                                interestRate: e.target.value ? Number(e.target.value) : undefined,
-                              })
+                              onFieldChange(
+                                'interestRate',
+                                e.target.value ? Number(e.target.value) : undefined
+                              )
                             }
                             fullWidth
                             inputProps={{
@@ -297,36 +264,7 @@ export function AssetFormDialog({
                               step: 0.1,
                             }}
                             placeholder="e.g., 7.5"
-                            helperText="Annual interest rate"
                           />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <InputLabel>Compounding Frequency</InputLabel>
-                            <Select
-                              value={
-                                formData.valuationConfig?.compoundingFrequency ||
-                                CompoundingFrequency.ANNUALLY
-                              }
-                              label="Compounding Frequency"
-                              onChange={e =>
-                                onFieldChange('valuationConfig', {
-                                  ...formData.valuationConfig,
-                                  pricingModel: AssetPricingModel.FIXED_INCOME,
-                                  compoundingFrequency: e.target.value as CompoundingFrequency,
-                                })
-                              }
-                            >
-                              <MenuItem value={CompoundingFrequency.ANNUALLY}>Annually</MenuItem>
-                              <MenuItem value={CompoundingFrequency.SEMI_ANNUALLY}>
-                                Semi-Annually
-                              </MenuItem>
-                              <MenuItem value={CompoundingFrequency.QUARTERLY}>Quarterly</MenuItem>
-                              <MenuItem value={CompoundingFrequency.MONTHLY}>Monthly</MenuItem>
-                              <MenuItem value={CompoundingFrequency.DAILY}>Daily</MenuItem>
-                            </Select>
-                          </FormControl>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
@@ -335,22 +273,20 @@ export function AssetFormDialog({
                             label="Maturity Date"
                             type="date"
                             value={
-                              formData.valuationConfig?.maturityDate
-                                ? formData.valuationConfig.maturityDate.toISOString().split('T')[0]
+                              formData.maturityDate
+                                ? formData.maturityDate.toISOString().split('T')[0]
                                 : ''
                             }
                             onChange={e =>
-                              onFieldChange('valuationConfig', {
-                                ...formData.valuationConfig,
-                                pricingModel: AssetPricingModel.FIXED_INCOME,
-                                maturityDate: e.target.value ? new Date(e.target.value) : undefined,
-                              })
+                              onFieldChange(
+                                'maturityDate',
+                                e.target.value ? new Date(e.target.value) : undefined
+                              )
                             }
                             fullWidth
                             InputLabelProps={{
                               shrink: true,
                             }}
-                            helperText="Optional - when interest stops accruing"
                           />
                         </Grid>
                       </Grid>
@@ -368,13 +304,12 @@ export function AssetFormDialog({
                           <TextField
                             label="Maturity Amount"
                             type="number"
-                            value={formData.valuationConfig?.maturityAmount || ''}
+                            value={formData.maturityAmount || ''}
                             onChange={e =>
-                              onFieldChange('valuationConfig', {
-                                ...formData.valuationConfig,
-                                pricingModel: AssetPricingModel.MATURITY_BASED,
-                                maturityAmount: e.target.value ? Number(e.target.value) : undefined,
-                              })
+                              onFieldChange(
+                                'maturityAmount',
+                                e.target.value ? Number(e.target.value) : undefined
+                              )
                             }
                             fullWidth
                             inputProps={{
@@ -382,32 +317,29 @@ export function AssetFormDialog({
                               step: 0.01,
                             }}
                             placeholder="Amount received at maturity"
-                            helperText="Fixed amount payable at maturity"
                           />
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
                           <TextField
-                            name="maturityDateMaturityBased"
+                            name="maturityDate"
                             label="Maturity Date"
                             type="date"
                             value={
-                              formData.valuationConfig?.maturityDate
-                                ? formData.valuationConfig.maturityDate.toISOString().split('T')[0]
+                              formData.maturityDate
+                                ? formData.maturityDate.toISOString().split('T')[0]
                                 : ''
                             }
                             onChange={e =>
-                              onFieldChange('valuationConfig', {
-                                ...formData.valuationConfig,
-                                pricingModel: AssetPricingModel.MATURITY_BASED,
-                                maturityDate: e.target.value ? new Date(e.target.value) : undefined,
-                              })
+                              onFieldChange(
+                                'maturityDate',
+                                e.target.value ? new Date(e.target.value) : undefined
+                              )
                             }
                             fullWidth
                             InputLabelProps={{
                               shrink: true,
                             }}
-                            helperText="When the maturity amount is paid"
                           />
                         </Grid>
                       </Grid>

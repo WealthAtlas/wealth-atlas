@@ -1,8 +1,6 @@
-import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
-import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
-import { ScheduledAssetTransactionRepository } from '@/data/repositories/ScheduledAssetTransactionRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
+import { AssetService } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useState } from 'react';
 import { SIPManagerDialog } from '../components/Dialogs/SIPManagerDialog';
@@ -13,7 +11,6 @@ import { TransactionListContainer } from './TransactionListContainer';
 
 export function AssetsContainer() {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [allTransactions, setAllTransactions] = useState<AssetTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
@@ -25,22 +22,14 @@ export function AssetsContainer() {
   const [isSIPDialogOpen, setIsSIPDialogOpen] = useState(false);
   const [assetForSIP, setAssetForSIP] = useState<Asset | null>(null);
 
-  const assetRepository = new AssetRepository();
-  const transactionRepository = new AssetTransactionRepository();
-  const scheduledTransactionRepository = new ScheduledAssetTransactionRepository();
+  const assetService = new AssetService();
 
   const loadAssets = async () => {
     try {
       setIsLoading(true);
-      const [loadedAssets, loadedTransactions] = await Promise.all([
-        assetRepository.findAll(),
-        transactionRepository.findAll(),
-      ]);
-
+      const loadedAssets = await assetService.getAssets();
       setAssets(loadedAssets);
-      setAllTransactions(loadedTransactions);
     } catch (error) {
-      // TODO: Add proper error handling with toast/snackbar
       Logger.error('Failed to load assets:', error);
     } finally {
       setIsLoading(false);
@@ -49,7 +38,6 @@ export function AssetsContainer() {
 
   useEffect(() => {
     loadAssets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddAsset = () => {
@@ -65,7 +53,6 @@ export function AssetsContainer() {
   const handleDeleteAsset = async (asset: Asset) => {
     if (!asset.id) return;
 
-    // Confirm deletion
     if (
       !confirm(
         `Are you sure you want to delete "${asset.name}"? This will also delete all associated transactions, scheduled investments (SIPs), and cannot be undone.`
@@ -75,23 +62,9 @@ export function AssetsContainer() {
     }
 
     try {
-      // Delete all transactions for this asset first
-      const assetTransactions = allTransactions.filter(t => t.assetId === asset.id);
-      await Promise.all(assetTransactions.map(t => transactionRepository.delete(t.id!)));
-
-      // Delete all scheduled transactions (SIPs) for this asset
-      const scheduledTransactions = await scheduledTransactionRepository.findByAssetId(asset.id);
-      await Promise.all(
-        scheduledTransactions.map(st => scheduledTransactionRepository.delete(st.id!))
-      );
-
-      // Then delete the asset
-      await assetRepository.delete(asset.id);
-
-      // Reload data
+      await assetService.deleteAsset(asset.id);
       await loadAssets();
     } catch (error) {
-      // TODO: Add proper error handling with toast/snackbar
       Logger.error('Failed to delete asset:', error);
     }
   };
@@ -142,24 +115,24 @@ export function AssetsContainer() {
   };
 
   const handleAssetSaved = () => {
-    loadAssets(); // Reload assets after save
+    loadAssets();
   };
 
   const handleTransactionSaved = () => {
-    loadAssets(); // Reload assets after transaction save
+    loadAssets();
   };
 
   return (
     <>
       <AssetsPage
         assets={assets}
-        allTransactions={allTransactions}
         isLoading={isLoading}
         onAddAsset={handleAddAsset}
         onEditAsset={handleEditAsset}
         onDeleteAsset={handleDeleteAsset}
         onViewTransactions={handleViewTransactions}
         onManageSIP={handleManageSIP}
+        allTransactions={assets.flatMap(asset => asset.getTransactions(new Date(), true))}
       />
       <AssetFormContainer
         open={isDialogOpen}
