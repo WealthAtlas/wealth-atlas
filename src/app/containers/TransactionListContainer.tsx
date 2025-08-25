@@ -1,8 +1,8 @@
-import { AssetTransactionRepository } from '@/data/repositories/AssetTransactionRepository';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
 import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useState } from 'react';
+import { AssetService } from '../../domain/services/AssetService';
 import { TransactionListDialog } from '../components/Dialogs/TransactionListDialog';
 
 export interface TransactionListContainerProps {
@@ -24,13 +24,13 @@ export function TransactionListContainer({
 }: TransactionListContainerProps) {
   const [transactions, setTransactions] = useState<AssetTransaction[]>([]);
 
-  const transactionRepository = new AssetTransactionRepository();
+  const assetService = new AssetService();
 
   const loadTransactions = async () => {
     if (!asset?.id) return;
 
     try {
-      const assetTransactions = await transactionRepository.findByAssetId(asset.id);
+      const assetTransactions = await assetService.getTransactionsByAssetId(asset.id);
       setTransactions(assetTransactions);
     } catch (error) {
       // TODO: Add proper error handling with toast/snackbar
@@ -43,7 +43,7 @@ export function TransactionListContainer({
 
     // TODO: Add confirmation dialog before deletion
     try {
-      await transactionRepository.delete(transaction.id);
+      await assetService.deleteTransaction(transaction.id);
       await loadTransactions(); // Reload transactions
       onTransactionDeleted(); // Notify parent to reload assets
     } catch (error) {

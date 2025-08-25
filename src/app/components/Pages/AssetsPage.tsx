@@ -1,7 +1,5 @@
 import { Asset } from '@/domain/entities/assets/Asset';
-import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
-import { PortfolioService } from '@/domain/services/PortfolioService';
-import { Add, Calculate, Delete, Edit, List, Schedule } from '@mui/icons-material';
+import { Add, Delete, Edit, List, Schedule } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -9,7 +7,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Divider,
   Fab,
   Grid,
   IconButton,
@@ -20,7 +17,6 @@ import {
 
 export interface AssetsPageProps {
   assets: Asset[];
-  allTransactions: AssetTransaction[];
   isLoading: boolean;
   onAddAsset: () => void;
   onEditAsset: (asset: Asset) => void;
@@ -31,7 +27,6 @@ export interface AssetsPageProps {
 
 export function AssetsPage({
   assets,
-  allTransactions,
   isLoading,
   onAddAsset,
   onEditAsset,
@@ -42,7 +37,6 @@ export function AssetsPage({
   const formatCurrency = (amount: number | undefined, currency: string): string => {
     if (amount === undefined) return 'N/A';
 
-    // Simple currency formatting - could be enhanced with proper locale support
     const currencySymbols: Record<string, string> = {
       USD: '$',
       INR: '₹',
@@ -58,17 +52,6 @@ export function AssetsPage({
     const sign = percentage >= 0 ? '+' : '';
     return `${sign}${percentage.toFixed(2)}%`;
   };
-
-  const portfolioService = new PortfolioService();
-
-  // Get enhanced portfolio summary using the new service
-  const totalPortfolioSummary = portfolioService.getTotalPortfolioValue(assets, allTransactions);
-
-  // Calculate total value of all assets using enhanced valuation
-  const formattedTotalValue =
-    assets.length > 0
-      ? formatCurrency(totalPortfolioSummary.totalCurrentValue, 'USD') // Assuming USD for total
-      : '$0';
 
   if (isLoading) {
     return (
@@ -97,26 +80,20 @@ export function AssetsPage({
               <Typography variant="body2" color="text.secondary">
                 Total Value
               </Typography>
-              <Typography variant="h6">{formattedTotalValue}</Typography>
+              <Typography variant="h6">{formatCurrency(0, 'USD')}</Typography>
             </Box>
             <Box>
               <Typography variant="body2" color="text.secondary">
                 Total Invested
               </Typography>
-              <Typography variant="h6">
-                {formatCurrency(totalPortfolioSummary.totalInvested, 'USD')}
-              </Typography>
+              <Typography variant="h6">{formatCurrency(0, 'USD')}</Typography>
             </Box>
             <Box>
               <Typography variant="body2" color="text.secondary">
                 Total P&L
               </Typography>
-              <Typography
-                variant="h6"
-                color={totalPortfolioSummary.totalProfitLoss >= 0 ? 'success.main' : 'error.main'}
-              >
-                {formatCurrency(totalPortfolioSummary.totalProfitLoss, 'USD')}(
-                {formatPercentage(totalPortfolioSummary.totalProfitLossPercentage)})
+              <Typography variant="h6" color={'success.main'}>
+                {formatCurrency(0, 'USD')}({formatPercentage(0)})
               </Typography>
             </Box>
           </Box>
@@ -124,156 +101,82 @@ export function AssetsPage({
       </Box>
 
       <Grid container spacing={3}>
-        {assets.map(asset => {
-          const assetTransactions = allTransactions.filter(t => t.assetId === asset.id);
-          const assetSummary = portfolioService.getAssetSummary(asset, assetTransactions);
-
-          return (
-            <Grid item xs={12} md={6} key={asset.id}>
-              <Card elevation={2}>
-                <CardContent>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'start',
-                      mb: 2,
-                    }}
-                  >
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                        <Typography variant="h6" component="div" sx={{ flex: 1 }}>
-                          {asset.name}
-                        </Typography>
-                        <Tooltip title="View Transactions">
-                          <IconButton
-                            size="small"
-                            onClick={() => onViewTransactions(asset)}
-                            aria-label="view transactions"
-                          >
-                            <List fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Manage SIP">
-                          <IconButton
-                            size="small"
-                            onClick={() => onManageSIP(asset)}
-                            aria-label="manage SIP"
-                          >
-                            <Schedule fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit Asset">
-                          <IconButton
-                            size="small"
-                            onClick={() => onEditAsset(asset)}
-                            aria-label="edit asset"
-                          >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete Asset">
-                          <IconButton
-                            size="small"
-                            onClick={() => onDeleteAsset(asset)}
-                            aria-label="delete asset"
-                            color="error"
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
-                        <Chip label={asset.category} size="small" variant="outlined" />
-                        {assetSummary.isCalculated && (
-                          <Chip
-                            label="Calculated"
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            icon={<Calculate fontSize="small" />}
-                          />
-                        )}
-                      </Box>
-                      {asset.description && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                          {asset.description}
-                        </Typography>
-                      )}
-                    </Box>
-                    <Box sx={{ textAlign: 'right', ml: 2 }}>
-                      <Typography variant="h5" component="div">
-                        {formatCurrency(assetSummary.currentValue, asset.currency)}
+        {assets.map(asset => (
+          <Grid item xs={12} md={6} key={asset.id}>
+            <Card elevation={2}>
+              <CardContent>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'start',
+                    mb: 2,
+                  }}
+                >
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Typography variant="h6" component="div" sx={{ flex: 1 }}>
+                        {asset.name}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {asset.currency}
-                      </Typography>
-                      {assetSummary.calculatedValue !== undefined && !assetSummary.isCalculated && (
-                        <Typography variant="caption" color="primary">
-                          Calc: {formatCurrency(assetSummary.calculatedValue, asset.currency)}
-                        </Typography>
-                      )}
-                      {asset.marketValueUpdatedAt && (
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Updated: {asset.marketValueUpdatedAt.toLocaleDateString()}
-                        </Typography>
-                      )}
+                      <Tooltip title="View Transactions">
+                        <IconButton
+                          size="small"
+                          onClick={() => onViewTransactions(asset)}
+                          aria-label="view transactions"
+                        >
+                          <List fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Manage SIP">
+                        <IconButton
+                          size="small"
+                          onClick={() => onManageSIP(asset)}
+                          aria-label="manage SIP"
+                        >
+                          <Schedule fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit Asset">
+                        <IconButton
+                          size="small"
+                          onClick={() => onEditAsset(asset)}
+                          aria-label="edit asset"
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Asset">
+                        <IconButton
+                          size="small"
+                          onClick={() => onDeleteAsset(asset)}
+                          aria-label="delete asset"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                      <Chip label={asset.category} size="small" variant="outlined" />
+                    </Box>
+                    {asset.description && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {asset.description}
+                      </Typography>
+                    )}
                   </Box>
-
-                  {/* Asset Performance Metrics */}
-                  {assetSummary.totalInvested > 0 && (
-                    <>
-                      <Divider sx={{ my: 1 }} />
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                        <Box>
-                          <Typography variant="caption" color="text.secondary">
-                            Invested
-                          </Typography>
-                          <Typography variant="body2">
-                            {formatCurrency(assetSummary.totalInvested, asset.currency)}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="caption" color="text.secondary">
-                            P&L
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color={
-                              assetSummary.profitLoss && assetSummary.profitLoss >= 0
-                                ? 'success.main'
-                                : 'error.main'
-                            }
-                          >
-                            {formatCurrency(assetSummary.profitLoss, asset.currency)}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Growth Rate
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color={
-                              assetSummary.growthRate && assetSummary.growthRate >= 0
-                                ? 'success.main'
-                                : 'error.main'
-                            }
-                          >
-                            {assetSummary.growthRate !== undefined
-                              ? `${assetSummary.growthRate.toFixed(2)}%`
-                              : 'N/A'}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })}
+                  <Box sx={{ textAlign: 'right', ml: 2 }}>
+                    <Typography variant="h5" component="div">
+                      {formatCurrency(0, asset.currency)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {asset.currency}
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
       {assets.length === 0 && (
@@ -290,7 +193,6 @@ export function AssetsPage({
         </Paper>
       )}
 
-      {/* Floating Action Button */}
       <Fab
         color="primary"
         aria-label="add asset"

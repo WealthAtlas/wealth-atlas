@@ -3,24 +3,12 @@ import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
 import { AssetService } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useState } from 'react';
-import { SIPManagerDialog } from '../components/Dialogs/SIPManagerDialog';
 import { AssetsPage } from '../components/Pages/AssetsPage';
-import { AssetFormContainer } from './AssetFormContainer';
-import { TransactionFormContainer } from './TransactionFormContainer';
-import { TransactionListContainer } from './TransactionListContainer';
 
 export function AssetsContainer() {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [allTransactions, setAllTransactions] = useState<AssetTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
-  const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
-  const [assetForTransaction, setAssetForTransaction] = useState<Asset | null>(null);
-  const [transactionToEdit, setTransactionToEdit] = useState<AssetTransaction | null>(null);
-  const [isTransactionListOpen, setIsTransactionListOpen] = useState(false);
-  const [assetForTransactionList, setAssetForTransactionList] = useState<Asset | null>(null);
-  const [isSIPDialogOpen, setIsSIPDialogOpen] = useState(false);
-  const [assetForSIP, setAssetForSIP] = useState<Asset | null>(null);
 
   const assetService = new AssetService();
 
@@ -28,7 +16,9 @@ export function AssetsContainer() {
     try {
       setIsLoading(true);
       const loadedAssets = await assetService.getAssets();
+      const transactions = loadedAssets.flatMap(asset => asset.getTransactions(new Date(), true));
       setAssets(loadedAssets);
+      setAllTransactions(transactions);
     } catch (error) {
       Logger.error('Failed to load assets:', error);
     } finally {
@@ -41,13 +31,11 @@ export function AssetsContainer() {
   }, []);
 
   const handleAddAsset = () => {
-    setAssetToEdit(null);
-    setIsDialogOpen(true);
+    // Logic to add asset
   };
 
-  const handleEditAsset = (asset: Asset) => {
-    setAssetToEdit(asset);
-    setIsDialogOpen(true);
+  const handleEditAsset = () => {
+    // Logic to edit asset
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
@@ -69,97 +57,24 @@ export function AssetsContainer() {
     }
   };
 
-  const handleViewTransactions = (asset: Asset) => {
-    setAssetForTransactionList(asset);
-    setIsTransactionListOpen(true);
+  const handleViewTransactions = () => {
+    // Logic to view transactions
   };
 
-  const handleManageSIP = (asset: Asset) => {
-    setAssetForSIP(asset);
-    setIsSIPDialogOpen(true);
-  };
-
-  const handleCloseSIPManager = () => {
-    setIsSIPDialogOpen(false);
-    setAssetForSIP(null);
-  };
-
-  const handleDialogClose = () => {
-    setIsDialogOpen(false);
-    setAssetToEdit(null);
-  };
-
-  const handleTransactionDialogClose = () => {
-    setIsTransactionDialogOpen(false);
-    setAssetForTransaction(null);
-    setTransactionToEdit(null);
-  };
-
-  const handleTransactionListClose = () => {
-    setIsTransactionListOpen(false);
-    setAssetForTransactionList(null);
-  };
-
-  const handleEditTransactionFromList = (transaction: AssetTransaction) => {
-    setTransactionToEdit(transaction);
-    setAssetForTransaction(assetForTransactionList);
-    setIsTransactionListOpen(false);
-    setIsTransactionDialogOpen(true);
-  };
-
-  const handleAddTransactionFromList = () => {
-    setTransactionToEdit(null);
-    setAssetForTransaction(assetForTransactionList);
-    setIsTransactionListOpen(false);
-    setIsTransactionDialogOpen(true);
-  };
-
-  const handleAssetSaved = () => {
-    loadAssets();
-  };
-
-  const handleTransactionSaved = () => {
-    loadAssets();
+  const handleManageSIP = () => {
+    // Logic to manage SIP
   };
 
   return (
-    <>
-      <AssetsPage
-        assets={assets}
-        isLoading={isLoading}
-        onAddAsset={handleAddAsset}
-        onEditAsset={handleEditAsset}
-        onDeleteAsset={handleDeleteAsset}
-        onViewTransactions={handleViewTransactions}
-        onManageSIP={handleManageSIP}
-        allTransactions={assets.flatMap(asset => asset.getTransactions(new Date(), true))}
-      />
-      <AssetFormContainer
-        open={isDialogOpen}
-        assetToEdit={assetToEdit}
-        onClose={handleDialogClose}
-        onSuccess={handleAssetSaved}
-      />
-      <TransactionFormContainer
-        open={isTransactionDialogOpen}
-        asset={assetForTransaction}
-        transactionToEdit={transactionToEdit}
-        onClose={handleTransactionDialogClose}
-        onSuccess={handleTransactionSaved}
-      />
-      <TransactionListContainer
-        open={isTransactionListOpen}
-        asset={assetForTransactionList}
-        onClose={handleTransactionListClose}
-        onAddTransaction={handleAddTransactionFromList}
-        onEditTransaction={handleEditTransactionFromList}
-        onTransactionDeleted={handleTransactionSaved}
-      />
-      <SIPManagerDialog
-        open={isSIPDialogOpen}
-        asset={assetForSIP}
-        onClose={handleCloseSIPManager}
-      />
-    </>
+    <AssetsPage
+      assets={assets}
+      allTransactions={allTransactions}
+      isLoading={isLoading}
+      onAddAsset={handleAddAsset}
+      onEditAsset={handleEditAsset}
+      onDeleteAsset={handleDeleteAsset}
+      onViewTransactions={handleViewTransactions}
+      onManageSIP={handleManageSIP}
+    />
   );
 }
