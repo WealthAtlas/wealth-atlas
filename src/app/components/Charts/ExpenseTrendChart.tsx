@@ -1,8 +1,6 @@
 import { Box, Paper, Typography } from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
 
-import { CurrencyConversionService } from '@/domain/services/CurrencyConversionService';
-
 interface ExpenseTrendData {
   month: string;
   essentialAmount: number;
@@ -50,7 +48,7 @@ export function ExpenseTrendChart({ data, currency, height = 400 }: ExpenseTrend
 
   const formatTooltip = (value: number | null): string => {
     if (value === null) return 'N/A';
-    return CurrencyConversionService.formatCurrency(value, currency);
+    return UIUtils.formatCurrency(value, currency);
   };
 
   return (
@@ -86,7 +84,7 @@ export function ExpenseTrendChart({ data, currency, height = 400 }: ExpenseTrend
           {
             label: `Amount (${currency})`,
             valueFormatter: (value: number | null) =>
-              value !== null ? CurrencyConversionService.formatCurrency(value, currency) : 'N/A',
+              value !== null ? UIUtils.formatCurrency(value, currency) : 'N/A',
           },
         ]}
         margin={{ left: 70, right: 50, top: 50, bottom: 50 }}
