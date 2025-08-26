@@ -14,11 +14,12 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface AssetsPageProps {
   assets: Asset[];
   isLoading: boolean;
-  onAddAsset: () => void;
+  onAddAsset: (asset: Asset) => void;
   onEditAsset: (asset: Asset) => void;
   onDeleteAsset: (asset: Asset) => void;
   onViewTransactions: (asset: Asset) => void;
@@ -34,25 +35,6 @@ export function AssetsPage({
   onViewTransactions,
   onManageSIP,
 }: AssetsPageProps) {
-  const formatCurrency = (amount: number | undefined, currency: string): string => {
-    if (amount === undefined) return 'N/A';
-
-    const currencySymbols: Record<string, string> = {
-      USD: '$',
-      INR: '₹',
-      GBP: '£',
-    };
-
-    const symbol = currencySymbols[currency] || currency;
-    return `${symbol}${amount.toLocaleString()}`;
-  };
-
-  const formatPercentage = (percentage: number | undefined): string => {
-    if (percentage === undefined) return 'N/A';
-    const sign = percentage >= 0 ? '+' : '';
-    return `${sign}${percentage.toFixed(2)}%`;
-  };
-
   if (isLoading) {
     return (
       <Box
@@ -80,20 +62,20 @@ export function AssetsPage({
               <Typography variant="body2" color="text.secondary">
                 Total Value
               </Typography>
-              <Typography variant="h6">{formatCurrency(0, 'USD')}</Typography>
+              <Typography variant="h6">{UIUtils.formatCurrency(0, 'USD')}</Typography>
             </Box>
             <Box>
               <Typography variant="body2" color="text.secondary">
                 Total Invested
               </Typography>
-              <Typography variant="h6">{formatCurrency(0, 'USD')}</Typography>
+              <Typography variant="h6">{UIUtils.formatCurrency(0, 'USD')}</Typography>
             </Box>
             <Box>
               <Typography variant="body2" color="text.secondary">
                 Total P&L
               </Typography>
               <Typography variant="h6" color={'success.main'}>
-                {formatCurrency(0, 'USD')}({formatPercentage(0)})
+                {UIUtils.formatCurrency(0, 'USD')}({UIUtils.formatPercentage(0)})
               </Typography>
             </Box>
           </Box>
@@ -166,7 +148,7 @@ export function AssetsPage({
                   </Box>
                   <Box sx={{ textAlign: 'right', ml: 2 }}>
                     <Typography variant="h5" component="div">
-                      {formatCurrency(0, asset.currency)}
+                      {UIUtils.formatCurrency(0, asset.currency)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {asset.currency}

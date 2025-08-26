@@ -1,5 +1,5 @@
-class UIUtils {
-  static formatCurrency(amount: number | undefined, currency: string): string {
+export class UIUtils {
+  public static formatCurrency(amount: number | undefined, currency: string): string {
     if (amount === undefined) return 'N/A';
 
     const currencySymbols: Record<string, string> = {
@@ -12,7 +12,7 @@ class UIUtils {
     return `${symbol}${amount.toLocaleString()}`;
   }
 
-  static formatPercentage(percentage: number | undefined): string {
+  public static formatPercentage(percentage: number | undefined): string {
     if (percentage === undefined) return 'N/A';
     const sign = percentage >= 0 ? '+' : '';
     return `${sign}${percentage.toFixed(2)}%`;

@@ -21,7 +21,10 @@ export class ExpenseService {
   }
 
   public async getAllExpenses(): Promise<Expense[]> {
-    return (await this.expenseRepository.getAll()).map(this.toExpense);
+    return await this.expenseRepository.getAll().then(async expenses => {
+      const expensePromises = expenses.map(expense => this.toExpense(expense));
+      return await Promise.all(expensePromises);
+    });
   }
 
   public async updateExpense(expense: IExpense): Promise<Expense> {

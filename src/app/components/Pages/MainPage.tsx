@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AssetsContainer } from '../../containers/AssetsContainer';
+import { AssetsContainer } from '../../containers/assets/AssetsContainer';
 import { DashboardContainer } from '../../containers/DashboardContainer';
 import { ExpensesContainer } from '../../containers/ExpensesContainer';
 import { GoalsContainer } from '../../containers/GoalsContainer';

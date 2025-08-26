@@ -1,14 +1,16 @@
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetService } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
-import { useEffect, useState } from 'react';
-import { AssetsPage } from '../components/Pages/AssetsPage';
+import React, { useEffect, useState } from 'react';
+import { AssetsPage } from '../../components/Pages/AssetsPage';
+import { AssetFormContainer } from './AssetFormContainer';
 
 export function AssetsContainer() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const assetService = new AssetService();
+  const [showCreateAssetDialog, setShowCreateAssetDialog] = useState(false);
+  const [assetToEdit, setAssetToEdit] = useState<Asset | undefined>(undefined);
+  const assetService = React.useMemo(() => new AssetService(), []);
 
   const loadAssets = async () => {
     try {
@@ -27,11 +29,13 @@ export function AssetsContainer() {
   }, []);
 
   const handleAddAsset = () => {
-    // Logic to add asset
+    setAssetToEdit(undefined);
+    setShowCreateAssetDialog(true);
   };
 
-  const handleEditAsset = () => {
-    // Logic to edit asset
+  const handleEditAsset = (asset: Asset) => {
+    setAssetToEdit(asset);
+    setShowCreateAssetDialog(true);
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
@@ -62,14 +66,25 @@ export function AssetsContainer() {
   };
 
   return (
-    <AssetsPage
-      assets={assets}
-      isLoading={isLoading}
-      onAddAsset={handleAddAsset}
-      onEditAsset={handleEditAsset}
-      onDeleteAsset={handleDeleteAsset}
-      onViewTransactions={handleViewTransactions}
-      onManageSIP={handleManageSIP}
-    />
+    <>
+      <AssetsPage
+        assets={assets}
+        isLoading={isLoading}
+        onAddAsset={handleAddAsset}
+        onEditAsset={handleEditAsset}
+        onDeleteAsset={handleDeleteAsset}
+        onViewTransactions={handleViewTransactions}
+        onManageSIP={handleManageSIP}
+      />
+      <AssetFormContainer
+        open={showCreateAssetDialog}
+        assetToEdit={assetToEdit}
+        onClose={() => setShowCreateAssetDialog(false)}
+        onSuccess={() => {
+          setShowCreateAssetDialog(false);
+          loadAssets();
+        }}
+      />
+    </>
   );
 }
