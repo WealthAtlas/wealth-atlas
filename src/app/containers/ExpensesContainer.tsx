@@ -1,9 +1,7 @@
-import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
 import { Expense } from '@/domain/entities/expenses/Expense';
-import { ExpenseAnalyticsService } from '@/domain/services/ExpenseAnalyticsService';
-import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';
 import { Logger } from '@/domain/utils/Logger';
 import React from 'react';
+import { ExpenseService } from '../../domain/services/ExpenseService';
 import { ExpensesPage } from '../components/Pages/ExpensesPage';
 import { ExpenseFormContainer } from './ExpenseFormContainer';
 import { ScheduledExpenseContainer } from './ScheduledExpenseContainer';
@@ -15,22 +13,19 @@ export function ExpensesContainer() {
   const [expenseToEdit, setExpenseToEdit] = React.useState<Expense | undefined>();
   const [scheduledExpenseDialogOpen, setScheduledExpenseDialogOpen] = React.useState(false);
 
-  const expenseRepository = React.useMemo(() => new ExpenseRepository(), []);
-  const scheduledExpenseService = React.useMemo(() => new ScheduledExpenseService(), []);
+  const expenseService = React.useMemo(() => new ExpenseService(), []);
 
   const loadExpenses = React.useCallback(async () => {
     try {
       setLoading(true);
-      // Process scheduled expenses first (auto-generation)
-      await scheduledExpenseService.processScheduledExpenses();
-      const allExpenses = await expenseRepository.findAll();
+      const allExpenses = await expenseService.getAllExpenses();
       setExpenses(allExpenses);
     } catch (error) {
       Logger.error('Failed to load expenses:', error);
     } finally {
       setLoading(false);
     }
-  }, [expenseRepository, scheduledExpenseService]);
+  }, [expenseService]);
 
   React.useEffect(() => {
     loadExpenses();
@@ -50,7 +45,7 @@ export function ExpensesContainer() {
     if (!expense.id) return;
 
     try {
-      await expenseRepository.delete(expense.id);
+      await expenseService.deleteExpense(expense.id);
       await loadExpenses();
     } catch (error) {
       Logger.error('Failed to delete expense:', error);
@@ -78,21 +73,12 @@ export function ExpensesContainer() {
     loadExpenses();
   };
 
-  // Calculate analytics data
-  const monthlyData = React.useMemo(() => {
-    return ExpenseAnalyticsService.getMonthlyExpenseSummary(expenses);
-  }, [expenses]);
-
-  const currencyTotals = React.useMemo(() => {
-    return ExpenseAnalyticsService.getCurrencyTotalSummary(expenses);
-  }, [expenses]);
-
   return (
     <>
       <ExpensesPage
         expenses={expenses}
-        monthlyData={monthlyData}
-        currencyTotals={currencyTotals}
+        monthlyData={[]}
+        currencyTotals={[]}
         onAddExpense={handleAddExpense}
         onEditExpense={handleEditExpense}
         onDeleteExpense={handleDeleteExpense}

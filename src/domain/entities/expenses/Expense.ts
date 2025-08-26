@@ -26,4 +26,8 @@ export class Expense implements IExpense {
     this.isEssential = isEssential;
     this.description = description;
   }
+
+  public getMonthYear(): string {
+    return this.date.getMonth().toString() + ':' + this.date.getFullYear().toString();
+  }
 }

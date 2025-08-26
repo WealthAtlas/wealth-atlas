@@ -1,9 +1,4 @@
 import { Expense } from '@/domain/entities/expenses/Expense';
-import { EXPENSE_CATEGORY_LABELS } from '@/domain/entities/expenses/ExpenseCategory';
-import {
-  CurrencyTotalSummary,
-  MonthlyExpenseSummary,
-} from '@/domain/services/ExpenseAnalyticsService';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -21,7 +16,6 @@ import {
   Collapse,
   Divider,
   Fab,
-  Grid,
   IconButton,
   List,
   ListItem,
@@ -31,12 +25,9 @@ import {
   Typography,
 } from '@mui/material';
 import React from 'react';
-import { ExpenseChart } from '../Charts/ExpenseChart';
 
 interface ExpensesPageProps {
   expenses: Expense[];
-  monthlyData: MonthlyExpenseSummary[];
-  currencyTotals: CurrencyTotalSummary[];
   onAddExpense: () => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (expense: Expense) => void;
@@ -46,8 +37,6 @@ interface ExpensesPageProps {
 
 export function ExpensesPage({
   expenses,
-  monthlyData,
-  currencyTotals,
   onAddExpense,
   onEditExpense,
   onDeleteExpense,
@@ -131,48 +120,6 @@ export function ExpensesPage({
           Scheduled Expenses
         </Button>
       </Box>
-
-      {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        {currencyTotals.map(summary => (
-          <Grid item xs={12} sm={6} md={4} key={summary.currency}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  {summary.currency} Total
-                </Typography>
-                <Typography variant="h4" color="primary" gutterBottom>
-                  {formatCurrency(summary.totalAmount, summary.currency)}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip
-                    label={`Essential: ${formatCurrency(summary.essentialAmount, summary.currency)}`}
-                    color="success"
-                    variant="outlined"
-                    size="small"
-                  />
-                  <Chip
-                    label={`Non-Essential: ${formatCurrency(summary.nonEssentialAmount, summary.currency)}`}
-                    color="warning"
-                    variant="outlined"
-                    size="small"
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Expense Chart */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Monthly Expense Trends
-          </Typography>
-          <ExpenseChart monthlyData={monthlyData} />
-        </CardContent>
-      </Card>
 
       {/* Monthly Expenses */}
       <Card>
@@ -259,11 +206,6 @@ export function ExpensesPage({
                                       <Typography variant="subtitle1">
                                         {formatCurrency(expense.amount, expense.currency)}
                                       </Typography>
-                                      <Chip
-                                        label={EXPENSE_CATEGORY_LABELS[expense.category]}
-                                        size="small"
-                                        variant="outlined"
-                                      />
                                       <Chip
                                         label={expense.isEssential ? 'Essential' : 'Non-Essential'}
                                         color={expense.isEssential ? 'success' : 'warning'}

@@ -1,7 +1,3 @@
-import {
-  EXPENSE_CATEGORY_LABELS,
-  ExpenseCategory,
-} from '@/domain/entities/expenses/ExpenseCategory';
 import { Currency } from '@/domain/entities/shared/Currency';
 import {
   Box,
@@ -26,7 +22,7 @@ export interface ExpenseFormData {
   amount: string;
   currency: string;
   date: string;
-  category: ExpenseCategory;
+  category: string;
   isEssential: boolean;
   description: string;
 }
@@ -50,7 +46,7 @@ export function ExpenseFormDialog({
     amount: '',
     currency: 'USD',
     date: new Date().toISOString().split('T')[0],
-    category: ExpenseCategory.OTHER,
+    category: '',
     isEssential: false,
     description: '',
   });
@@ -63,7 +59,7 @@ export function ExpenseFormDialog({
         amount: '',
         currency: 'USD',
         date: new Date().toISOString().split('T')[0],
-        category: ExpenseCategory.OTHER,
+        category: '',
         isEssential: false,
         description: '',
       });
@@ -146,21 +142,6 @@ export function ExpenseFormDialog({
             InputLabelProps={{ shrink: true }}
             fullWidth
           />
-
-          <FormControl fullWidth>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={formData.category}
-              onChange={handleSelectChange('category')}
-              label="Category"
-            >
-              {Object.entries(EXPENSE_CATEGORY_LABELS).map(([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <FormControlLabel

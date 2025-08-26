@@ -1,4 +1,3 @@
-import { EXPENSE_CATEGORY_LABELS } from '@/domain/entities/expenses/ExpenseCategory';
 import { ScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
 import {
   Add as AddIcon,
@@ -51,22 +50,8 @@ export function ScheduledExpenseListDialog({
     });
   };
 
-  const getStatusColor = (scheduledExpense: ScheduledExpense) => {
-    if (!scheduledExpense.isActive()) {
-      return 'default';
-    }
-    return 'success';
-  };
-
-  const getStatusLabel = (scheduledExpense: ScheduledExpense) => {
-    if (!scheduledExpense.isActive()) {
-      return 'Inactive';
-    }
-    return 'Active';
-  };
-
   const getNextExpenseInfo = (scheduledExpense: ScheduledExpense) => {
-    const nextDate = scheduledExpense.getNextExpenseDate();
+    const nextDate = scheduledExpense.getNextOccurenceDate();
     if (!nextDate) {
       return 'No more expenses';
     }
@@ -112,21 +97,16 @@ export function ScheduledExpenseListDialog({
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                           <Typography variant="h6">{scheduledExpense.name}</Typography>
-                          <Chip
-                            label={getStatusLabel(scheduledExpense)}
-                            color={getStatusColor(scheduledExpense)}
-                            size="small"
-                          />
                         </Box>
                       }
                       secondary={
                         <Box>
                           <Typography variant="h6" color="primary" gutterBottom>
-                            {scheduledExpense.getFormattedAmount()}
+                            {scheduledExpense.amount}
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
                             <Chip
-                              label={EXPENSE_CATEGORY_LABELS[scheduledExpense.category]}
+                              label={scheduledExpense.category}
                               size="small"
                               variant="outlined"
                             />

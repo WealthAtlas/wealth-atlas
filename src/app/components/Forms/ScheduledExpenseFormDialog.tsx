@@ -1,9 +1,4 @@
-import {
-  EXPENSE_CATEGORY_LABELS,
-  ExpenseCategory,
-} from '@/domain/entities/expenses/ExpenseCategory';
 import { ScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
-import { PaymentFrequency } from '@/domain/entities/loans/PaymentFrequency';
 import { Currency } from '@/domain/entities/shared/Currency';
 import {
   Button,
@@ -20,6 +15,7 @@ import {
   TextField,
 } from '@mui/material';
 import React from 'react';
+import { ScheduleFrequency } from '../../../domain/entities/shared/ScheduleFrequency';
 
 interface ScheduledExpenseFormDialogProps {
   open: boolean;
@@ -38,9 +34,9 @@ export function ScheduledExpenseFormDialog({
     name: '',
     amount: '',
     currency: Currency.USD,
-    category: ExpenseCategory.OTHER,
+    category: '',
     isEssential: true,
-    frequency: PaymentFrequency.MONTHLY,
+    frequency: ScheduleFrequency.MONTHLY,
     startDate: '',
     endDate: '',
     description: '',
@@ -69,9 +65,9 @@ export function ScheduledExpenseFormDialog({
         name: '',
         amount: '',
         currency: Currency.USD,
-        category: ExpenseCategory.OTHER,
+        category: '',
         isEssential: true,
-        frequency: PaymentFrequency.MONTHLY,
+        frequency: ScheduleFrequency.MONTHLY,
         startDate: today,
         endDate: '',
         description: '',
@@ -115,19 +111,19 @@ export function ScheduledExpenseFormDialog({
       return;
     }
 
-    const scheduledExpense = new ScheduledExpense(
-      scheduledExpenseToEdit?.id,
-      formData.name.trim(),
-      parseFloat(formData.amount),
-      formData.currency,
-      formData.category,
-      formData.isEssential,
-      formData.frequency,
-      new Date(formData.startDate),
-      formData.endDate ? new Date(formData.endDate) : undefined,
-      scheduledExpenseToEdit?.lastGeneratedDate,
-      formData.description.trim() || undefined
-    );
+    const scheduledExpense = new ScheduledExpense({
+      id: scheduledExpenseToEdit?.id,
+      name: formData.name.trim(),
+      amount: parseFloat(formData.amount),
+      currency: formData.currency,
+      category: formData.category,
+      isEssential: formData.isEssential,
+      frequency: formData.frequency,
+      startDate: new Date(formData.startDate),
+      endDate: formData.endDate ? new Date(formData.endDate) : undefined,
+      lastGeneratedDate: scheduledExpenseToEdit?.lastGeneratedDate,
+      description: formData.description.trim(),
+    });
 
     onSave(scheduledExpense);
   };
@@ -194,32 +190,15 @@ export function ScheduledExpenseFormDialog({
           </FormControl>
 
           <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={formData.category}
-              label="Category"
-              onChange={e =>
-                setFormData(prev => ({ ...prev, category: e.target.value as ExpenseCategory }))
-              }
-            >
-              {Object.entries(EXPENSE_CATEGORY_LABELS).map(([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
             <InputLabel>Frequency</InputLabel>
             <Select
               value={formData.frequency}
               label="Frequency"
               onChange={e =>
-                setFormData(prev => ({ ...prev, frequency: e.target.value as PaymentFrequency }))
+                setFormData(prev => ({ ...prev, frequency: e.target.value as ScheduleFrequency }))
               }
             >
-              {Object.values(PaymentFrequency).map(frequency => (
+              {Object.values(ScheduleFrequency).map(frequency => (
                 <MenuItem key={frequency} value={frequency}>
                   {frequency}
                 </MenuItem>

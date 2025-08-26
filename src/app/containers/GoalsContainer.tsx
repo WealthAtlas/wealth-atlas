@@ -1,6 +1,5 @@
 import { GoalFormData, GoalFormDialog } from '@/app/components/Forms/GoalFormDialog';
 import { GoalsPage } from '@/app/components/Pages/GoalsPage';
-import { AllocationManagementContainer } from '@/app/containers/AllocationManagementContainer';
 import { Goal } from '@/domain/entities/goals/Goal';
 import { GoalService } from '@/domain/services/GoalService';
 import { Logger } from '@/domain/utils/Logger';
@@ -12,8 +11,6 @@ export const GoalsContainer: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [goalToEdit, setGoalToEdit] = useState<Goal | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
-  const [goalForAllocation, setGoalForAllocation] = useState<Goal | null>(null);
 
   // Memoized GoalService instance
   const goalService = useMemo(() => new GoalService(), []);
@@ -67,23 +64,6 @@ export const GoalsContainer: React.FC = () => {
     }
   };
 
-  // Handle managing allocations
-  const handleManageAllocations = (goal: Goal) => {
-    setGoalForAllocation(goal);
-    setIsAllocationDialogOpen(true);
-  };
-
-  // Handle allocation dialog close
-  const handleAllocationDialogClose = () => {
-    setIsAllocationDialogOpen(false);
-    setGoalForAllocation(null);
-  };
-
-  // Handle allocation save (refresh data)
-  const handleAllocationSave = async () => {
-    await loadGoalsAndProgress();
-  };
-
   // Handle form submission
   const handleFormSubmit = async (formData: GoalFormData) => {
     try {
@@ -130,7 +110,7 @@ export const GoalsContainer: React.FC = () => {
         onCreateGoal={handleCreateGoal}
         onEditGoal={handleEditGoal}
         onDeleteGoal={handleDeleteGoal}
-        onManageAllocations={handleManageAllocations}
+        onManageAllocations={() => {}}
       />
 
       <GoalFormDialog
@@ -139,13 +119,6 @@ export const GoalsContainer: React.FC = () => {
         onClose={handleFormClose}
         onSubmit={handleFormSubmit}
         isLoading={isSubmitting}
-      />
-
-      <AllocationManagementContainer
-        open={isAllocationDialogOpen}
-        goal={goalForAllocation}
-        onClose={handleAllocationDialogClose}
-        onSave={handleAllocationSave}
       />
     </>
   );

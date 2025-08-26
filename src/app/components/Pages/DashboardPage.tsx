@@ -1,5 +1,4 @@
 import { Box, Grid, Paper, Typography } from '@mui/material';
-import { AssetAllocationChart } from '../Charts/AssetAllocationChart';
 import { ExpenseTrendChart } from '../Charts/ExpenseTrendChart';
 
 interface ExpenseTrendData {
@@ -69,13 +68,6 @@ export function DashboardPage({ metrics, expenseTrendData }: DashboardPageProps)
           </Paper>
         </Grid>
       </Grid>
-
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Portfolio Growth
-        </Typography>
-        <AssetAllocationChart data={expenseTrendData} currency="$" height={400} />
-      </Box>
 
       <Box sx={{ mt: 4 }}>
         <Typography variant="h6" gutterBottom>

@@ -1,9 +1,0 @@
-export enum PaymentFrequency {
-  DAILY = 'Daily',
-  WEEKLY = 'Weekly',
-  BIWEEKLY = 'Biweekly',
-  MONTHLY = 'Monthly',
-  QUARTERLY = 'Quarterly',
-  HALF_YEARLY = 'Half-yearly',
-  YEARLY = 'Yearly',
-}

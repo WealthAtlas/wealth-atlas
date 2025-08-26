@@ -13,12 +13,10 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Fab,
   Grid,
   IconButton,
-  LinearProgress,
   Stack,
   Tooltip,
   Typography,
@@ -78,10 +76,6 @@ export const GoalsPage: React.FC<GoalsPageProps> = ({
     return `${symbol}${amount.toLocaleString()}`;
   };
 
-  const getGoalProgress = (goalId: number | undefined): GoalProgressResult | undefined => {
-    return goalProgressResults.find(result => result.goal.id === goalId);
-  };
-
   if (isLoading) {
     return (
       <Box
@@ -127,7 +121,6 @@ export const GoalsPage: React.FC<GoalsPageProps> = ({
       ) : (
         <Grid container spacing={3}>
           {goals.map(goal => {
-            const progress = getGoalProgress(goal.id);
             const inflationAdjustedTarget = goal.getInflationAdjustedTarget();
             const yearsToMaturity = goal.getYearsToMaturity();
 
@@ -167,22 +160,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = ({
                     </Box>
 
                     {/* Goal Status */}
-                    <Box display="flex" alignItems="center" gap={1} mb={2}>
-                      <Chip
-                        label={goal.getStatus()}
-                        color={goal.isMatured() ? 'default' : 'primary'}
-                        size="small"
-                      />
-                      {progress && (
-                        <Tooltip
-                          title={`Achievement: ${progress.achievementPercentage.toFixed(1)}%`}
-                        >
-                          <Box display="flex" alignItems="center" gap={0.5}>
-                            {getStatusIcon(progress.progressStatus)}
-                          </Box>
-                        </Tooltip>
-                      )}
-                    </Box>
+                    <Box display="flex" alignItems="center" gap={1} mb={2}></Box>
 
                     {/* Target Amount */}
                     <Stack spacing={1} mb={2}>
@@ -216,107 +194,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = ({
                           : 'Goal has matured'}
                       </Typography>
                     </Stack>
-
-                    {/* Progress */}
-                    {progress && (
-                      <Box mb={2}>
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          mb={1}
-                        >
-                          <Typography variant="body2" color="text.secondary">
-                            Progress
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {progress.achievementPercentage.toFixed(1)}%
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={Math.min(progress.achievementPercentage, 100)}
-                          color={getProgressColor(progress.progressStatus)}
-                          sx={{ height: 8, borderRadius: 4 }}
-                        />
-                        <Box mt={1}>
-                          <Typography variant="body2" color="text.secondary">
-                            Current Value:{' '}
-                            {formatCurrency(progress.totalCurrentValue, goal.currency)}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Projected Value:{' '}
-                            {formatCurrency(progress.totalProjectedValue, goal.currency)}
-                          </Typography>
-                          {progress.shortfall > 0 && (
-                            <Typography variant="body2" color="error.main">
-                              Shortfall: {formatCurrency(progress.shortfall, goal.currency)}
-                            </Typography>
-                          )}
-                          {progress.surplus > 0 && (
-                            <Typography variant="body2" color="success.main">
-                              Surplus: {formatCurrency(progress.surplus, goal.currency)}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
-                    )}
-
-                    {/* Asset Allocations */}
-                    {progress && progress.assetDetails.length > 0 && (
-                      <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Allocated Assets ({progress.assetDetails.length})
-                        </Typography>
-                        <Box display="flex" flexWrap="wrap" gap={0.5}>
-                          {progress.assetDetails.slice(0, 3).map(asset => (
-                            <Chip
-                              key={asset.assetId}
-                              label={`${asset.assetName} (${asset.allocationPercentage.toFixed(0)}%)`}
-                              size="small"
-                              variant="outlined"
-                            />
-                          ))}
-                          {progress.assetDetails.length > 3 && (
-                            <Chip
-                              label={`+${progress.assetDetails.length - 3} more`}
-                              size="small"
-                              variant="outlined"
-                            />
-                          )}
-                        </Box>
-                      </Box>
-                    )}
-
-                    {/* No Allocations Message */}
-                    {(!progress || progress.assetDetails.length === 0) && (
-                      <Box textAlign="center" py={2}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          No asset allocations yet
-                        </Typography>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => onManageAllocations(goal)}
-                        >
-                          Manage Allocations
-                        </Button>
-                      </Box>
-                    )}
                   </CardContent>
-
-                  {/* Action Button */}
-                  {progress && progress.assetDetails.length > 0 && (
-                    <Box p={2} pt={0}>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        onClick={() => onManageAllocations(goal)}
-                      >
-                        Manage Allocations
-                      </Button>
-                    </Box>
-                  )}
                 </Card>
               </Grid>
             );

@@ -1,7 +1,7 @@
 import { ScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
-import { ScheduledExpenseService } from '@/domain/services/ScheduledExpenseService';
 import { Logger } from '@/domain/utils/Logger';
 import React from 'react';
+import { ExpenseService } from '../../domain/services/ExpenseService';
 import { ScheduledExpenseListDialog } from '../components/Dialogs/ScheduledExpenseListDialog';
 import { ScheduledExpenseFormDialog } from '../components/Forms/ScheduledExpenseFormDialog';
 
@@ -18,19 +18,19 @@ export function ScheduledExpenseContainer({ open, onClose }: ScheduledExpenseCon
     ScheduledExpense | undefined
   >();
 
-  const scheduledExpenseService = React.useMemo(() => new ScheduledExpenseService(), []);
+  const expenseService = React.useMemo(() => new ExpenseService(), []);
 
   const loadScheduledExpenses = React.useCallback(async () => {
     try {
       setLoading(true);
-      const allScheduledExpenses = await scheduledExpenseService.getAllScheduledExpenses();
+      const allScheduledExpenses = await expenseService.getAllScheduledExpenses();
       setScheduledExpenses(allScheduledExpenses);
     } catch (error) {
       Logger.error('Failed to load scheduled expenses:', error);
     } finally {
       setLoading(false);
     }
-  }, [scheduledExpenseService]);
+  }, [expenseService]);
 
   React.useEffect(() => {
     if (open) {
@@ -52,7 +52,7 @@ export function ScheduledExpenseContainer({ open, onClose }: ScheduledExpenseCon
     if (!scheduledExpense.id) return;
 
     try {
-      await scheduledExpenseService.deleteScheduledExpense(scheduledExpense.id);
+      await expenseService.deleteScheduledExpense(scheduledExpense.id);
       await loadScheduledExpenses();
     } catch (error) {
       Logger.error('Failed to delete scheduled expense:', error);
@@ -66,7 +66,7 @@ export function ScheduledExpenseContainer({ open, onClose }: ScheduledExpenseCon
 
   const handleFormSave = async (scheduledExpense: ScheduledExpense) => {
     try {
-      await scheduledExpenseService.saveScheduledExpense(scheduledExpense);
+      await expenseService.createScheduledExpense(scheduledExpense);
       setFormOpen(false);
       setScheduledExpenseToEdit(undefined);
       await loadScheduledExpenses();

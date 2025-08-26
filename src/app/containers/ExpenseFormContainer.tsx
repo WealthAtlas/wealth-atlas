@@ -1,7 +1,7 @@
-import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
-import { Expense } from '@/domain/entities/expenses/Expense';
+import { Expense, IExpense } from '@/domain/entities/expenses/Expense';
 import { Logger } from '@/domain/utils/Logger';
 import React from 'react';
+import { ExpenseService } from '../../domain/services/ExpenseService';
 import { ExpenseFormData, ExpenseFormDialog } from '../components/Forms/ExpenseFormDialog';
 
 interface ExpenseFormContainerProps {
@@ -18,7 +18,7 @@ export function ExpenseFormContainer({
   expenseToEdit,
 }: ExpenseFormContainerProps) {
   const [loading, setLoading] = React.useState(false);
-  const expenseRepository = React.useMemo(() => new ExpenseRepository(), []);
+  const expenseService = React.useMemo(() => new ExpenseService(), []);
 
   const getInitialData = (): ExpenseFormData | undefined => {
     if (!expenseToEdit) return undefined;
@@ -39,18 +39,17 @@ export function ExpenseFormContainer({
     try {
       setLoading(true);
 
-      const expenseData = {
+      const expenseData: IExpense = {
         id: expenseToEdit?.id,
         amount: parseFloat(formData.amount),
         currency: formData.currency.trim().toUpperCase(),
         date: new Date(formData.date),
         category: formData.category,
         isEssential: formData.isEssential,
-        description: formData.description.trim() || undefined,
+        description: formData.description.trim(),
       };
 
-      const expense = new Expense(expenseData);
-      await expenseRepository.save(expense);
+      await expenseService.createExpense(expenseData);
 
       onSave();
     } catch (error) {
