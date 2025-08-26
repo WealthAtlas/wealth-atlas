@@ -13,19 +13,19 @@ export class ExpenseService {
   }
 
   public async createExpense(expense: IExpense): Promise<Expense> {
-    return await this.expenseRepository.create(expense);
+    return await this.expenseRepository.create(expense).then(this.toExpense);
   }
 
   public async getExpenseById(id: number): Promise<Expense> {
-    return await this.expenseRepository.getById(id);
+    return await this.expenseRepository.getById(id).then(this.toExpense);
   }
 
   public async getAllExpenses(): Promise<Expense[]> {
-    return await this.expenseRepository.getAll();
+    return (await this.expenseRepository.getAll()).map(this.toExpense);
   }
 
   public async updateExpense(expense: IExpense): Promise<Expense> {
-    return await this.expenseRepository.update(expense);
+    return await this.expenseRepository.update(expense).then(this.toExpense);
   }
 
   public async deleteExpense(id: number): Promise<void> {
@@ -73,5 +73,9 @@ export class ExpenseService {
         }
       }
     });
+  }
+
+  private async toExpense(expense: IExpense): Promise<Expense> {
+    return new Expense(expense);
   }
 }
