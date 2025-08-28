@@ -1,4 +1,4 @@
-import { MainPage } from '../components/Pages/MainPage';
+import { MainPage } from '../components/pages/MainPage';
 
 export function MainContainer() {
   return <MainPage />;

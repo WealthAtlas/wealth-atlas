@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AssetsContainer } from '../../containers/assets/AssetsContainer';
-import { DashboardContainer } from '../../containers/DashboardContainer';
-import { ExpensesContainer } from '../../containers/ExpensesContainer';
-import { GoalsContainer } from '../../containers/GoalsContainer';
-import { LoansContainer } from '../../containers/LoansContainer';
-import { MainLayout } from '../Layout/MainLayout';
+import { DashboardContainer } from '../../containers/dashboard/DashboardContainer';
+import { ExpensesContainer } from '../../containers/expense/ExpensesContainer';
+import { GoalsContainer } from '../../containers/goal/GoalsContainer';
+import { LoansContainer } from '../../containers/loan/LoansContainer';
+import { MainLayout } from '../layouts/MainLayout';
 
 export function MainPage() {
   const navigate = useNavigate();

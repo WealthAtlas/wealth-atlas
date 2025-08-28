@@ -2,7 +2,8 @@ import { Asset, IAsset } from '@/domain/entities/assets/Asset';
 import React, { useEffect, useState } from 'react';
 import { AssetPricingModel } from '../../../domain/entities/assets/AssetPricingModel';
 import { AssetService } from '../../../domain/services/AssetService';
-import { AssetFormDialog } from '../../components/Dialogs/AssetFormDialog';
+import { Logger } from '../../../domain/utils/Logger';
+import { AssetFormDialog } from '../../components/dialogs/AssetFormDialog';
 
 export interface AssetFormContainer {
   open: boolean;
@@ -73,7 +74,7 @@ export function AssetFormContainer({ open, assetToEdit, onClose, onSuccess }: As
 
           onSuccess();
         } catch (error) {
-          console.error('Failed to save asset:', error);
+          Logger.error('Failed to save asset:', error);
         } finally {
           setIsSubmitting(false);
         }

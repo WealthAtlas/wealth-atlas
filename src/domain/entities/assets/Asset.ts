@@ -106,7 +106,7 @@ export class Asset implements IAsset {
     switch (this.pricingModel) {
       case AssetPricingModel.MARKET_BASED:
         return this.marketValue;
-      case AssetPricingModel.FIXED_INCOME:
+      case AssetPricingModel.FIXED_INCOME: {
         const fixedIncomeEffectiveDate =
           this.maturityDate && date > this.maturityDate ? this.maturityDate : date;
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
@@ -114,7 +114,8 @@ export class Asset implements IAsset {
           this.interestRate!,
           fixedIncomeEffectiveDate
         );
-      case AssetPricingModel.MATURITY_BASED:
+      }
+      case AssetPricingModel.MATURITY_BASED: {
         const maturityIRR = IRRCalculator.getInstance().calculateIRR({
           transactions: this.transactions.map(tx => ({
             date: tx.date,
@@ -130,6 +131,7 @@ export class Asset implements IAsset {
           maturityIRR,
           maturityBasedEffectiveDate
         );
+      }
       default:
         return undefined;
     }
