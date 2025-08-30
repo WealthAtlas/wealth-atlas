@@ -1,7 +1,7 @@
 import { AbstractSchedule, IScheduleBase } from '../shared/AbstractSchedule';
 import { Expense } from './Expense';
 
-export interface IScheduledExpense extends IScheduleBase {
+export interface IAutoPay extends IScheduleBase {
   name: string;
   description: string;
   amount: number;
@@ -11,7 +11,7 @@ export interface IScheduledExpense extends IScheduleBase {
   lastGeneratedDate: Date | undefined;
 }
 
-export class ScheduledExpense extends AbstractSchedule<Expense> implements IScheduledExpense {
+export class AutoPay extends AbstractSchedule<Expense> implements IAutoPay {
   public readonly name: string;
   public readonly description: string;
   public readonly amount: number;
@@ -32,7 +32,7 @@ export class ScheduledExpense extends AbstractSchedule<Expense> implements ISche
     startDate,
     endDate,
     lastGeneratedDate,
-  }: IScheduledExpense) {
+  }: IAutoPay) {
     super({ id, startDate, endDate, frequency, lastGeneratedDate });
     this.name = name;
     this.description = description;

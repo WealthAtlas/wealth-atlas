@@ -1,5 +1,5 @@
 import { Asset } from '@/domain/entities/assets/Asset';
-import { TransactionListDialog } from '../../../components/dialogs/TransactionListDialog';
+import { InvestmentListDialog } from '../../../components/dialogs/InvestmentListDialog';
 
 export interface TransactionListContainerProps {
   open: boolean;
@@ -15,10 +15,10 @@ export function TransactionListContainer({
   refresh,
 }: TransactionListContainerProps) {
   return (
-    <TransactionListDialog
+    <InvestmentListDialog
       open={open}
       asset={asset}
-      transactions={asset.getTransactions(new Date(), false)}
+      investments={asset.getTransactions(new Date(), false)}
       onClose={onClose}
       refresh={refresh}
     />

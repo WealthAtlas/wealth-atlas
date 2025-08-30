@@ -1,5 +1,5 @@
 import { Asset } from '@/domain/entities/assets/Asset';
-import { IAssetTransaction } from '@/domain/entities/assets/AssetTransaction';
+import { IInvestment } from '@/domain/entities/assets/Investment';
 import {
   Button,
   Dialog,
@@ -14,44 +14,28 @@ import {
   RadioGroup,
   TextField,
 } from '@mui/material';
-import { useEffect } from 'react';
 
-export interface TransactionFormDialogProps {
+export interface InvestmentFormDialogProps {
   open: boolean;
   title: string;
-  asset: Asset | null;
-  transaction: IAssetTransaction;
+  asset: Asset;
+  investment: IInvestment;
   isSubmitting: boolean;
   onClose: () => void;
   onSubmit: () => void;
-  onTransactionChange: (transaction: IAssetTransaction) => void;
+  onTransactionChange: (transaction: IInvestment) => void;
 }
 
-export function TransactionFormDialog({
+export function InvestmentFormDialog({
   open,
   title,
   asset,
-  transaction,
+  investment,
   isSubmitting,
   onClose,
   onSubmit,
   onTransactionChange,
-}: TransactionFormDialogProps) {
-  // Populate form when editing
-  useEffect(() => {
-    if (open && transaction) {
-      onTransactionChange({
-        id: transaction.id,
-        assetId: transaction.assetId,
-        quantity: transaction.quantity,
-        price: transaction.price,
-        date: transaction.date,
-      });
-    }
-  }, [open, transaction, onTransactionChange]);
-
-  if (!asset) return null;
-
+}: InvestmentFormDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{title}</DialogTitle>
@@ -60,16 +44,13 @@ export function TransactionFormDialog({
           <FormLabel component="legend">Transaction Type</FormLabel>
           <RadioGroup
             row
-            value={transaction.price > 0 ? 'buy' : 'sell'}
+            value={investment.price > 0 ? 'buy' : 'sell'}
             onChange={e =>
               onTransactionChange({
-                ...transaction,
+                ...investment,
                 quantity:
-                  e.target.value == 'buy'
-                    ? transaction.quantity || 1
-                    : -(transaction.quantity || -1),
-                price:
-                  e.target.value == 'buy' ? transaction.price || 0 : -(transaction.price || -1),
+                  e.target.value == 'buy' ? investment.quantity || 1 : -(investment.quantity || -1),
+                price: e.target.value == 'buy' ? investment.price || 0 : -(investment.price || -1),
               })
             }
           >
@@ -80,9 +61,9 @@ export function TransactionFormDialog({
 
         <TextField
           label="Quantity"
-          value={transaction.quantity}
+          value={investment.quantity}
           onChange={e =>
-            onTransactionChange({ ...transaction, quantity: parseFloat(e.target.value) || 0 })
+            onTransactionChange({ ...investment, quantity: parseFloat(e.target.value) || 0 })
           }
           type="number"
           inputProps={{ min: 0, step: 'any' }}
@@ -93,9 +74,9 @@ export function TransactionFormDialog({
 
         <TextField
           label="Price per Unit"
-          value={transaction.price}
+          value={investment.price}
           onChange={e =>
-            onTransactionChange({ ...transaction, price: parseFloat(e.target.value) || 0 })
+            onTransactionChange({ ...investment, price: parseFloat(e.target.value) || 0 })
           }
           type="number"
           inputProps={{ min: 0, step: 'any' }}
@@ -114,10 +95,10 @@ export function TransactionFormDialog({
 
         <TextField
           label="Transaction Date"
-          value={transaction.date?.toISOString().split('T')[0] || ''}
+          value={investment.date?.toISOString().split('T')[0] || ''}
           onChange={e =>
             onTransactionChange({
-              ...transaction,
+              ...investment,
               date: e.target.value ? new Date(e.target.value) : new Date(),
             })
           }

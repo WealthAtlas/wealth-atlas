@@ -8,7 +8,7 @@ export class ExpenseRepository {
   }
 
   public async getById(id: number): Promise<IExpense> {
-    return (await database.expenses.get(id)) ?? Promise.reject('Expense not found');
+    return (await database.expenses.get(id))!;
   }
 
   public async getAll(): Promise<IExpense[]> {

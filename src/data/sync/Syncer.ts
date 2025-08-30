@@ -1,13 +1,13 @@
 import type { IAsset } from '@/domain/entities/assets/Asset';
-import type { IAssetTransaction } from '@/domain/entities/assets/AssetTransaction';
-import type { IScheduledAssetTransaction } from '@/domain/entities/assets/ScheduledAssetTransaction';
+import type { IInvestment } from '@/domain/entities/assets/Investment';
+import type { ISIP } from '@/domain/entities/assets/SIP';
+import type { IAutoPay } from '@/domain/entities/expenses/AutoPay';
 import type { IExpense } from '@/domain/entities/expenses/Expense';
-import type { IScheduledExpense } from '@/domain/entities/expenses/ScheduledExpense';
-import type { IAssetGoalAllocation } from '@/domain/entities/goals/AssetGoalAllocation';
+import type { IAllocation } from '@/domain/entities/goals/Allocation';
 import type { IGoal } from '@/domain/entities/goals/Goal';
+import type { IEMI } from '@/domain/entities/loans/EMI';
 import type { ILoan } from '@/domain/entities/loans/Loan';
-import type { ILoanPayment } from '@/domain/entities/loans/LoanPayment';
-import type { IPaymentSchedule } from '@/domain/entities/loans/PaymentSchedule';
+import type { IPayment } from '@/domain/entities/loans/Payment';
 import { Logger } from '../../domain/utils/Logger';
 import { db } from '../database';
 import { buildSyncApiUrl } from './config';
@@ -60,14 +60,14 @@ async function exportSnapshot(): Promise<Snapshot> {
   ] = await Promise.all([
     db.assets.toArray(),
     db.assetTransactions.toArray(),
-    db.scheduledAssetTransactions.toArray(),
+    db.sips.toArray(),
     db.expenses.toArray(),
-    db.scheduledExpenses.toArray(),
+    db.autoPays.toArray(),
     db.loans.toArray(),
-    db.paymentSchedules.toArray(),
-    db.loanPayments.toArray(),
+    db.emis.toArray(),
+    db.payments.toArray(),
     db.goals.toArray(),
-    db.assetGoalAllocations.toArray(),
+    db.allocations.toArray(),
   ]);
   return {
     schemaVersion: getSchemaVersion(),
@@ -97,51 +97,51 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
     [
       db.assets,
       db.assetTransactions,
-      db.scheduledAssetTransactions,
+      db.sips,
       db.expenses,
-      db.scheduledExpenses,
+      db.autoPays,
       db.loans,
-      db.paymentSchedules,
-      db.loanPayments,
+      db.emis,
+      db.payments,
       db.goals,
-      db.assetGoalAllocations,
+      db.allocations,
     ],
     async () => {
       await Promise.all([
-        db.assetGoalAllocations.clear(),
+        db.allocations.clear(),
         db.goals.clear(),
-        db.loanPayments.clear(),
-        db.paymentSchedules.clear(),
+        db.payments.clear(),
+        db.emis.clear(),
         db.loans.clear(),
-        db.scheduledExpenses.clear(),
+        db.autoPays.clear(),
         db.expenses.clear(),
-        db.scheduledAssetTransactions.clear(),
+        db.sips.clear(),
         db.assetTransactions.clear(),
         db.assets.clear(),
       ]);
       const d = snapshot.data as {
         assets?: IAsset[];
-        assetTransactions?: IAssetTransaction[];
-        scheduledAssetTransactions?: IScheduledAssetTransaction[];
+        assetTransactions?: IInvestment[];
+        scheduledAssetTransactions?: ISIP[];
         expenses?: IExpense[];
-        scheduledExpenses?: IScheduledExpense[];
+        scheduledExpenses?: IAutoPay[];
         loans?: ILoan[];
-        paymentSchedules?: IPaymentSchedule[];
-        loanPayments?: ILoanPayment[];
+        paymentSchedules?: IEMI[];
+        loanPayments?: IPayment[];
         goals?: IGoal[];
-        assetGoalAllocations?: IAssetGoalAllocation[];
+        assetGoalAllocations?: IAllocation[];
       };
       // Order respects dependencies
       await db.assets.bulkPut(d.assets || []);
       await db.assetTransactions.bulkPut(d.assetTransactions || []);
-      await db.scheduledAssetTransactions.bulkPut(d.scheduledAssetTransactions || []);
+      await db.sips.bulkPut(d.scheduledAssetTransactions || []);
       await db.expenses.bulkPut(d.expenses || []);
-      await db.scheduledExpenses.bulkPut(d.scheduledExpenses || []);
+      await db.autoPays.bulkPut(d.scheduledExpenses || []);
       await db.loans.bulkPut(d.loans || []);
-      await db.paymentSchedules.bulkPut(d.paymentSchedules || []);
-      await db.loanPayments.bulkPut(d.loanPayments || []);
+      await db.emis.bulkPut(d.paymentSchedules || []);
+      await db.payments.bulkPut(d.loanPayments || []);
       await db.goals.bulkPut(d.goals || []);
-      await db.assetGoalAllocations.bulkPut(d.assetGoalAllocations || []);
+      await db.allocations.bulkPut(d.assetGoalAllocations || []);
     }
   );
 }

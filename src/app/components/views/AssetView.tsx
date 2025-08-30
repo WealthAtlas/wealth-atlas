@@ -2,7 +2,7 @@ import { Delete, Edit, List, Schedule } from '@mui/icons-material';
 import { Box, Card, CardContent, Chip, Grid, IconButton, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 import { Asset } from '../../../domain/entities/assets/Asset';
-import { TransactionListContainer } from '../../containers/assets/transactions/TransactionListContainer';
+import { InvestmentListContainer } from '../../containers/assets/transactions/InvestmentListContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
 export interface AssetViewProps {
@@ -16,7 +16,7 @@ export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
 
   return (
     <>
-      <TransactionListContainer
+      <InvestmentListContainer
         open={showViewTransactions}
         onClose={() => setShowViewTransactions(false)}
         asset={asset}

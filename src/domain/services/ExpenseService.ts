@@ -1,15 +1,15 @@
+import { AutoPayRepository } from '../../data/repositories/expense/AutoPayRepository';
 import { ExpenseRepository } from '../../data/repositories/expense/ExpenseRepository';
-import { ScheduledExpenseRepository } from '../../data/repositories/expense/ScheduledExpenseRepository';
+import { AutoPay, IAutoPay } from '../entities/expenses/AutoPay';
 import { Expense, IExpense } from '../entities/expenses/Expense';
-import { IScheduledExpense, ScheduledExpense } from '../entities/expenses/ScheduledExpense';
 
 export class ExpenseService {
   private readonly expenseRepository: ExpenseRepository;
-  private readonly scheduledExpenseRepository: ScheduledExpenseRepository;
+  private readonly scheduledExpenseRepository: AutoPayRepository;
 
   constructor() {
     this.expenseRepository = new ExpenseRepository();
-    this.scheduledExpenseRepository = new ScheduledExpenseRepository();
+    this.scheduledExpenseRepository = new AutoPayRepository();
   }
 
   public async createExpense(expense: IExpense): Promise<Expense> {
@@ -35,31 +35,27 @@ export class ExpenseService {
     await this.expenseRepository.delete(id);
   }
 
-  public async createScheduledExpense(
-    scheduledExpense: IScheduledExpense
-  ): Promise<ScheduledExpense> {
+  public async createScheduledExpense(scheduledExpense: IAutoPay): Promise<AutoPay> {
     return await this.scheduledExpenseRepository
       .create(scheduledExpense)
-      .then(scheduledExpense => new ScheduledExpense(scheduledExpense));
+      .then(scheduledExpense => new AutoPay(scheduledExpense));
   }
 
-  public async getScheduledExpenseById(id: number): Promise<ScheduledExpense> {
+  public async getScheduledExpenseById(id: number): Promise<AutoPay> {
     return await this.scheduledExpenseRepository
       .getById(id)
-      .then(scheduledExpense => new ScheduledExpense(scheduledExpense));
+      .then(scheduledExpense => new AutoPay(scheduledExpense));
   }
 
-  public async getAllScheduledExpenses(): Promise<ScheduledExpense[]> {
+  public async getAllScheduledExpenses(): Promise<AutoPay[]> {
     return await this.scheduledExpenseRepository
       .getAll()
       .then(scheduledExpenses =>
-        scheduledExpenses.map(scheduledExpense => new ScheduledExpense(scheduledExpense))
+        scheduledExpenses.map(scheduledExpense => new AutoPay(scheduledExpense))
       );
   }
 
-  public async updateScheduledExpense(
-    scheduledExpense: IScheduledExpense
-  ): Promise<IScheduledExpense> {
+  public async updateScheduledExpense(scheduledExpense: IAutoPay): Promise<IAutoPay> {
     return await this.scheduledExpenseRepository.update(scheduledExpense);
   }
 

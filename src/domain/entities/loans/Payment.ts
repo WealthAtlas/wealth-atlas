@@ -1,4 +1,4 @@
-export interface ILoanPayment {
+export interface IPayment {
   id: number | undefined;
   loanId: number;
   description: string;
@@ -6,14 +6,14 @@ export interface ILoanPayment {
   amount: number;
 }
 
-export class LoanPayment implements ILoanPayment {
+export class Payment implements IPayment {
   public readonly id: number | undefined;
   public readonly loanId: number;
   public readonly description: string;
   public readonly date: Date;
   public readonly amount: number;
 
-  constructor({ id, loanId, date, amount, description }: ILoanPayment) {
+  constructor({ id, loanId, date, amount, description }: IPayment) {
     this.id = id;
     this.loanId = loanId;
     this.date = date;

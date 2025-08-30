@@ -12,7 +12,7 @@ export class LoanRepository {
   }
 
   async getById(id: number): Promise<ILoan> {
-    return (await db.loans.get(id)) ?? Promise.reject(new Error('Loan not found'));
+    return (await db.loans.get(id))!;
   }
 
   async update(updates: ILoan): Promise<ILoan> {

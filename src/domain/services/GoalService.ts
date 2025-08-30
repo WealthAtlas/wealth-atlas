@@ -1,17 +1,17 @@
-import { AssetGoalAllocationRepository } from '../../data/repositories/goal/AssetGoalAllocationRepository';
+import { AllocationRepository } from '../../data/repositories/goal/AllocationRepository';
 import { GoalRepository } from '../../data/repositories/goal/GoalRepository';
-import { AssetGoalAllocation } from '../entities/goals/AssetGoalAllocation';
+import { Allocation } from '../entities/goals/Allocation';
 import { Goal, IGoal } from '../entities/goals/Goal';
 import { AssetService } from './AssetService';
 
 export class GoalService {
   private readonly goalRepository: GoalRepository;
-  private readonly assetGoalAllocationRepository: AssetGoalAllocationRepository;
+  private readonly assetGoalAllocationRepository: AllocationRepository;
   private readonly assetService: AssetService;
 
   constructor() {
     this.goalRepository = new GoalRepository();
-    this.assetGoalAllocationRepository = new AssetGoalAllocationRepository();
+    this.assetGoalAllocationRepository = new AllocationRepository();
     this.assetService = new AssetService();
   }
 
@@ -26,7 +26,7 @@ export class GoalService {
     const allocations = await Promise.all(
       allocationRecords.map(async allocation => {
         const asset = await this.assetService.getAssetById(allocation.assetId);
-        return new AssetGoalAllocation({
+        return new Allocation({
           ...allocation,
           goalId: data.id!,
           asset,

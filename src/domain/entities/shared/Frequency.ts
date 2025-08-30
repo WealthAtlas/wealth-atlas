@@ -1,4 +1,4 @@
-export enum ScheduleFrequency {
+export enum Frequency {
   DAILY = 'DAILY',
   BIWEEKLY = 'BIWEEKLY',
   WEEKLY = 'WEEKLY',

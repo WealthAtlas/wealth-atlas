@@ -6,14 +6,14 @@ import { Asset } from '../assets/Asset';
  * This entity tracks static percentage-based allocations where users manually define
  * what percentage of an asset's value is allocated toward achieving a specific goal.
  */
-export interface IAssetGoalAllocation {
+export interface IAllocation {
   id: number | undefined;
   assetId: number;
   goalId: number;
   allocationPercentage: number;
 }
 
-export class AssetGoalAllocation implements IAssetGoalAllocation {
+export class Allocation implements IAllocation {
   id: number | undefined;
   assetId: number;
   goalId: number;
@@ -26,7 +26,7 @@ export class AssetGoalAllocation implements IAssetGoalAllocation {
     goalId,
     allocationPercentage,
     asset,
-  }: IAssetGoalAllocation & { asset: Asset }) {
+  }: IAllocation & { asset: Asset }) {
     this.id = id;
     this.assetId = assetId;
     this.goalId = goalId;

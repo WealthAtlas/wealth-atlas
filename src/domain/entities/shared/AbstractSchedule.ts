@@ -1,4 +1,4 @@
-import { ScheduleFrequency } from './ScheduleFrequency';
+import { Frequency } from './Frequency';
 
 /**
  * Abstract base class for all scheduled entities (Expense, AssetTransaction, LoanPayment, etc).
@@ -10,7 +10,7 @@ export interface IScheduleBase {
   id: number | undefined;
   startDate: Date;
   endDate?: Date;
-  frequency: ScheduleFrequency;
+  frequency: Frequency;
   lastGeneratedDate?: Date;
 }
 
@@ -18,7 +18,7 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
   public readonly id: number | undefined;
   public readonly startDate: Date;
   public readonly endDate?: Date;
-  public readonly frequency: ScheduleFrequency;
+  public readonly frequency: Frequency;
   public readonly lastGeneratedDate?: Date;
 
   constructor({ id, startDate, endDate, frequency, lastGeneratedDate }: IScheduleBase) {
@@ -55,30 +55,30 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
    * @param dateTime The base date
    * @param frequency The frequency enum
    */
-  protected getNextOccurrenceDateTime(dateTime: Date, frequency: ScheduleFrequency): Date {
+  protected getNextOccurrenceDateTime(dateTime: Date, frequency: Frequency): Date {
     switch (frequency) {
-      case ScheduleFrequency.DAILY:
+      case Frequency.DAILY:
         return new Date(dateTime.getTime() + 24 * 60 * 60 * 1000);
-      case ScheduleFrequency.WEEKLY:
+      case Frequency.WEEKLY:
         return new Date(dateTime.getTime() + 7 * 24 * 60 * 60 * 1000);
-      case ScheduleFrequency.BIWEEKLY:
+      case Frequency.BIWEEKLY:
         return new Date(dateTime.getTime() + 14 * 24 * 60 * 60 * 1000);
-      case ScheduleFrequency.MONTHLY: {
+      case Frequency.MONTHLY: {
         const d = new Date(dateTime);
         d.setMonth(d.getMonth() + 1);
         return d;
       }
-      case ScheduleFrequency.QUARTERLY: {
+      case Frequency.QUARTERLY: {
         const d = new Date(dateTime);
         d.setMonth(d.getMonth() + 3);
         return d;
       }
-      case ScheduleFrequency.SEMI_ANNUALLY: {
+      case Frequency.SEMI_ANNUALLY: {
         const d = new Date(dateTime);
         d.setMonth(d.getMonth() + 6);
         return d;
       }
-      case ScheduleFrequency.ANNUALLY: {
+      case Frequency.ANNUALLY: {
         const d = new Date(dateTime);
         d.setFullYear(d.getFullYear() + 1);
         return d;

@@ -2,37 +2,36 @@ import { Delete, Edit } from '@mui/icons-material';
 import { Box, Chip, IconButton, TableCell, TableRow, Tooltip } from '@mui/material';
 import { useState } from 'react';
 import { Asset } from '../../../domain/entities/assets/Asset';
-import { AssetTransaction } from '../../../domain/entities/assets/AssetTransaction';
-import { TransactionFormContainer } from '../../containers/assets/transactions/TransactionFormContainer';
+import { Investment } from '../../../domain/entities/assets/Investment';
+import { InvestmentFormContainer } from '../../containers/assets/transactions/InvestmentFormContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
-export interface TransactionViewProps {
+export interface InvestmentViewProps {
   asset: Asset;
-  transaction: AssetTransaction;
-  addTransaction: () => void;
-  deleteTransaction: (id: number) => void;
+  transaction: Investment;
+  deleteInvestment: (id: number) => void;
   refresh: () => void;
 }
 
-export function TransactionView({
+export function InvestmentView({
   asset,
   transaction,
-  deleteTransaction,
+  deleteInvestment,
   refresh,
-}: TransactionViewProps) {
+}: InvestmentViewProps) {
   const [showTransactionEdit, setShowTransactionEdit] = useState<boolean>(false);
 
-  const getTotalAmount = (transaction: AssetTransaction): number => {
+  const getTotalAmount = (transaction: Investment): number => {
     return transaction.getTotalAmount();
   };
 
   return (
     <>
       {showTransactionEdit && (
-        <TransactionFormContainer
+        <InvestmentFormContainer
           open={showTransactionEdit}
           asset={asset}
-          transactionToEdit={transaction}
+          investmentToEdit={transaction}
           onClose={() => setShowTransactionEdit(false)}
           onSuccess={() => {
             setShowTransactionEdit(false);
@@ -73,8 +72,8 @@ export function TransactionView({
             <Tooltip title="Delete Transaction">
               <IconButton
                 size="small"
-                onClick={() => deleteTransaction(transaction.id!)}
-                aria-label="delete transaction"
+                onClick={() => deleteInvestment(transaction.id!)}
+                aria-label="delete investment"
                 color="error"
               >
                 <Delete fontSize="small" />

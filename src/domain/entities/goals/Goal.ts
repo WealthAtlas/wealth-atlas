@@ -1,4 +1,4 @@
-import { AssetGoalAllocation } from './AssetGoalAllocation';
+import { Allocation } from './Allocation';
 
 /**
  * Goal entity representing a financial objective with inflation-adjusted targeting
@@ -23,7 +23,7 @@ export class Goal implements IGoal {
   maturityDate: Date;
   inflationRate: number;
   currency: string;
-  assetAllocations: AssetGoalAllocation[];
+  allocations: Allocation[];
   createdAt: Date;
 
   constructor({
@@ -35,14 +35,14 @@ export class Goal implements IGoal {
     currency,
     assetAllocations,
     createdAt,
-  }: IGoal & { assetAllocations: AssetGoalAllocation[]; createdAt: Date }) {
+  }: IGoal & { assetAllocations: Allocation[]; createdAt: Date }) {
     this.id = id;
     this.name = name.trim();
     this.targetAmount = targetAmount;
     this.maturityDate = maturityDate;
     this.inflationRate = inflationRate;
     this.currency = currency;
-    this.assetAllocations = assetAllocations;
+    this.allocations = assetAllocations;
     this.createdAt = createdAt;
   }
 

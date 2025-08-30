@@ -1,24 +1,21 @@
 import { ValueFetcher } from '../../data/apis/ValueFetcher';
 import { AssetRepository } from '../../data/repositories/assets/AssetRepository';
-import { AssetTransactionRepository } from '../../data/repositories/assets/AssetTransactionRepository';
-import { ScheduledAssetTransactionRepository } from '../../data/repositories/assets/ScheduledAssetTransactionRepository';
+import { InvestmentRepository } from '../../data/repositories/assets/InvestmentRepository';
+import { SIPRepository } from '../../data/repositories/assets/SIPRepository';
 import { Asset, IAsset } from '../entities/assets/Asset';
-import { AssetTransaction, IAssetTransaction } from '../entities/assets/AssetTransaction';
-import {
-  IScheduledAssetTransaction,
-  ScheduledAssetTransaction,
-} from '../entities/assets/ScheduledAssetTransaction';
+import { IInvestment, Investment } from '../entities/assets/Investment';
+import { ISIP, SIP } from '../entities/assets/SIP';
 
 export class AssetService {
   private readonly assetRepository: AssetRepository;
-  private readonly transactionRepository: AssetTransactionRepository;
-  private readonly scheduledTransactionRepository: ScheduledAssetTransactionRepository;
+  private readonly inestmentRepository: InvestmentRepository;
+  private readonly sipRepository: SIPRepository;
   private readonly valueFetcher: ValueFetcher;
 
   constructor() {
     this.assetRepository = new AssetRepository();
-    this.transactionRepository = new AssetTransactionRepository();
-    this.scheduledTransactionRepository = new ScheduledAssetTransactionRepository();
+    this.inestmentRepository = new InvestmentRepository();
+    this.sipRepository = new SIPRepository();
     this.valueFetcher = new ValueFetcher();
   }
 
@@ -35,8 +32,8 @@ export class AssetService {
   public async deleteAsset(id: number): Promise<void> {
     await this.assetRepository
       .delete(id)
-      .then(() => this.transactionRepository.deleteByAssetId(id))
-      .then(() => this.scheduledTransactionRepository.deleteByAssetId(id));
+      .then(() => this.inestmentRepository.deleteByAssetId(id))
+      .then(() => this.sipRepository.deleteByAssetId(id));
   }
 
   public async getAssetById(id: number): Promise<Asset> {
@@ -54,62 +51,56 @@ export class AssetService {
     );
   }
 
-  public async addTransaction(transaction: IAssetTransaction): Promise<AssetTransaction> {
-    const createdTransaction = await this.transactionRepository.create(transaction);
-    return new AssetTransaction({
+  public async addInvestment(investment: IInvestment): Promise<Investment> {
+    const createdTransaction = await this.inestmentRepository.create(investment);
+    return new Investment({
       ...createdTransaction,
     });
   }
 
-  public async updateTransaction(transaction: IAssetTransaction): Promise<AssetTransaction> {
-    const updatedTransaction = await this.transactionRepository.update(transaction);
-    return new AssetTransaction({
+  public async updateInvestment(investment: IInvestment): Promise<Investment> {
+    const updatedTransaction = await this.inestmentRepository.update(investment);
+    return new Investment({
       ...updatedTransaction,
     });
   }
 
-  public async getTransactionsByAssetId(assetId: number): Promise<AssetTransaction[]> {
-    return (await this.transactionRepository.getByAssetId(assetId)).map(transaction => {
-      return new AssetTransaction({
+  public async getInvestmentByAssetId(assetId: number): Promise<Investment[]> {
+    return (await this.inestmentRepository.getByAssetId(assetId)).map(transaction => {
+      return new Investment({
         ...transaction,
       });
     });
   }
 
-  public async deleteTransaction(id: number): Promise<void> {
-    await this.transactionRepository.delete(id);
+  public async deleteInvestment(id: number): Promise<void> {
+    await this.inestmentRepository.delete(id);
   }
 
-  public async addScheduledTransaction(
-    transaction: IScheduledAssetTransaction
-  ): Promise<ScheduledAssetTransaction> {
-    const createdTransaction = await this.scheduledTransactionRepository.create(transaction);
-    return new ScheduledAssetTransaction({
+  public async addSIP(sip: ISIP): Promise<SIP> {
+    const createdTransaction = await this.sipRepository.create(sip);
+    return new SIP({
       ...createdTransaction,
     });
   }
 
-  public async updateScheduledTransaction(
-    transaction: IScheduledAssetTransaction
-  ): Promise<ScheduledAssetTransaction> {
-    const updatedTransaction = await this.scheduledTransactionRepository.update(transaction);
-    return new ScheduledAssetTransaction({
+  public async updateSIP(sip: ISIP): Promise<SIP> {
+    const updatedTransaction = await this.sipRepository.update(sip);
+    return new SIP({
       ...updatedTransaction,
     });
   }
 
-  public async getScheduledTransactionsByAssetId(
-    assetId: number
-  ): Promise<ScheduledAssetTransaction[]> {
-    return (await this.scheduledTransactionRepository.getByAssetId(assetId)).map(transaction => {
-      return new ScheduledAssetTransaction({
+  public async getSIPByAssetId(assetId: number): Promise<SIP[]> {
+    return (await this.sipRepository.getByAssetId(assetId)).map(transaction => {
+      return new SIP({
         ...transaction,
       });
     });
   }
 
-  public async deleteScheduledTransaction(id: number): Promise<void> {
-    await this.scheduledTransactionRepository.delete(id);
+  public async deleteSIP(id: number): Promise<void> {
+    await this.sipRepository.delete(id);
   }
 
   public async updateValues(): Promise<void> {
@@ -128,14 +119,14 @@ export class AssetService {
     });
   }
 
-  public async createScheduledTransactions(): Promise<void> {
+  public async createSIPInvestments(): Promise<void> {
     return this.getAssets().then(async assets => {
       for (const asset of assets) {
-        const scheduledTransactions = await this.getScheduledTransactionsByAssetId(asset.id!);
-        for (const scheduledTransaction of scheduledTransactions) {
-          const pendingTransactions = scheduledTransaction.getPendingOccurences(new Date());
-          for (const transaction of pendingTransactions) {
-            await this.transactionRepository.create(transaction);
+        const sip = await this.getSIPByAssetId(asset.id!);
+        for (const scheduledInvestment of sip) {
+          const pendingInvestments = scheduledInvestment.getPendingOccurences(new Date());
+          for (const investment of pendingInvestments) {
+            await this.inestmentRepository.create(investment);
           }
         }
       }
@@ -143,11 +134,11 @@ export class AssetService {
   }
 
   private async toAsset(data: IAsset): Promise<Asset> {
-    const transactions = await this.getTransactionsByAssetId(data.id!);
-    const sips = await this.getScheduledTransactionsByAssetId(data.id!);
+    const investments = await this.getInvestmentByAssetId(data.id!);
+    const sips = await this.getSIPByAssetId(data.id!);
     return new Asset({
       ...data,
-      transactions,
+      investments: investments,
       sips,
     });
   }

@@ -1,6 +1,6 @@
 import { IRRCalculator, Transaction } from '../shared/IRRCalculator';
-import { LoanPayment } from './LoanPayment';
-import { PaymentSchedule } from './PaymentSchedule';
+import { EMI } from './EMI';
+import { Payment } from './Payment';
 
 export interface ILoan {
   id: number | undefined;
@@ -20,8 +20,8 @@ export class Loan implements ILoan {
   public readonly principalAmount: number;
   public readonly currency: string;
   public readonly startDate: Date;
-  public readonly payments: LoanPayment[];
-  public readonly paymentSchedules: PaymentSchedule[];
+  public readonly payments: Payment[];
+  public readonly emis: EMI[];
 
   constructor({
     id,
@@ -32,8 +32,8 @@ export class Loan implements ILoan {
     startDate,
     description,
     payments,
-    paymentSchedules,
-  }: ILoan & { payments: LoanPayment[]; paymentSchedules: PaymentSchedule[] }) {
+    emis,
+  }: ILoan & { payments: Payment[]; emis: EMI[] }) {
     this.id = id;
     this.name = name;
     this.description = description;
@@ -42,7 +42,7 @@ export class Loan implements ILoan {
     this.currency = currency;
     this.startDate = startDate;
     this.payments = payments;
-    this.paymentSchedules = paymentSchedules;
+    this.emis = emis;
   }
 
   public getIRR(): number {
@@ -61,7 +61,7 @@ export class Loan implements ILoan {
     );
     // Future loan repayments
     transactions.push(
-      ...this.paymentSchedules.flatMap(schedule =>
+      ...this.emis.flatMap(schedule =>
         schedule.getPendingOccurences().map(payment => ({
           date: payment.date,
           amount: payment.amount,

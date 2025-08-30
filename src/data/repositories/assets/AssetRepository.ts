@@ -12,7 +12,7 @@ export class AssetRepository {
   }
 
   async getById(id: number): Promise<IAsset> {
-    return (await db.assets.get(id)) ?? Promise.reject(new Error('Asset not found'));
+    return (await db.assets.get(id))!;
   }
 
   async update(updates: IAsset): Promise<IAsset> {

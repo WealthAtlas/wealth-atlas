@@ -14,7 +14,7 @@ export default function App() {
       try {
         // Auto-convert scheduled transactions
         const investmentService = new AssetService();
-        await investmentService.createScheduledTransactions();
+        await investmentService.createSIPInvestments();
         await investmentService.updateValues();
 
         // Create scheduled expenses

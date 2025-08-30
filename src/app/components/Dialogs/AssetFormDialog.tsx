@@ -1,4 +1,4 @@
-import { AssetPricingModel } from '@/domain/entities/assets/AssetPricingModel';
+import { ValueModel } from '@/domain/entities/assets/ValueModel';
 import {
   Button,
   Dialog,
@@ -70,17 +70,15 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
         </TextField>
         <Select
           label="Pricing Model"
-          value={asset.pricingModel}
-          onChange={e =>
-            onAssetChange({ ...asset, pricingModel: e.target.value as AssetPricingModel })
-          }
+          value={asset.valueModel}
+          onChange={e => onAssetChange({ ...asset, valueModel: e.target.value as ValueModel })}
           fullWidth
         >
-          <MenuItem value={AssetPricingModel.MARKET_BASED}>Market Based</MenuItem>
-          <MenuItem value={AssetPricingModel.FIXED_INCOME}>Fixed Income</MenuItem>
-          <MenuItem value={AssetPricingModel.MATURITY_BASED}>Maturity Based</MenuItem>
+          <MenuItem value={ValueModel.MARKET_BASED}>Market Based</MenuItem>
+          <MenuItem value={ValueModel.FIXED_INCOME}>Fixed Income</MenuItem>
+          <MenuItem value={ValueModel.MATURITY_BASED}>Maturity Based</MenuItem>
         </Select>
-        {asset.pricingModel === AssetPricingModel.FIXED_INCOME && (
+        {asset.valueModel === ValueModel.FIXED_INCOME && (
           <TextField
             label="Interest Rate (%)"
             value={asset.interestRate || ''}
@@ -90,7 +88,7 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
             margin="normal"
           />
         )}
-        {asset.pricingModel === AssetPricingModel.MATURITY_BASED && (
+        {asset.valueModel === ValueModel.MATURITY_BASED && (
           <>
             <TextField
               label="Maturity Date"
@@ -118,7 +116,7 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
             />
           </>
         )}
-        {asset.pricingModel === AssetPricingModel.MARKET_BASED && (
+        {asset.valueModel === ValueModel.MARKET_BASED && (
           <>
             <TextField
               label="Market Value"

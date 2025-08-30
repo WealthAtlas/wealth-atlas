@@ -1,13 +1,13 @@
 import { AbstractSchedule, IScheduleBase } from '../shared/AbstractSchedule';
-import { LoanPayment } from './LoanPayment';
+import { Payment } from './Payment';
 
-export interface IPaymentSchedule extends IScheduleBase {
+export interface IEMI extends IScheduleBase {
   loanId: number;
   name: string;
   amount: number;
 }
 
-export class PaymentSchedule extends AbstractSchedule<LoanPayment> implements IPaymentSchedule {
+export class EMI extends AbstractSchedule<Payment> implements IEMI {
   public readonly loanId: number;
   public readonly name: string;
   public readonly amount: number;
@@ -21,15 +21,15 @@ export class PaymentSchedule extends AbstractSchedule<LoanPayment> implements IP
     startDate,
     endDate,
     lastGeneratedDate,
-  }: IPaymentSchedule) {
+  }: IEMI) {
     super({ id, startDate, endDate, frequency, lastGeneratedDate });
     this.loanId = loanId;
     this.name = name;
     this.amount = amount;
   }
 
-  protected createDataForOccurence(date: Date): LoanPayment {
-    return new LoanPayment({
+  protected createDataForOccurence(date: Date): Payment {
+    return new Payment({
       id: undefined,
       date: date,
       amount: this.amount,

@@ -1,9 +1,9 @@
-import { LoanPaymentRepository } from '../../data/repositories/loan/LoanPaymentRepository';
-import { LoanPaymentScheduleRepository } from '../../data/repositories/loan/LoanPaymentScheduleRepository';
+import { LoanPaymentRepository } from '../../data/repositories/loan/PaymentRepository';
+import { LoanPaymentScheduleRepository } from '../../data/repositories/loan/EMIRepository';
 import { LoanRepository } from '../../data/repositories/loan/LoanRepository';
+import { EMI, IEMI } from '../entities/loans/EMI';
 import { ILoan, Loan } from '../entities/loans/Loan';
-import { ILoanPayment, LoanPayment } from '../entities/loans/LoanPayment';
-import { IPaymentSchedule, PaymentSchedule } from '../entities/loans/PaymentSchedule';
+import { IPayment, Payment } from '../entities/loans/Payment';
 
 export interface LoanSummary {
   loan: Loan;
@@ -12,7 +12,7 @@ export interface LoanSummary {
   totalInterestPaid: number;
   nextPaymentDate?: Date;
   isFullyPaid: boolean;
-  overduePayments: LoanPayment[];
+  overduePayments: Payment[];
 }
 
 export class LoanService {
@@ -60,11 +60,11 @@ export class LoanService {
     await this.loanPaymentRepository.deleteByLoanId(id);
   }
 
-  async createPayment(payment: ILoanPayment): Promise<LoanPayment> {
+  async createPayment(payment: IPayment): Promise<Payment> {
     return this.loanPaymentRepository.create(payment);
   }
 
-  async updatePayment(payment: ILoanPayment): Promise<LoanPayment> {
+  async updatePayment(payment: IPayment): Promise<Payment> {
     return this.loanPaymentRepository.update(payment);
   }
 
@@ -72,22 +72,22 @@ export class LoanService {
     await this.loanPaymentRepository.delete(id);
   }
 
-  async createPaymentSchedule(schedule: IPaymentSchedule): Promise<PaymentSchedule> {
+  async createPaymentSchedule(schedule: IEMI): Promise<EMI> {
     const createdSchedule = await this.paymentScheduleRepository.create(schedule);
-    return new PaymentSchedule(createdSchedule);
+    return new EMI(createdSchedule);
   }
 
-  async updatePaymentSchedule(schedule: IPaymentSchedule): Promise<PaymentSchedule> {
+  async updatePaymentSchedule(schedule: IEMI): Promise<EMI> {
     const updatedSchedule = await this.paymentScheduleRepository.update(schedule);
-    return new PaymentSchedule(updatedSchedule);
+    return new EMI(updatedSchedule);
   }
 
-  async getPaymentSchedulesByLoan(loanId: number): Promise<PaymentSchedule[]> {
+  async getPaymentSchedulesByLoan(loanId: number): Promise<EMI[]> {
     const schedules = await this.paymentScheduleRepository.findByLoanId(loanId);
-    return schedules.map(schedule => new PaymentSchedule(schedule));
+    return schedules.map(schedule => new EMI(schedule));
   }
 
-  async getPaymentsByLoan(loanId: number): Promise<LoanPayment[]> {
+  async getPaymentsByLoan(loanId: number): Promise<Payment[]> {
     return this.loanPaymentRepository.getByLoanId(loanId);
   }
 
@@ -98,7 +98,7 @@ export class LoanService {
   async createScheduledLoanPayments(): Promise<void> {
     await this.paymentScheduleRepository.getAll().then(async schedules => {
       for (const schedule of schedules) {
-        const sch = new PaymentSchedule(schedule);
+        const sch = new EMI(schedule);
         sch.getPendingOccurences(new Date()).forEach(async occurrence => {
           await this.loanPaymentRepository.create({
             id: undefined,
@@ -119,7 +119,7 @@ export class LoanService {
       const totalPaid = loan.payments.reduce((sum, payment) => sum + payment.amount, 0);
       const remainingBalance = loan.principalAmount - totalPaid;
       const totalInterestPaid = loan.payments.reduce((sum, payment) => sum + payment.amount, 0); // Placeholder for actual interest calculation
-      const nextPaymentDate = loan.paymentSchedules
+      const nextPaymentDate = loan.emis
         .flatMap(schedule => schedule.getPendingOccurences())
         .map(occurrence => occurrence.date)
         .sort()[0];
@@ -139,13 +139,13 @@ export class LoanService {
 
   private async toLoan(data: ILoan): Promise<Loan> {
     const payments = await this.loanPaymentRepository.getByLoanId(data.id!);
-    const paymentSchedules = (await this.paymentScheduleRepository.findByLoanId(data.id!)).map(
-      schedule => new PaymentSchedule(schedule)
+    const emis = (await this.paymentScheduleRepository.findByLoanId(data.id!)).map(
+      schedule => new EMI(schedule)
     );
     return new Loan({
       ...data,
       payments,
-      paymentSchedules,
+      emis,
     });
   }
 }

@@ -13,7 +13,7 @@ export class GoalRepository {
   }
 
   async getById(id: string): Promise<IGoal> {
-    return (await database.goals.get(id)) ?? Promise.reject('Goal not found');
+    return (await database.goals.get(id))!;
   }
 
   async getAll(): Promise<IGoal[]> {

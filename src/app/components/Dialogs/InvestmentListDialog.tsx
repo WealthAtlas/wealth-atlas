@@ -1,5 +1,5 @@
 import { Asset } from '@/domain/entities/assets/Asset';
-import { AssetTransaction } from '@/domain/entities/assets/AssetTransaction';
+import { Investment } from '@/domain/entities/assets/Investment';
 import { Add, Close } from '@mui/icons-material';
 import {
   Box,
@@ -18,37 +18,37 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
-import { TransactionFormContainer } from '../../containers/assets/transactions/TransactionFormContainer';
-import { TransactionViewContainer } from '../../containers/assets/transactions/TransactionViewContainer';
+import { InvestmentFormContainer } from '../../containers/assets/transactions/InvestmentFormContainer';
+import { InvestmentViewContainer } from '../../containers/assets/transactions/InvestmentViewContainer';
 
-export interface TransactionListDialogProps {
+export interface InvestmentListDialogProps {
   open: boolean;
   asset: Asset;
-  transactions: AssetTransaction[];
+  investments: Investment[];
   onClose: () => void;
   refresh: () => void;
 }
 
-export function TransactionListDialog({
+export function InvestmentListDialog({
   open,
   asset,
-  transactions,
+  investments,
   onClose,
   refresh,
-}: TransactionListDialogProps) {
+}: InvestmentListDialogProps) {
   const [showAddTransaction, setShowAddTransaction] = useState<boolean>(false);
 
-  const sortedTransactions = [...transactions].sort(
+  const sortedTransactions = [...investments].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   return (
     <>
       {showAddTransaction && (
-        <TransactionFormContainer
+        <InvestmentFormContainer
           open={showAddTransaction}
           asset={asset}
-          transactionToEdit={undefined}
+          investmentToEdit={undefined}
           onClose={() => setShowAddTransaction(false)}
           onSuccess={() => {
             setShowAddTransaction(false);
@@ -107,11 +107,10 @@ export function TransactionListDialog({
                 </TableHead>
                 <TableBody>
                   {sortedTransactions.map(transaction => (
-                    <TransactionViewContainer
+                    <InvestmentViewContainer
                       key={transaction.id}
                       asset={asset}
                       transaction={transaction}
-                      addTransaction={() => setShowAddTransaction(true)}
                       refresh={refresh}
                     />
                   ))}

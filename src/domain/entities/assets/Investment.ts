@@ -1,27 +1,34 @@
-export interface IAssetTransaction {
+export enum InvestmentType {
+  BUY = 'buy',
+  SELL = 'sell',
+}
+
+export interface IInvestment {
   id: number | undefined;
   assetId: number;
+  type: InvestmentType;
   quantity: number | undefined;
   price: number; // Unit price (includes fees)
   date: Date;
 }
 
-export class AssetTransaction implements IAssetTransaction {
+export class Investment implements IInvestment {
   public readonly id: number | undefined;
   public readonly assetId: number;
+  public readonly type: InvestmentType;
   public readonly price: number;
   public readonly date: Date;
   public readonly quantity: number | undefined;
 
-  constructor({ id, assetId, price, date, quantity }: IAssetTransaction) {
-    this.id = id;
-    this.price = price;
-    this.date = date;
-    this.assetId = assetId;
-    this.quantity = quantity;
+  constructor(investment: IInvestment) {
+    this.id = investment.id;
+    this.price = investment.price;
+    this.date = investment.date;
+    this.assetId = investment.assetId;
+    this.quantity = investment.quantity;
+    this.type = investment.type;
   }
 
-  // Get total amount for this transaction
   getTotalAmount(): number {
     return (this.quantity || 1) * this.price;
   }

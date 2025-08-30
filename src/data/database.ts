@@ -1,26 +1,26 @@
 import Dexie, { Table } from 'dexie';
 import { IAsset } from '../domain/entities/assets/Asset';
-import { IAssetTransaction } from '../domain/entities/assets/AssetTransaction';
-import { IScheduledAssetTransaction } from '../domain/entities/assets/ScheduledAssetTransaction';
+import { IInvestment } from '../domain/entities/assets/Investment';
+import { ISIP } from '../domain/entities/assets/SIP';
+import { IAutoPay } from '../domain/entities/expenses/AutoPay';
 import { IExpense } from '../domain/entities/expenses/Expense';
-import { IScheduledExpense } from '../domain/entities/expenses/ScheduledExpense';
-import { IAssetGoalAllocation } from '../domain/entities/goals/AssetGoalAllocation';
+import { IAllocation } from '../domain/entities/goals/Allocation';
 import { IGoal } from '../domain/entities/goals/Goal';
+import { IEMI } from '../domain/entities/loans/EMI';
 import { ILoan } from '../domain/entities/loans/Loan';
-import { ILoanPayment } from '../domain/entities/loans/LoanPayment';
-import { IPaymentSchedule } from '../domain/entities/loans/PaymentSchedule';
+import { IPayment } from '../domain/entities/loans/Payment';
 
 export class WealthAtlasDB extends Dexie {
   assets!: Table<IAsset>;
-  assetTransactions!: Table<IAssetTransaction>;
-  scheduledAssetTransactions!: Table<IScheduledAssetTransaction>;
+  assetTransactions!: Table<IInvestment>;
+  sips!: Table<ISIP>;
   expenses!: Table<IExpense>;
-  scheduledExpenses!: Table<IScheduledExpense>;
+  autoPays!: Table<IAutoPay>;
   loans!: Table<ILoan>;
-  paymentSchedules!: Table<IPaymentSchedule>;
-  loanPayments!: Table<ILoanPayment>;
+  emis!: Table<IEMI>;
+  payments!: Table<IPayment>;
   goals!: Table<IGoal>;
-  assetGoalAllocations!: Table<IAssetGoalAllocation>;
+  allocations!: Table<IAllocation>;
 
   constructor() {
     super('WealthAtlasDB');
@@ -31,17 +31,15 @@ export class WealthAtlasDB extends Dexie {
     this.version(1).stores({
       assets: '++id, name, description, category, currency, currentMarketValue, valueUpdatedAt',
       assetTransactions: '++id, assetId, transactionType, quantity, price, date',
-      scheduledAssetTransactions:
-        '++id, assetId, transactionType, quantity, price, scheduledDate, frequency, endDate, totalOccurrences, isActive, isExecuted, executedTransactionId',
+      sips: '++id, assetId, transactionType, quantity, price, scheduledDate, frequency, endDate, totalOccurrences, isActive, isExecuted, executedTransactionId',
       expenses: '++id, amount, currency, date, category, isEssential, description',
-      scheduledExpenses:
+      autoPays:
         '++id, name, amount, currency, category, isEssential, frequency, startDate, endDate, lastGeneratedDate, description',
       loans: '++id, name, lenderName, principalAmount, currency, startDate, description',
-      paymentSchedules:
-        '++id, loanId, name, amount, frequency, startDate, endDate, lastGeneratedDate',
-      loanPayments: '++id, loanId, date, amount, isPaid, description',
+      emis: '++id, loanId, name, amount, frequency, startDate, endDate, lastGeneratedDate',
+      payments: '++id, loanId, date, amount, isPaid, description',
       goals: '++id, name, targetAmount, maturityDate, inflationRate, currency, createdAt',
-      assetGoalAllocations: '++id, assetId, goalId, allocationPercentage, createdAt',
+      allocations: '++id, assetId, goalId, allocationPercentage, createdAt',
     });
   }
 }

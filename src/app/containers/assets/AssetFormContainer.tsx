@@ -1,6 +1,6 @@
 import { Asset, IAsset } from '@/domain/entities/assets/Asset';
 import React, { useEffect, useState } from 'react';
-import { AssetPricingModel } from '../../../domain/entities/assets/AssetPricingModel';
+import { ValueModel } from '../../../domain/entities/assets/ValueModel';
 import { AssetService } from '../../../domain/services/AssetService';
 import { Logger } from '../../../domain/utils/Logger';
 import { AssetFormDialog } from '../../components/dialogs/AssetFormDialog';
@@ -13,20 +13,25 @@ export interface AssetFormContainer {
 }
 
 export function AssetFormContainer({ open, assetToEdit, onClose, onSuccess }: AssetFormContainer) {
-  const [asset, setAsset] = useState<IAsset>({
-    id: assetToEdit?.id,
-    name: assetToEdit?.name || '',
-    description: assetToEdit?.description || '',
-    category: assetToEdit?.category || '',
-    currency: assetToEdit?.currency || 'INR',
-    marketValue: assetToEdit?.marketValue || undefined,
-    marketValueUpdatedAt: assetToEdit?.marketValueUpdatedAt || undefined,
-    apiPath: assetToEdit?.apiPath || undefined,
-    interestRate: assetToEdit?.interestRate || undefined,
-    maturityAmount: assetToEdit?.maturityAmount || undefined,
-    maturityDate: assetToEdit?.maturityDate || undefined,
-    pricingModel: assetToEdit?.pricingModel || AssetPricingModel.MARKET_BASED,
-  });
+  const initialAsset: IAsset = React.useMemo(
+    () => ({
+      id: assetToEdit?.id,
+      name: assetToEdit?.name || '',
+      description: assetToEdit?.description || '',
+      category: assetToEdit?.category || '',
+      currency: assetToEdit?.currency || 'INR',
+      marketValue: assetToEdit?.marketValue || undefined,
+      marketValueUpdatedAt: assetToEdit?.marketValueUpdatedAt || undefined,
+      apiPath: assetToEdit?.apiPath || undefined,
+      interestRate: assetToEdit?.interestRate || undefined,
+      maturityAmount: assetToEdit?.maturityAmount || undefined,
+      maturityDate: assetToEdit?.maturityDate || undefined,
+      valueModel: assetToEdit?.valueModel || ValueModel.MARKET_BASED,
+    }),
+    [assetToEdit]
+  );
+
+  const [asset, setAsset] = useState<IAsset>(initialAsset);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const assetService = React.useMemo(() => new AssetService(), []);
@@ -34,22 +39,9 @@ export function AssetFormContainer({ open, assetToEdit, onClose, onSuccess }: As
   // Reset form data when assetToEdit changes or dialog opens
   useEffect(() => {
     if (open) {
-      setAsset({
-        id: assetToEdit?.id,
-        name: assetToEdit?.name || '',
-        description: assetToEdit?.description || '',
-        category: assetToEdit?.category || '',
-        currency: assetToEdit?.currency || 'INR',
-        marketValue: assetToEdit?.marketValue || undefined,
-        marketValueUpdatedAt: assetToEdit?.marketValueUpdatedAt || undefined,
-        apiPath: assetToEdit?.apiPath || undefined,
-        interestRate: assetToEdit?.interestRate || undefined,
-        maturityAmount: assetToEdit?.maturityAmount || undefined,
-        maturityDate: assetToEdit?.maturityDate || undefined,
-        pricingModel: assetToEdit?.pricingModel || AssetPricingModel.MARKET_BASED,
-      });
+      setAsset(initialAsset);
     }
-  }, [open, assetToEdit]);
+  }, [open, initialAsset]);
 
   const title = assetToEdit ? 'Edit Asset' : 'Add New Asset';
 
