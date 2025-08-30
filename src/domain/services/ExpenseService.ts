@@ -2,6 +2,7 @@ import { AutoPayRepository } from '../../data/repositories/expense/AutoPayReposi
 import { ExpenseRepository } from '../../data/repositories/expense/ExpenseRepository';
 import { AutoPay, IAutoPay } from '../entities/expenses/AutoPay';
 import { Expense, IExpense } from '../entities/expenses/Expense';
+import { MonthlyExpense } from '../entities/expenses/MonthlyExpense';
 
 export class ExpenseService {
   private readonly expenseRepository: ExpenseRepository;
@@ -20,10 +21,29 @@ export class ExpenseService {
     return await this.expenseRepository.getById(id).then(this.toExpense);
   }
 
-  public async getAllExpenses(): Promise<Expense[]> {
+  public async getExpenses(): Promise<Expense[]> {
     return await this.expenseRepository.getAll().then(async expenses => {
       const expensePromises = expenses.map(expense => this.toExpense(expense));
       return await Promise.all(expensePromises);
+    });
+  }
+
+  public async getMonthlyExpenses(): Promise<MonthlyExpense[]> {
+    return await this.expenseRepository.getAll().then(async expenses => {
+      const expensePromises = expenses.map(expense => this.toExpense(expense));
+      const resolvedExpenses = await Promise.all(expensePromises);
+
+      const monthlyExpensesMap = new Map<string, MonthlyExpense>();
+
+      resolvedExpenses.forEach(expense => {
+        const month = expense.date.toISOString().slice(0, 7); // Get YYYY-MM format
+        if (!monthlyExpensesMap.has(month)) {
+          monthlyExpensesMap.set(month, new MonthlyExpense(month, []));
+        }
+        monthlyExpensesMap.get(month)?.expenses.push(expense);
+      });
+
+      return Array.from(monthlyExpensesMap.values());
     });
   }
 

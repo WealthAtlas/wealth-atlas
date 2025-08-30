@@ -18,8 +18,8 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
-import { InvestmentFormContainer } from '../../containers/assets/transactions/InvestmentFormContainer';
-import { InvestmentViewContainer } from '../../containers/assets/transactions/InvestmentViewContainer';
+import { InvestmentFormContainer } from '../../containers/assets/investment/InvestmentFormContainer';
+import { InvestmentViewContainer } from '../../containers/assets/investment/InvestmentViewContainer';
 
 export interface InvestmentListDialogProps {
   open: boolean;

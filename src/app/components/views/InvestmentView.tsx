@@ -3,7 +3,7 @@ import { Box, Chip, IconButton, TableCell, TableRow, Tooltip } from '@mui/materi
 import { useState } from 'react';
 import { Asset } from '../../../domain/entities/assets/Asset';
 import { Investment } from '../../../domain/entities/assets/Investment';
-import { InvestmentFormContainer } from '../../containers/assets/transactions/InvestmentFormContainer';
+import { InvestmentFormContainer } from '../../containers/assets/investment/InvestmentFormContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
 export interface InvestmentViewProps {
