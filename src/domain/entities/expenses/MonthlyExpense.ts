@@ -2,7 +2,7 @@ import { Expense } from './Expense';
 
 export class MonthlyExpense {
   constructor(
-    public month: string,
+    public month: Date,
     public expenses: Expense[]
   ) {}
 

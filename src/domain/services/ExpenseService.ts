@@ -36,9 +36,9 @@ export class ExpenseService {
       const monthlyExpensesMap = new Map<string, MonthlyExpense>();
 
       resolvedExpenses.forEach(expense => {
-        const month = expense.date.toISOString().slice(0, 7); // Get YYYY-MM format
+        const month = expense.date.toISOString().slice(0, 7); // YYYY-MM
         if (!monthlyExpensesMap.has(month)) {
-          monthlyExpensesMap.set(month, new MonthlyExpense(month, []));
+          monthlyExpensesMap.set(month, new MonthlyExpense(new Date(month), []));
         }
         monthlyExpensesMap.get(month)?.expenses.push(expense);
       });

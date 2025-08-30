@@ -52,7 +52,7 @@ export function ExpensesPage({ monthlyExpenses, expenseChartData }: ExpensesPage
               <List>
                 {monthlyExpenses.map(monthlyExpense => (
                   <MonthlyExpenseView
-                    key={monthlyExpense.month}
+                    key={monthlyExpense.month.toISOString()}
                     monthlyExpense={monthlyExpense}
                     refresh={() => {}}
                   />

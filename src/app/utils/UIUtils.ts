@@ -1,4 +1,8 @@
 export class UIUtils {
+  static formatMonth(month: Date): string {
+    return month.toLocaleString('default', { month: 'long', year: 'numeric' });
+  }
+
   public static formatCurrency(amount: number | undefined, currency: string): string {
     if (amount === undefined) return 'N/A';
 

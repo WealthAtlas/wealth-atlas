@@ -1,17 +1,9 @@
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import {
-  Box,
-  Collapse,
-  IconButton,
-  List,
-  ListItem,
-  TableCell,
-  TableRow,
-  Typography,
-} from '@mui/material';
+import { Box, Chip, Divider, IconButton, List, ListItem, Typography } from '@mui/material';
 import { useState } from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { ExpenseViewContainer } from '../../containers/expense/ExpenseViewContainer';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface MonthlyExpenseViewProps {
   monthlyExpense: MonthlyExpense;
@@ -21,38 +13,53 @@ export interface MonthlyExpenseViewProps {
 export function MonthlyExpenseView({ monthlyExpense, refresh }: MonthlyExpenseViewProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
+  const toggleExpand = () => setIsExpanded(!isExpanded);
+
   return (
-    <>
-      <TableRow>
-        <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton size="small" onClick={() => setIsExpanded(!isExpanded)}>
-              {isExpanded ? <ExpandLess /> : <ExpandMore />}
-            </IconButton>
-            <Typography variant="body1" sx={{ ml: 1 }}>
-              {monthlyExpense.month}
-            </Typography>
-          </Box>
-        </TableCell>
-        <TableCell align="right">
-          <Typography variant="body2" fontWeight="bold">
-            {monthlyExpense.getTotalExpenses().toLocaleString()}
+    <Box
+      sx={{ mb: 2, border: 1, borderColor: 'divider', borderRadius: 1, p: 2, cursor: 'pointer' }}
+      onClick={toggleExpand}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            {UIUtils.formatMonth(monthlyExpense.month)}
           </Typography>
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell colSpan={2} sx={{ p: 0 }}>
-          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-            <List disablePadding>
-              {monthlyExpense.expenses.map(expense => (
-                <ListItem key={expense.id} disableGutters>
-                  <ExpenseViewContainer expense={expense} refresh={refresh} />
-                </ListItem>
-              ))}
-            </List>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
+          <Typography variant="body2" color="text.secondary">
+            <Chip
+              label={`Total: ${monthlyExpense.getTotalExpenses().toLocaleString()}`}
+              color="primary"
+              size="small"
+              sx={{ mt: 1 }}
+            />
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+            {monthlyExpense.expenses.length} expenses
+          </Typography>
+          <IconButton
+            onClick={e => {
+              e.stopPropagation();
+              toggleExpand();
+            }}
+          >
+            {isExpanded ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        </Box>
+      </Box>
+      {isExpanded && (
+        <Box sx={{ mt: 2 }}>
+          <Divider sx={{ mb: 2 }} />
+          <List disablePadding>
+            {monthlyExpense.expenses.map(expense => (
+              <ListItem key={expense.id} disableGutters>
+                <ExpenseViewContainer expense={expense} refresh={refresh} />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      )}
+    </Box>
   );
 }
