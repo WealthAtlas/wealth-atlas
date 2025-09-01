@@ -2,6 +2,7 @@ import { Delete, Edit, List, Schedule } from '@mui/icons-material';
 import { Box, Card, CardContent, Chip, Grid, IconButton, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 import { Asset } from '../../../domain/entities/assets/Asset';
+import { AssetFormContainer } from '../../containers/assets/AssetFormContainer';
 import { InvestmentListContainer } from '../../containers/assets/investment/InvestmentListContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
@@ -13,6 +14,7 @@ export interface AssetViewProps {
 
 export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
   const [showViewTransactions, setShowViewTransactions] = useState<boolean>(false);
+  const [showEditAsset, setShowEditAsset] = useState<boolean>(false);
 
   return (
     <>
@@ -21,6 +23,15 @@ export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
         onClose={() => setShowViewTransactions(false)}
         asset={asset}
         refresh={refresh}
+      />
+      <AssetFormContainer
+        assetToEdit={asset}
+        onClose={() => setShowEditAsset(false)}
+        open={showEditAsset}
+        onSuccess={() => {
+          setShowEditAsset(false);
+          refresh();
+        }}
       />
       <Grid item xs={12} md={6} key={asset.id}>
         <Card elevation={2}>
@@ -53,7 +64,11 @@ export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Edit Asset">
-                    <IconButton size="small" onClick={() => {}} aria-label="edit asset">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowEditAsset(true)}
+                      aria-label="edit asset"
+                    >
                       <Edit fontSize="small" />
                     </IconButton>
                   </Tooltip>

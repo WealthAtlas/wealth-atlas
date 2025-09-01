@@ -1,5 +1,5 @@
 import { Add as AddIcon } from '@mui/icons-material';
-import { Box, Button, Card, CardContent, Fab, List, Typography } from '@mui/material';
+import { Box, Card, CardContent, Fab, List, Typography } from '@mui/material';
 import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { ExpenseFormContainer } from '../../containers/expense/ExpenseFormContainer';
@@ -25,9 +25,6 @@ export function ExpensesPage({ monthlyExpenses, expenseChartData }: ExpensesPage
       <Box sx={{ p: 3, pb: 10 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4">Expenses</Typography>
-          <Button variant="outlined" onClick={() => setShowAddExpense(true)}>
-            Add Expense
-          </Button>
         </Box>
 
         <Card sx={{ mb: 3 }}>
