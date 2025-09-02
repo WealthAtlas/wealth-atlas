@@ -1,12 +1,4 @@
-import {
-  Delete,
-  Edit,
-  List,
-  Schedule,
-  TrendingDown,
-  TrendingFlat,
-  TrendingUp,
-} from '@mui/icons-material';
+import { Delete, Edit, List, TrendingDown, TrendingFlat, TrendingUp } from '@mui/icons-material';
 import {
   Box,
   Card,
@@ -22,16 +14,17 @@ import { useState } from 'react';
 import { Asset } from '../../../domain/entities/assets/Asset';
 import { ValueModel } from '../../../domain/entities/assets/ValueModel';
 import { AssetFormContainer } from '../../containers/assets/AssetFormContainer';
-import { InvestmentListContainer } from '../../containers/assets/investment/InvestmentListContainer';
 import { UIUtils } from '../../utils/UIUtils';
+import { InvestmentListDialog } from '../dialogs/InvestmentListDialog';
 
 export interface AssetViewProps {
   asset: Asset;
   deleteAsset: (id: number) => void;
+  deleteInvestment: (id: number) => void;
   refresh: () => void;
 }
 
-export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
+export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: AssetViewProps) {
   const [showViewTransactions, setShowViewTransactions] = useState<boolean>(false);
   const [showEditAsset, setShowEditAsset] = useState<boolean>(false);
 
@@ -76,10 +69,12 @@ export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
 
   return (
     <>
-      <InvestmentListContainer
+      <InvestmentListDialog
         open={showViewTransactions}
-        onClose={() => setShowViewTransactions(false)}
         asset={asset}
+        investments={asset.getTransactions(new Date(), false)}
+        deleteInvestment={deleteInvestment}
+        onClose={() => setShowViewTransactions(false)}
         refresh={refresh}
       />
       <AssetFormContainer
@@ -157,16 +152,6 @@ export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
                     sx={{ bgcolor: 'action.hover' }}
                   >
                     <List fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="View SIPs">
-                  <IconButton
-                    size="small"
-                    onClick={() => {}}
-                    aria-label="view SIPs"
-                    sx={{ bgcolor: 'action.hover' }}
-                  >
-                    <Schedule fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Edit Asset">

@@ -3,16 +3,31 @@ import { Add } from '@mui/icons-material';
 import { Box, Button, CircularProgress, Fab, Grid, Paper, Typography } from '@mui/material';
 import React from 'react';
 import { AssetFormContainer } from '../../containers/assets/AssetFormContainer';
-import { AssetViewContainer } from '../../containers/assets/AssetViewContainer';
 import { UIUtils } from '../../utils/UIUtils';
+import { AssetView } from '../views/AssetView';
 
 export interface AssetsPageProps {
   assets: Asset[];
   isLoading: boolean;
   refresh: () => void;
+  deleteAsset: (id: number) => void;
+  deleteInvestment: (id: number) => void;
+  portfolioMetrics: {
+    totalValue: number;
+    totalInvested: number;
+    totalProfitLoss: number;
+    totalProfitLossPercentage: number;
+  };
 }
 
-export function AssetsPage({ assets, isLoading, refresh }: AssetsPageProps) {
+export function AssetsPage({
+  assets,
+  isLoading,
+  refresh,
+  deleteAsset,
+  deleteInvestment,
+  portfolioMetrics,
+}: AssetsPageProps) {
   const [showAddAsset, setShowAddAsset] = React.useState(false);
 
   if (isLoading) {
@@ -52,20 +67,28 @@ export function AssetsPage({ assets, isLoading, refresh }: AssetsPageProps) {
                 <Typography variant="body2" color="text.secondary">
                   Total Value
                 </Typography>
-                <Typography variant="h6">{UIUtils.formatCurrency(0, 'USD')}</Typography>
+                <Typography variant="h6">
+                  {UIUtils.formatCurrency(portfolioMetrics.totalValue, 'INR')}
+                </Typography>
               </Box>
               <Box>
                 <Typography variant="body2" color="text.secondary">
                   Total Invested
                 </Typography>
-                <Typography variant="h6">{UIUtils.formatCurrency(0, 'USD')}</Typography>
+                <Typography variant="h6">
+                  {UIUtils.formatCurrency(portfolioMetrics.totalInvested, 'INR')}
+                </Typography>
               </Box>
               <Box>
                 <Typography variant="body2" color="text.secondary">
                   Total P&L
                 </Typography>
-                <Typography variant="h6" color={'success.main'}>
-                  {UIUtils.formatCurrency(0, 'USD')}({UIUtils.formatPercentage(0)})
+                <Typography
+                  variant="h6"
+                  color={portfolioMetrics.totalProfitLoss >= 0 ? 'success.main' : 'error.main'}
+                >
+                  {UIUtils.formatCurrency(portfolioMetrics.totalProfitLoss, 'INR')} (
+                  {UIUtils.formatPercentage(portfolioMetrics.totalProfitLossPercentage)})
                 </Typography>
               </Box>
             </Box>
@@ -74,7 +97,13 @@ export function AssetsPage({ assets, isLoading, refresh }: AssetsPageProps) {
 
         <Grid container spacing={3}>
           {assets.map(asset => (
-            <AssetViewContainer key={asset.id} asset={asset} refresh={refresh} />
+            <AssetView
+              key={asset.id}
+              asset={asset}
+              deleteAsset={deleteAsset}
+              deleteInvestment={deleteInvestment}
+              refresh={refresh}
+            />
           ))}
         </Grid>
 

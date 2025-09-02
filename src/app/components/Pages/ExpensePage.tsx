@@ -9,9 +9,16 @@ import { MonthlyExpenseView } from '../views/MonthlyExpenseView';
 export interface ExpensesPageProps {
   monthlyExpenses: MonthlyExpense[];
   expenseChartData: ExpenseChartProps;
+  deleteExpense: (id: number) => void;
+  refresh: () => void;
 }
 
-export function ExpensesPage({ monthlyExpenses, expenseChartData }: ExpensesPageProps) {
+export function ExpensesPage({
+  monthlyExpenses,
+  expenseChartData,
+  deleteExpense,
+  refresh,
+}: ExpensesPageProps) {
   const [showAddExpense, setShowAddExpense] = React.useState(false);
 
   return (
@@ -51,7 +58,8 @@ export function ExpensesPage({ monthlyExpenses, expenseChartData }: ExpensesPage
                   <MonthlyExpenseView
                     key={monthlyExpense.month.toISOString()}
                     monthlyExpense={monthlyExpense}
-                    refresh={() => {}}
+                    deleteExpense={deleteExpense}
+                    refresh={refresh}
                   />
                 ))}
               </List>

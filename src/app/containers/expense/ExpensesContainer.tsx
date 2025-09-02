@@ -17,13 +17,30 @@ export function ExpensesContainer() {
     }
   }, [expenseService]);
 
+  const deleteExpense = useCallback(
+    async (id: number) => {
+      try {
+        await expenseService.deleteExpense(id);
+        await loadExpenses();
+      } catch (error) {
+        Logger.error('Failed to delete expense:', error);
+      }
+    },
+    [expenseService, loadExpenses]
+  );
+
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
 
   return (
     <>
-      <ExpensesPage monthlyExpenses={monthlyExpenses} expenseChartData={{ monthlyData: [] }} />
+      <ExpensesPage
+        monthlyExpenses={monthlyExpenses}
+        expenseChartData={{ monthlyData: [] }}
+        deleteExpense={deleteExpense}
+        refresh={loadExpenses}
+      />
     </>
   );
 }

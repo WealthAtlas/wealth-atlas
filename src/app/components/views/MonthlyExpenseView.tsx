@@ -2,15 +2,20 @@ import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { Box, Chip, Divider, IconButton, List, ListItem, Typography } from '@mui/material';
 import { useState } from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
-import { ExpenseViewContainer } from '../../containers/expense/ExpenseViewContainer';
 import { UIUtils } from '../../utils/UIUtils';
+import { ExpenseView } from './ExpenseView';
 
 export interface MonthlyExpenseViewProps {
   monthlyExpense: MonthlyExpense;
+  deleteExpense: (id: number) => void;
   refresh: () => void;
 }
 
-export function MonthlyExpenseView({ monthlyExpense, refresh }: MonthlyExpenseViewProps) {
+export function MonthlyExpenseView({
+  monthlyExpense,
+  deleteExpense,
+  refresh,
+}: MonthlyExpenseViewProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
@@ -54,7 +59,7 @@ export function MonthlyExpenseView({ monthlyExpense, refresh }: MonthlyExpenseVi
           <List disablePadding>
             {monthlyExpense.expenses.map(expense => (
               <ListItem key={expense.id} disableGutters>
-                <ExpenseViewContainer expense={expense} refresh={refresh} />
+                <ExpenseView expense={expense} refresh={refresh} deleteExpense={deleteExpense} />
               </ListItem>
             ))}
           </List>

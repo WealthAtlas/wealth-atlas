@@ -19,12 +19,13 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import { InvestmentFormContainer } from '../../containers/assets/investment/InvestmentFormContainer';
-import { InvestmentViewContainer } from '../../containers/assets/investment/InvestmentViewContainer';
+import { InvestmentView } from '../views/InvestmentView';
 
 export interface InvestmentListDialogProps {
   open: boolean;
   asset: Asset;
   investments: Investment[];
+  deleteInvestment: (id: number) => void;
   onClose: () => void;
   refresh: () => void;
 }
@@ -33,6 +34,7 @@ export function InvestmentListDialog({
   open,
   asset,
   investments,
+  deleteInvestment,
   onClose,
   refresh,
 }: InvestmentListDialogProps) {
@@ -107,11 +109,12 @@ export function InvestmentListDialog({
                 </TableHead>
                 <TableBody>
                   {sortedTransactions.map(transaction => (
-                    <InvestmentViewContainer
+                    <InvestmentView
                       key={transaction.id}
                       asset={asset}
                       transaction={transaction}
                       refresh={refresh}
+                      deleteInvestment={deleteInvestment}
                     />
                   ))}
                 </TableBody>
