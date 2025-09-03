@@ -263,9 +263,15 @@ export class SyncService {
     setAutoSyncEnabled(enabled);
     if (!enabled) {
       setPassphrase(undefined);
+      // Import AutoSyncService here to avoid circular dependency
+      import('./AutoSyncService').then(({ AutoSyncService }) => {
+        AutoSyncService.stopListening();
+      });
     } else {
-      // If enabling auto-sync but no passphrase is stored,
-      // the user will need to enter it in the UI and it will be stored on next sync operation
+      // Import AutoSyncService here to avoid circular dependency
+      import('./AutoSyncService').then(({ AutoSyncService }) => {
+        AutoSyncService.startListening();
+      });
     }
   }
 

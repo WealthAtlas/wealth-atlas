@@ -3,6 +3,7 @@ import { db } from '../../database';
 
 export class AssetRepository {
   async create(asset: IAsset): Promise<IAsset> {
+    // Auto-sync: This operation will automatically trigger sync if enabled
     const id = await db.assets.add(asset);
     return { ...asset, id };
   }
@@ -16,11 +17,13 @@ export class AssetRepository {
   }
 
   async update(updates: IAsset): Promise<IAsset> {
+    // Auto-sync: This operation will automatically trigger sync if enabled
     await db.assets.update(updates.id, updates);
     return { ...updates };
   }
 
   async delete(id: number): Promise<void> {
+    // Auto-sync: This operation will automatically trigger sync if enabled
     await db.assets.delete(id);
   }
 }

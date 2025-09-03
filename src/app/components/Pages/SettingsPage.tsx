@@ -7,6 +7,8 @@ import {
   Key,
   Link,
   LinkOff,
+  Sync,
+  SyncProblem,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -15,9 +17,12 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
+  FormControlLabel,
   IconButton,
   Paper,
   Stack,
+  Switch,
   TextField,
   Toolbar,
   Typography,
@@ -31,6 +36,12 @@ export interface SettingsPageProps {
   lastRemoteVersion?: number;
   lastSyncAt?: string;
   hasStoredPassphrase: boolean;
+  autoSyncEnabled?: boolean;
+  autoSyncStatus?: {
+    isListening: boolean;
+    hasPendingSync: boolean;
+    syncConfigured: boolean;
+  };
   // Handlers
   onSetup: (passphrase: string) => void;
   onLink: (keyId: string, passphrase: string) => void;
@@ -38,6 +49,8 @@ export interface SettingsPageProps {
   onPull: () => void;
   onChangePassphrase: (oldPass: string, newPass: string) => void;
   onUnlink: () => void;
+  onToggleAutoSync?: (enabled: boolean) => void;
+  onForceSync?: () => void;
   onBack: () => void;
 }
 
@@ -120,6 +133,57 @@ export function SettingsPage(props: SettingsPageProps) {
                         </Typography>
                         <Typography variant="body2">{props.lastSyncAt ?? 'Never'}</Typography>
                       </Stack>
+                    </Stack>
+                  </CardContent>
+                </Card>
+
+                {/* Auto-sync controls */}
+                <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Automatic Sync
+                    </Typography>
+                    <Stack spacing={2}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={props.autoSyncEnabled ?? false}
+                            onChange={e => props.onToggleAutoSync?.(e.target.checked)}
+                          />
+                        }
+                        label="Enable automatic sync on data changes"
+                      />
+
+                      {props.autoSyncStatus && (
+                        <Stack spacing={1}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="body2" color="text.secondary">
+                              Status:
+                            </Typography>
+                            <Chip
+                              icon={props.autoSyncStatus.isListening ? <Sync /> : <SyncProblem />}
+                              label={props.autoSyncStatus.isListening ? 'Listening' : 'Not Active'}
+                              size="small"
+                              color={props.autoSyncStatus.isListening ? 'success' : 'default'}
+                            />
+                            {props.autoSyncStatus.hasPendingSync && (
+                              <Chip label="Sync Pending" size="small" color="warning" />
+                            )}
+                          </Stack>
+
+                          {props.autoSyncStatus.syncConfigured && props.onForceSync && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<Sync />}
+                              onClick={props.onForceSync}
+                              sx={{ alignSelf: 'flex-start' }}
+                            >
+                              Force Sync Now
+                            </Button>
+                          )}
+                        </Stack>
+                      )}
                     </Stack>
                   </CardContent>
                 </Card>

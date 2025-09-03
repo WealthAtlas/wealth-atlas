@@ -8,6 +8,7 @@ import { IGoal } from '../domain/entities/goals/Goal';
 import { IEMI } from '../domain/entities/loans/EMI';
 import { ILoan } from '../domain/entities/loans/Loan';
 import { IPayment } from '../domain/entities/loans/Payment';
+import { AutoSyncService } from './sync/AutoSyncService';
 
 export class WealthAtlasDB extends Dexie {
   assets!: Table<IAsset>;
@@ -23,6 +24,7 @@ export class WealthAtlasDB extends Dexie {
   constructor() {
     super('WealthAtlasDB');
     this.setupSchema();
+    this.setupAutoSync();
   }
 
   private setupSchema(): void {
@@ -36,6 +38,13 @@ export class WealthAtlasDB extends Dexie {
       payments: '++id, loanId, date, amount, isPaid, description',
       goals: '++id, name, targetAmount, maturityDate, inflationRate, currency, createdAt',
       allocations: '++id, assetId, goalId, allocationPercentage, createdAt',
+    });
+  }
+
+  private setupAutoSync(): void {
+    // Initialize auto-sync service when database is ready
+    this.on('ready', () => {
+      AutoSyncService.startListening();
     });
   }
 }
