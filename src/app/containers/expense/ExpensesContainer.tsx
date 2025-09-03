@@ -37,7 +37,6 @@ export function ExpensesContainer() {
     <>
       <ExpensesPage
         monthlyExpenses={monthlyExpenses}
-        expenseChartData={{ monthlyData: [] }}
         deleteExpense={deleteExpense}
         refresh={loadExpenses}
       />

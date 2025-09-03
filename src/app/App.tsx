@@ -2,7 +2,6 @@ import { Logger } from '@/domain/utils/Logger';
 import { useEffect } from 'react';
 import { SyncService } from '../data/sync/Syncer';
 import { AssetService } from '../domain/services/AssetService';
-import { ExpenseService } from '../domain/services/ExpenseService';
 import { LoanService } from '../domain/services/LoanService';
 import { AppRouter } from './router/AppRouter';
 import { AppThemeProvider } from './theme/AppThemeProvider';
@@ -16,10 +15,6 @@ export default function App() {
         const investmentService = new AssetService();
         await investmentService.createSIPInvestments();
         await investmentService.updateValues();
-
-        // Create scheduled expenses
-        const expenseService = new ExpenseService();
-        await expenseService.createScheduledExpenses();
 
         const loanService = new LoanService();
         await loanService.createScheduledLoanPayments();

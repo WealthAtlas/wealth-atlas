@@ -32,7 +32,7 @@ export function MonthlyExpenseView({
           </Typography>
           <Typography variant="body2" color="text.secondary">
             <Chip
-              label={`Total: ${monthlyExpense.getTotalExpenses().toLocaleString()}`}
+              label={`Total: ${monthlyExpense.getTotalAmount().toLocaleString()}`}
               color="primary"
               size="small"
               sx={{ mt: 1 }}

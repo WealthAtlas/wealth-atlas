@@ -67,7 +67,7 @@ export function ExpenseFormDialog({
               onChange={event =>
                 onFormDataChange({
                   ...formData,
-                  currency: event.target.value,
+                  currency: event.target.value as Currency,
                 })
               }
               label="Currency"

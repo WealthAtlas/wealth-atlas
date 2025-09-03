@@ -3,22 +3,16 @@ import { Box, Card, CardContent, Fab, List, Typography } from '@mui/material';
 import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { ExpenseFormContainer } from '../../containers/expense/ExpenseFormContainer';
-import { ExpenseChart, ExpenseChartProps } from '../views/ExpenseChart';
+import { ExpenseChart } from '../views/ExpenseChart';
 import { MonthlyExpenseView } from '../views/MonthlyExpenseView';
 
 export interface ExpensesPageProps {
   monthlyExpenses: MonthlyExpense[];
-  expenseChartData: ExpenseChartProps;
   deleteExpense: (id: number) => void;
   refresh: () => void;
 }
 
-export function ExpensesPage({
-  monthlyExpenses,
-  expenseChartData,
-  deleteExpense,
-  refresh,
-}: ExpensesPageProps) {
+export function ExpensesPage({ monthlyExpenses, deleteExpense, refresh }: ExpensesPageProps) {
   const [showAddExpense, setShowAddExpense] = React.useState(false);
 
   return (
@@ -39,7 +33,7 @@ export function ExpensesPage({
             <Typography variant="h6" gutterBottom>
               Monthly Expense Trends
             </Typography>
-            <ExpenseChart monthlyData={expenseChartData.monthlyData} />
+            <ExpenseChart monthlyExpenses={monthlyExpenses} />
           </CardContent>
         </Card>
 

@@ -5,7 +5,6 @@ export interface Snapshot {
     assetTransactions: unknown[];
     scheduledAssetTransactions: unknown[];
     expenses: unknown[];
-    scheduledExpenses: unknown[];
     loans: unknown[];
     paymentSchedules: unknown[];
     loanPayments: unknown[];

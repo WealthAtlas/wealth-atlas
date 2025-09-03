@@ -2,7 +2,6 @@ import Dexie, { Table } from 'dexie';
 import { IAsset } from '../domain/entities/assets/Asset';
 import { IInvestment } from '../domain/entities/assets/Investment';
 import { ISIP } from '../domain/entities/assets/SIP';
-import { IAutoPay } from '../domain/entities/expenses/AutoPay';
 import { IExpense } from '../domain/entities/expenses/Expense';
 import { IAllocation } from '../domain/entities/goals/Allocation';
 import { IGoal } from '../domain/entities/goals/Goal';
@@ -15,7 +14,6 @@ export class WealthAtlasDB extends Dexie {
   assetTransactions!: Table<IInvestment>;
   sips!: Table<ISIP>;
   expenses!: Table<IExpense>;
-  autoPays!: Table<IAutoPay>;
   loans!: Table<ILoan>;
   emis!: Table<IEMI>;
   payments!: Table<IPayment>;
@@ -33,8 +31,6 @@ export class WealthAtlasDB extends Dexie {
       assetTransactions: '++id, assetId, transactionType, quantity, price, date',
       sips: '++id, assetId, transactionType, quantity, price, scheduledDate, frequency, endDate, totalOccurrences, isActive, isExecuted, executedTransactionId',
       expenses: '++id, amount, currency, date, category, isEssential, description',
-      autoPays:
-        '++id, name, amount, currency, category, isEssential, frequency, startDate, endDate, lastGeneratedDate, description',
       loans: '++id, name, lenderName, principalAmount, currency, startDate, description',
       emis: '++id, loanId, name, amount, frequency, startDate, endDate, lastGeneratedDate',
       payments: '++id, loanId, date, amount, isPaid, description',

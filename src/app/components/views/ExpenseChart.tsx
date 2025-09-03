@@ -1,14 +1,11 @@
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { BarChart } from '@mui/x-charts';
 import React from 'react';
+import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
+import { Currency } from '../../../domain/entities/shared/Currency';
 
 export interface ExpenseChartProps {
-  monthlyData: Array<{
-    month: string;
-    currency: string;
-    essentialAmount: number;
-    nonEssentialAmount: number;
-  }>;
+  monthlyExpenses: MonthlyExpense[];
 }
 
 export function ExpenseChart(props: ExpenseChartProps) {
@@ -16,7 +13,7 @@ export function ExpenseChart(props: ExpenseChartProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const getCurrencyColor = React.useCallback(
-    (_currency: string, index: number) => {
+    (_currency: Currency, index: number) => {
       const colors = [
         { essential: theme.palette.primary.main, nonEssential: theme.palette.primary.light },
         { essential: theme.palette.secondary.main, nonEssential: theme.palette.secondary.light },
@@ -30,8 +27,11 @@ export function ExpenseChart(props: ExpenseChartProps) {
   );
 
   const chartData = React.useMemo(() => {
-    const months = Array.from(new Set(props.monthlyData.map(d => d.month))).sort();
-    const currencies = Array.from(new Set(props.monthlyData.map(d => d.currency))).sort();
+    const months = Array.from(
+      new Set(props.monthlyExpenses.map(d => d.month.toISOString().slice(0, 7)))
+    ).sort();
+
+    const currencies = Array.from(new Set(props.monthlyExpenses.map(d => d.currency))).sort();
 
     const displayMonths = isMobile ? months.slice(-3) : months.slice(-12);
 
@@ -64,12 +64,13 @@ export function ExpenseChart(props: ExpenseChartProps) {
         color: currencyColor.nonEssential,
       });
 
-      data.forEach((item, index) => {
-        const month = displayMonths[index];
-        const monthData = props.monthlyData.find(d => d.month === month && d.currency === currency);
+      data.forEach(item => {
+        const monthData = props.monthlyExpenses.find(
+          d => d.month.toISOString().slice(0, 7) === item.month && d.currency === currency
+        );
 
-        item[essentialKey] = monthData?.essentialAmount || 0;
-        item[nonEssentialKey] = monthData?.nonEssentialAmount || 0;
+        item[essentialKey] = monthData?.getEssentialAmount() || 0;
+        item[nonEssentialKey] = monthData?.getNonEssentialAmount() || 0;
       });
     });
 

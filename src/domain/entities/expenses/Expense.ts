@@ -1,7 +1,9 @@
+import { Currency } from '../shared/Currency';
+
 export interface IExpense {
   id: number | undefined;
   amount: number;
-  currency: string;
+  currency: Currency;
   date: Date;
   category: string;
   isEssential: boolean;
@@ -11,7 +13,7 @@ export interface IExpense {
 export class Expense implements IExpense {
   public readonly id: number | undefined;
   public readonly amount: number;
-  public readonly currency: string;
+  public readonly currency: Currency;
   public readonly date: Date;
   public readonly category: string;
   public readonly isEssential: boolean;

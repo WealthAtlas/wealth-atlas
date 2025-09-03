@@ -1,7 +1,6 @@
 import type { IAsset } from '@/domain/entities/assets/Asset';
 import type { IInvestment } from '@/domain/entities/assets/Investment';
 import type { ISIP } from '@/domain/entities/assets/SIP';
-import type { IAutoPay } from '@/domain/entities/expenses/AutoPay';
 import type { IExpense } from '@/domain/entities/expenses/Expense';
 import type { IAllocation } from '@/domain/entities/goals/Allocation';
 import type { IGoal } from '@/domain/entities/goals/Goal';
@@ -51,7 +50,6 @@ async function exportSnapshot(): Promise<Snapshot> {
     assetTransactions,
     scheduledAssetTransactions,
     expenses,
-    scheduledExpenses,
     loans,
     paymentSchedules,
     loanPayments,
@@ -62,7 +60,6 @@ async function exportSnapshot(): Promise<Snapshot> {
     db.assetTransactions.toArray(),
     db.sips.toArray(),
     db.expenses.toArray(),
-    db.autoPays.toArray(),
     db.loans.toArray(),
     db.emis.toArray(),
     db.payments.toArray(),
@@ -76,7 +73,6 @@ async function exportSnapshot(): Promise<Snapshot> {
       assetTransactions,
       scheduledAssetTransactions,
       expenses,
-      scheduledExpenses,
       loans,
       paymentSchedules,
       loanPayments,
@@ -99,7 +95,6 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
       db.assetTransactions,
       db.sips,
       db.expenses,
-      db.autoPays,
       db.loans,
       db.emis,
       db.payments,
@@ -113,7 +108,6 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
         db.payments.clear(),
         db.emis.clear(),
         db.loans.clear(),
-        db.autoPays.clear(),
         db.expenses.clear(),
         db.sips.clear(),
         db.assetTransactions.clear(),
@@ -124,7 +118,6 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
         assetTransactions?: IInvestment[];
         scheduledAssetTransactions?: ISIP[];
         expenses?: IExpense[];
-        scheduledExpenses?: IAutoPay[];
         loans?: ILoan[];
         paymentSchedules?: IEMI[];
         loanPayments?: IPayment[];
@@ -136,7 +129,6 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
       await db.assetTransactions.bulkPut(d.assetTransactions || []);
       await db.sips.bulkPut(d.scheduledAssetTransactions || []);
       await db.expenses.bulkPut(d.expenses || []);
-      await db.autoPays.bulkPut(d.scheduledExpenses || []);
       await db.loans.bulkPut(d.loans || []);
       await db.emis.bulkPut(d.paymentSchedules || []);
       await db.payments.bulkPut(d.loanPayments || []);
