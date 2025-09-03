@@ -36,11 +36,7 @@ export class ExpenseService {
       if (!monthlyExpensesMap.has(key)) {
         monthlyExpensesMap.set(
           key,
-          new MonthlyExpense(
-            new Date(expense.date.getFullYear(), expense.date.getMonth()),
-            expense.currency,
-            []
-          )
+          new MonthlyExpense(new Date(expense.date.getFullYear(), expense.date.getMonth()), [])
         );
       }
 
@@ -51,7 +47,7 @@ export class ExpenseService {
   }
 
   private generateMonthlyExpenseKey(expense: Expense): string {
-    return `${expense.date.getFullYear()}-${String(expense.date.getMonth() + 1).padStart(2, '0')}-${expense.currency}`;
+    return `${expense.date.getFullYear()}-${String(expense.date.getMonth() + 1).padStart(2, '0')}`;
   }
 
   public async updateExpense(expense: IExpense): Promise<Expense> {

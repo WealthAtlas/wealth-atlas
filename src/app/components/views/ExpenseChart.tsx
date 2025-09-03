@@ -31,7 +31,9 @@ export function ExpenseChart(props: ExpenseChartProps) {
       new Set(props.monthlyExpenses.map(d => d.month.toISOString().slice(0, 7)))
     ).sort();
 
-    const currencies = Array.from(new Set(props.monthlyExpenses.map(d => d.currency))).sort();
+    const currencies = Array.from(
+      new Set(props.monthlyExpenses.flatMap(d => d.getUniqueCurrencies()))
+    ).sort();
 
     const displayMonths = isMobile ? months.slice(-3) : months.slice(-12);
 
@@ -53,24 +55,24 @@ export function ExpenseChart(props: ExpenseChartProps) {
       series.push({
         dataKey: essentialKey,
         label: `${currency} - Essential`,
-        stack: currency,
+        stack: `${currency}`,
         color: currencyColor.essential,
       });
 
       series.push({
         dataKey: nonEssentialKey,
         label: `${currency} - Non-Essential`,
-        stack: currency,
+        stack: `${currency}`,
         color: currencyColor.nonEssential,
       });
 
       data.forEach(item => {
         const monthData = props.monthlyExpenses.find(
-          d => d.month.toISOString().slice(0, 7) === item.month && d.currency === currency
+          d => d.month.toISOString().slice(0, 7) === item.month
         );
 
-        item[essentialKey] = monthData?.getEssentialAmount() || 0;
-        item[nonEssentialKey] = monthData?.getNonEssentialAmount() || 0;
+        item[essentialKey] = monthData?.getEssentialAmountByCurrency(currency) || 0;
+        item[nonEssentialKey] = monthData?.getNonEssentialAmountByCurrency(currency) || 0;
       });
     });
 
@@ -101,29 +103,43 @@ export function ExpenseChart(props: ExpenseChartProps) {
     );
   }
 
+  // Calculate minimum width needed for the chart based on number of months and unique currencies
+  const uniqueCurrencies = Array.from(new Set(chartData.series.map(s => s.stack)));
+  const minChartWidth = chartData.displayMonths.length * (uniqueCurrencies.length * 80);
+  const chartWidth = Math.max(minChartWidth, isMobile ? 350 : 800);
+
   return (
     <Box
-      sx={{ width: '100%', height: isMobile ? 250 : 400, overflowX: isMobile ? 'auto' : 'visible' }}
+      sx={{
+        width: '100%',
+        height: isMobile ? 250 : 400,
+        overflowX: 'auto',
+      }}
     >
-      <BarChart
-        dataset={chartData.data}
-        series={chartData.series}
-        xAxis={[
-          {
-            scaleType: 'band',
-            dataKey: 'month',
-            valueFormatter: formatMonthLabel,
-          },
-        ]}
-        yAxis={[{}]}
-        height={isMobile ? 250 : 400}
-        margin={{
-          left: 80,
-          right: 30,
-          top: 30,
-          bottom: 60,
-        }}
-      />
+      <Box sx={{ width: chartWidth, height: '100%' }}>
+        <BarChart
+          dataset={chartData.data}
+          series={chartData.series}
+          xAxis={[
+            {
+              scaleType: 'band',
+              dataKey: 'month',
+              valueFormatter: formatMonthLabel,
+              categoryGapRatio: 0.3, // Controls gap between month groups
+              barGapRatio: 0.1, // Controls gap between currency stacks
+            },
+          ]}
+          yAxis={[{}]}
+          height={isMobile ? 250 : 400}
+          width={chartWidth}
+          margin={{
+            left: 80,
+            right: 30,
+            top: 30,
+            bottom: 60,
+          }}
+        />
+      </Box>
     </Box>
   );
 }

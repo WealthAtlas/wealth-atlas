@@ -4,23 +4,45 @@ import { Expense } from './Expense';
 export class MonthlyExpense {
   constructor(
     public month: Date,
-    public currency: Currency,
     public expenses: Expense[]
   ) {}
 
-  getTotalAmount(): number {
-    return this.expenses.reduce((total, expense) => total + expense.amount, 0);
+  // Multi-currency support methods
+  getExpensesByCurrency(): Map<Currency, Expense[]> {
+    const currencyMap = new Map<Currency, Expense[]>();
+
+    this.expenses.forEach(expense => {
+      const existingExpenses = currencyMap.get(expense.currency) || [];
+      currencyMap.set(expense.currency, [...existingExpenses, expense]);
+    });
+
+    return currencyMap;
   }
 
-  getEssentialAmount(): number {
+  getTotalAmountByCurrency(currency: Currency): number {
     return this.expenses
-      .filter(expense => expense.isEssential)
+      .filter(expense => expense.currency === currency)
       .reduce((total, expense) => total + expense.amount, 0);
   }
 
-  getNonEssentialAmount(): number {
+  getEssentialAmountByCurrency(currency: Currency): number {
     return this.expenses
-      .filter(expense => !expense.isEssential)
+      .filter(expense => expense.currency === currency && expense.isEssential)
       .reduce((total, expense) => total + expense.amount, 0);
+  }
+
+  getNonEssentialAmountByCurrency(currency: Currency): number {
+    return this.expenses
+      .filter(expense => expense.currency === currency && !expense.isEssential)
+      .reduce((total, expense) => total + expense.amount, 0);
+  }
+
+  getUniqueCurrencies(): Currency[] {
+    const currencies = new Set(this.expenses.map(expense => expense.currency));
+    return Array.from(currencies);
+  }
+
+  hasMultipleCurrencies(): boolean {
+    return this.getUniqueCurrencies().length > 1;
   }
 }
