@@ -450,18 +450,17 @@ export function MonthlyExpenseView({
                     </Typography>
                     <Stack spacing={1.5}>
                       {monthlyExpense.expenses.map(expense => (
-                        <Paper
+                        <Box
                           key={expense.id}
-                          elevation={1}
                           sx={{
                             p: 2,
                             borderRadius: 2,
                             transition: 'all 0.2s ease-in-out',
                             '&:hover': {
-                              elevation: 3,
-                              transform: 'translateY(-1px)',
+                              backgroundColor: 'rgba(0, 0, 0, 0.02)',
                             },
                             border: '1px solid rgba(0, 0, 0, 0.06)',
+                            backgroundColor: 'background.paper',
                           }}
                         >
                           <ExpenseCardView
@@ -469,7 +468,7 @@ export function MonthlyExpenseView({
                             refresh={refresh}
                             deleteExpense={deleteExpense}
                           />
-                        </Paper>
+                        </Box>
                       ))}
                     </Stack>
                   </>
@@ -611,18 +610,17 @@ export function MonthlyExpenseView({
                       </Typography>
                       <Stack spacing={1.5}>
                         {currencyExpenses.map(expense => (
-                          <Paper
+                          <Box
                             key={expense.id}
-                            elevation={1}
                             sx={{
                               p: 2,
                               borderRadius: 2,
                               transition: 'all 0.2s ease-in-out',
                               '&:hover': {
-                                elevation: 3,
-                                transform: 'translateY(-1px)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.02)',
                               },
                               border: '1px solid rgba(0, 0, 0, 0.06)',
+                              backgroundColor: 'background.paper',
                             }}
                           >
                             <ExpenseCardView
@@ -630,7 +628,7 @@ export function MonthlyExpenseView({
                               refresh={refresh}
                               deleteExpense={deleteExpense}
                             />
-                          </Paper>
+                          </Box>
                         ))}
                       </Stack>
                     </Paper>
