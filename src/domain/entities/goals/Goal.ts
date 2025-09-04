@@ -39,11 +39,11 @@ export class Goal implements IGoal {
     this.id = id;
     this.name = name.trim();
     this.targetAmount = targetAmount;
-    this.maturityDate = maturityDate;
+    this.maturityDate = new Date(maturityDate);
     this.inflationRate = inflationRate;
     this.currency = currency;
     this.allocations = assetAllocations;
-    this.createdAt = createdAt;
+    this.createdAt = new Date(createdAt);
   }
 
   /**

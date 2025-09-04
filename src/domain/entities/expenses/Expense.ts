@@ -23,7 +23,7 @@ export class Expense implements IExpense {
     this.id = id;
     this.amount = amount;
     this.currency = currency;
-    this.date = date;
+    this.date = new Date(date);
     this.category = category;
     this.isEssential = isEssential;
     this.description = description;

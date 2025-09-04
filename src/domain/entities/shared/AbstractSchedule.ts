@@ -23,10 +23,10 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
 
   constructor({ id, startDate, endDate, frequency, lastGeneratedDate }: IScheduleBase) {
     this.id = id;
-    this.startDate = startDate;
-    this.endDate = endDate;
+    this.startDate = new Date(startDate);
+    this.endDate = endDate ? new Date(endDate) : undefined;
     this.frequency = frequency;
-    this.lastGeneratedDate = lastGeneratedDate;
+    this.lastGeneratedDate = lastGeneratedDate ? new Date(lastGeneratedDate) : undefined;
   }
 
   /**

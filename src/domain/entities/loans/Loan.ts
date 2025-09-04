@@ -40,7 +40,7 @@ export class Loan implements ILoan {
     this.lenderName = lenderName;
     this.principalAmount = principalAmount;
     this.currency = currency;
-    this.startDate = startDate;
+    this.startDate = new Date(startDate);
     this.payments = payments;
     this.emis = emis;
   }

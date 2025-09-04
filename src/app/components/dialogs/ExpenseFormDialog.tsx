@@ -16,9 +16,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { SelectChangeEvent } from '@mui/material/Select';
 import { ChangeEvent } from 'react';
 import { IExpense } from '../../../domain/entities/expenses/Expense';
+import { SelectChangeEvent } from '@mui/material/Select';
 
 interface ExpenseFormDialogProps {
   open: boolean;

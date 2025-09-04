@@ -23,7 +23,7 @@ export class Investment implements IInvestment {
   constructor(investment: IInvestment) {
     this.id = investment.id;
     this.price = investment.price;
-    this.date = investment.date;
+    this.date = new Date(investment.date);
     this.assetId = investment.assetId;
     this.quantity = investment.quantity;
     this.type = investment.type;

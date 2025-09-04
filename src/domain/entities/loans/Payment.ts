@@ -16,7 +16,7 @@ export class Payment implements IPayment {
   constructor({ id, loanId, date, amount, description }: IPayment) {
     this.id = id;
     this.loanId = loanId;
-    this.date = date;
+    this.date = new Date(date);
     this.amount = amount;
     this.description = description;
   }
