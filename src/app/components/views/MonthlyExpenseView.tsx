@@ -1,20 +1,31 @@
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import {
+  AccountBalance,
+  AttachMoney,
+  CheckCircle,
+  ExpandLess,
+  ExpandMore,
+  ShoppingCart,
+  TrendingUp,
+  Warning,
+} from '@mui/icons-material';
 import {
   Box,
   Card,
   CardContent,
   Chip,
   Divider,
+  Grid,
   IconButton,
-  Table,
-  TableContainer,
+  LinearProgress,
+  Paper,
+  Stack,
   Tooltip,
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { UIUtils } from '../../utils/UIUtils';
-import { ExpenseView } from './ExpenseView';
+import { ExpenseCardView } from './ExpenseCardView';
 
 export interface MonthlyExpenseViewProps {
   monthlyExpense: MonthlyExpense;
@@ -49,36 +60,63 @@ export function MonthlyExpenseView({
 
   return (
     <Card
-      elevation={2}
+      elevation={3}
       sx={{
         mb: 3,
-        borderRadius: 2,
-        transition: 'all 0.2s ease-in-out',
+        borderRadius: 3,
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': {
-          boxShadow: 6,
+          elevation: 8,
+          transform: 'translateY(-2px)',
         },
+        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+        border: '1px solid rgba(0, 0, 0, 0.04)',
       }}
     >
       <CardContent
         sx={{
-          p: 2,
-          '&:last-child': { pb: 2 },
+          p: 3,
+          '&:last-child': { pb: 3 },
           cursor: 'pointer',
         }}
         onClick={toggleExpand}
       >
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-              {UIUtils.formatMonth(monthlyExpense.month)}
-            </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AttachMoney sx={{ color: 'white', fontSize: 24 }} />
+              </Box>
+              <Box>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                  {UIUtils.formatMonth(monthlyExpense.month)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Monthly expense summary
+                </Typography>
+              </Box>
+            </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+            <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1 }}>
               <Chip
+                icon={<ShoppingCart fontSize="small" />}
                 label={`${monthlyExpense.expenses.length} expenses`}
-                size="small"
-                color="default"
+                size="medium"
+                color="primary"
                 variant="outlined"
+                sx={{
+                  fontWeight: 600,
+                  '& .MuiChip-icon': { color: 'primary.main' },
+                }}
               />
               <Tooltip
                 title={
@@ -88,29 +126,36 @@ export function MonthlyExpenseView({
                 }
               >
                 <Chip
+                  icon={<TrendingUp fontSize="small" />}
                   label={getTotalForDisplay()}
-                  color="primary"
-                  size="small"
-                  sx={{ fontWeight: hasMultipleCurrencies ? 'bold' : 'normal' }}
+                  color="success"
+                  size="medium"
+                  sx={{
+                    fontWeight: hasMultipleCurrencies ? 700 : 600,
+                    '& .MuiChip-icon': { color: 'success.contrastText' },
+                  }}
                 />
               </Tooltip>
               {hasMultipleCurrencies && (
                 <Chip
+                  icon={<AccountBalance fontSize="small" />}
                   label={`${uniqueCurrencies.length} currencies`}
-                  size="small"
+                  size="medium"
                   color="secondary"
                   variant="outlined"
                   sx={{
+                    fontWeight: 600,
                     animation: 'pulse 2s infinite',
                     '@keyframes pulse': {
-                      '0%': { opacity: 1 },
-                      '50%': { opacity: 0.7 },
-                      '100%': { opacity: 1 },
+                      '0%': { opacity: 1, transform: 'scale(1)' },
+                      '50%': { opacity: 0.8, transform: 'scale(1.02)' },
+                      '100%': { opacity: 1, transform: 'scale(1)' },
                     },
+                    '& .MuiChip-icon': { color: 'secondary.main' },
                   }}
                 />
               )}
-            </Box>
+            </Stack>
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -120,7 +165,14 @@ export function MonthlyExpenseView({
                 toggleExpand();
               }}
               color="primary"
-              sx={{ ml: 1 }}
+              sx={{
+                ml: 1,
+                backgroundColor: 'primary.50',
+                '&:hover': {
+                  backgroundColor: 'primary.100',
+                  transform: 'scale(1.1)',
+                },
+              }}
             >
               {isExpanded ? <ExpandLess /> : <ExpandMore />}
             </IconButton>
@@ -128,7 +180,7 @@ export function MonthlyExpenseView({
         </Box>
 
         {/* Essential vs Non-essential breakdown */}
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 3 }}>
           {!hasMultipleCurrencies ? (
             // Single currency view
             (() => {
@@ -140,98 +192,179 @@ export function MonthlyExpenseView({
                 totalAmount > 0 ? Math.round((essentialAmount / totalAmount) * 100) : 0;
 
               return (
-                <>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                  }}
+                >
                   <Box
                     sx={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      mb: 1,
+                      mb: 2,
                       alignItems: 'center',
                     }}
                   >
-                    <Typography variant="body2" color="text.secondary">
-                      Essential vs Non-essential
-                    </Typography>
-                    <Typography variant="body2" fontWeight="medium">
-                      {essentialPercentage}% essential
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircle sx={{ color: 'success.main', fontSize: 20 }} />
+                      <Typography variant="h6" color="text.primary" fontWeight={600}>
+                        Expense Breakdown
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={`${essentialPercentage}% essential`}
+                      color={
+                        essentialPercentage > 70
+                          ? 'success'
+                          : essentialPercentage > 50
+                            ? 'warning'
+                            : 'error'
+                      }
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
                   </Box>
 
-                  <Tooltip
-                    title={`Essential: ${UIUtils.formatCurrency(essentialAmount, currency)} | Non-essential: ${UIUtils.formatCurrency(nonEssentialAmount, currency)}`}
-                  >
-                    <Box
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={6}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h5" fontWeight="bold" color="success.main">
+                          {UIUtils.formatCurrency(essentialAmount, currency)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Essential
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h5" fontWeight="bold" color="warning.main">
+                          {UIUtils.formatCurrency(nonEssentialAmount, currency)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Non-essential
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  <Box sx={{ position: 'relative', mb: 1 }}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={100}
                       sx={{
-                        display: 'flex',
-                        height: 12,
-                        width: '100%',
-                        bgcolor: 'grey.200',
-                        borderRadius: 6,
-                        overflow: 'hidden',
-                        border: 1,
-                        borderColor: 'grey.300',
+                        height: 16,
+                        borderRadius: 8,
+                        backgroundColor: 'warning.light',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: 'transparent',
+                        },
                       }}
-                    >
-                      {essentialAmount > 0 && (
-                        <Box
-                          sx={{
-                            height: '100%',
-                            width: `${essentialPercentage}%`,
-                            bgcolor: 'success.main',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: essentialPercentage > 10 ? 'auto' : 0,
-                          }}
-                        />
-                      )}
-                      {nonEssentialAmount > 0 && (
-                        <Box
-                          sx={{
-                            height: '100%',
-                            width: `${100 - essentialPercentage}%`,
-                            bgcolor: 'warning.main',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: 100 - essentialPercentage > 10 ? 'auto' : 0,
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </Tooltip>
-                </>
+                    />
+                    <LinearProgress
+                      variant="determinate"
+                      value={essentialPercentage}
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 16,
+                        borderRadius: 8,
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: 'success.main',
+                          borderRadius: 8,
+                        },
+                      }}
+                    />
+                    {essentialPercentage > 15 && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          position: 'absolute',
+                          left: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                        }}
+                      >
+                        {essentialPercentage}%
+                      </Typography>
+                    )}
+                    {100 - essentialPercentage > 15 && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                        }}
+                      >
+                        {100 - essentialPercentage}%
+                      </Typography>
+                    )}
+                  </Box>
+                </Paper>
               );
             })()
           ) : (
             // Multiple currencies view - show summary
-            <>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Multiple Currencies ({uniqueCurrencies.length})
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {uniqueCurrencies.map(currency => (
-                  <Chip
-                    key={currency}
-                    label={UIUtils.formatCurrency(
-                      monthlyExpense.getTotalAmountByCurrency(currency),
-                      currency
-                    )}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
+            <Paper
+              elevation={1}
+              sx={{
+                p: 2.5,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <AccountBalance sx={{ color: 'primary.main', fontSize: 20 }} />
+                <Typography variant="h6" color="text.primary" fontWeight={600}>
+                  Multiple Currencies ({uniqueCurrencies.length})
+                </Typography>
               </Box>
-            </>
+              <Grid container spacing={1}>
+                {uniqueCurrencies.map(currency => (
+                  <Grid item xs={6} sm={4} md={3} key={currency}>
+                    <Chip
+                      label={UIUtils.formatCurrency(
+                        monthlyExpense.getTotalAmountByCurrency(currency),
+                        currency
+                      )}
+                      size="medium"
+                      color="primary"
+                      variant="outlined"
+                      sx={{
+                        width: '100%',
+                        fontWeight: 600,
+                        '& .MuiChip-label': {
+                          fontSize: '0.8rem',
+                        },
+                      }}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
           )}
         </Box>
       </CardContent>
 
       {isExpanded && (
         <>
-          <Divider />
-          <Box sx={{ p: 2 }}>
+          <Divider sx={{ borderColor: 'rgba(0, 0, 0, 0.08)' }} />
+          <Box sx={{ p: 3 }}>
             {!hasMultipleCurrencies ? (
               // Single currency detailed view
               (() => {
@@ -242,65 +375,109 @@ export function MonthlyExpenseView({
 
                 return (
                   <>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Tooltip title="Essential expenses">
-                        <Box
-                          sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                    {/* Summary Cards */}
+                    <Grid container spacing={2} sx={{ mb: 3 }}>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={2}
+                          sx={{
+                            p: 2,
+                            textAlign: 'center',
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
+                            border: '1px solid rgba(76, 175, 80, 0.2)',
+                          }}
                         >
-                          <Typography variant="body2" color="text.secondary">
-                            Essential
-                          </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" color="success.main">
+                          <CheckCircle sx={{ color: 'success.main', fontSize: 32, mb: 1 }} />
+                          <Typography variant="h5" fontWeight="bold" color="success.main">
                             {UIUtils.formatCurrency(essentialAmount, currency)}
                           </Typography>
-                        </Box>
-                      </Tooltip>
-
-                      <Tooltip title="Non-essential expenses">
-                        <Box
-                          sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-                        >
                           <Typography variant="body2" color="text.secondary">
-                            Non-essential
+                            Essential Expenses
                           </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" color="warning.main">
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={2}
+                          sx={{
+                            p: 2,
+                            textAlign: 'center',
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #fff3e0 0%, #ffcc02 30%)',
+                            border: '1px solid rgba(255, 152, 0, 0.2)',
+                          }}
+                        >
+                          <Warning sx={{ color: 'warning.main', fontSize: 32, mb: 1 }} />
+                          <Typography variant="h5" fontWeight="bold" color="warning.main">
                             {UIUtils.formatCurrency(nonEssentialAmount, currency)}
                           </Typography>
-                        </Box>
-                      </Tooltip>
-
-                      <Tooltip title="Total expenses">
-                        <Box
-                          sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-                        >
                           <Typography variant="body2" color="text.secondary">
-                            Total
+                            Non-essential Expenses
                           </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" color="primary.main">
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={2}
+                          sx={{
+                            p: 2,
+                            textAlign: 'center',
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%)',
+                            border: '1px solid rgba(33, 150, 243, 0.2)',
+                          }}
+                        >
+                          <TrendingUp sx={{ color: 'primary.main', fontSize: 32, mb: 1 }} />
+                          <Typography variant="h5" fontWeight="bold" color="primary.main">
                             {UIUtils.formatCurrency(totalAmount, currency)}
                           </Typography>
-                        </Box>
-                      </Tooltip>
-                    </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Total Expenses
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    </Grid>
 
-                    <TableContainer>
-                      <Table size="small">
-                        {monthlyExpense.expenses.map(expense => (
-                          <ExpenseView
-                            key={expense.id}
+                    {/* Individual Expenses */}
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                    >
+                      <ShoppingCart sx={{ color: 'primary.main' }} />
+                      Individual Expenses
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {monthlyExpense.expenses.map(expense => (
+                        <Paper
+                          key={expense.id}
+                          elevation={1}
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease-in-out',
+                            '&:hover': {
+                              elevation: 3,
+                              transform: 'translateY(-1px)',
+                            },
+                            border: '1px solid rgba(0, 0, 0, 0.06)',
+                          }}
+                        >
+                          <ExpenseCardView
                             expense={expense}
                             refresh={refresh}
                             deleteExpense={deleteExpense}
                           />
-                        ))}
-                      </Table>
-                    </TableContainer>
+                        </Paper>
+                      ))}
+                    </Stack>
                   </>
                 );
               })()
             ) : (
               // Multiple currencies detailed view
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Stack spacing={3}>
                 {uniqueCurrencies.map(currency => {
                   const currencyExpenses =
                     monthlyExpense.getExpensesByCurrency().get(currency) || [];
@@ -312,14 +489,14 @@ export function MonthlyExpenseView({
                     currencyTotal > 0 ? Math.round((currencyEssential / currencyTotal) * 100) : 0;
 
                   return (
-                    <Box
+                    <Paper
                       key={currency}
+                      elevation={2}
                       sx={{
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 2,
-                        p: 2.5,
-                        bgcolor: 'background.paper',
+                        borderRadius: 3,
+                        p: 3,
+                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        border: '1px solid rgba(0, 0, 0, 0.08)',
                       }}
                     >
                       <Box
@@ -327,97 +504,139 @@ export function MonthlyExpenseView({
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          mb: 2,
+                          mb: 3,
                         }}
                       >
-                        <Typography variant="h6" fontWeight="bold" color="text.primary">
-                          {currency}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box
+                            sx={{
+                              p: 1,
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <AccountBalance sx={{ color: 'white', fontSize: 20 }} />
+                          </Box>
+                          <Typography variant="h5" fontWeight="bold" color="text.primary">
+                            {currency}
+                          </Typography>
+                        </Box>
                         <Chip
                           label={UIUtils.formatCurrency(currencyTotal, currency)}
                           color="primary"
                           size="medium"
-                          sx={{ fontWeight: 'bold' }}
+                          sx={{
+                            fontWeight: 'bold',
+                            fontSize: '1rem',
+                            height: 36,
+                          }}
                         />
                       </Box>
 
-                      <Box
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                          gap: 2,
-                          mb: 2,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: { xs: 'flex-start', sm: 'center' },
-                            p: 1,
-                            bgcolor: 'success.50',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            Essential
-                          </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" color="success.main">
-                            {UIUtils.formatCurrency(currencyEssential, currency)}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: { xs: 'flex-start', sm: 'center' },
-                            p: 1,
-                            bgcolor: 'warning.50',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            Non-essential
-                          </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" color="warning.main">
-                            {UIUtils.formatCurrency(currencyNonEssential, currency)}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: { xs: 'flex-start', sm: 'center' },
-                            p: 1,
-                            bgcolor: 'info.50',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            Essential Ratio
-                          </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" color="info.main">
-                            {currencyEssentialPercentage}%
-                          </Typography>
-                        </Box>
-                      </Box>
+                      {/* Currency Summary Cards */}
+                      <Grid container spacing={2} sx={{ mb: 3 }}>
+                        <Grid item xs={12} sm={4}>
+                          <Paper
+                            elevation={1}
+                            sx={{
+                              p: 2,
+                              textAlign: 'center',
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
+                              border: '1px solid rgba(76, 175, 80, 0.2)',
+                            }}
+                          >
+                            <CheckCircle sx={{ color: 'success.main', fontSize: 28, mb: 1 }} />
+                            <Typography variant="h6" fontWeight="bold" color="success.main">
+                              {UIUtils.formatCurrency(currencyEssential, currency)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Essential ({currencyEssentialPercentage}%)
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Paper
+                            elevation={1}
+                            sx={{
+                              p: 2,
+                              textAlign: 'center',
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #fff3e0 0%, #ffcc02 30%)',
+                              border: '1px solid rgba(255, 152, 0, 0.2)',
+                            }}
+                          >
+                            <Warning sx={{ color: 'warning.main', fontSize: 28, mb: 1 }} />
+                            <Typography variant="h6" fontWeight="bold" color="warning.main">
+                              {UIUtils.formatCurrency(currencyNonEssential, currency)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Non-essential ({100 - currencyEssentialPercentage}%)
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Paper
+                            elevation={1}
+                            sx={{
+                              p: 2,
+                              textAlign: 'center',
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%)',
+                              border: '1px solid rgba(33, 150, 243, 0.2)',
+                            }}
+                          >
+                            <TrendingUp sx={{ color: 'primary.main', fontSize: 28, mb: 1 }} />
+                            <Typography variant="h6" fontWeight="bold" color="primary.main">
+                              {currencyExpenses.length}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Total Expenses
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      </Grid>
 
-                      <TableContainer>
-                        <Table size="small">
-                          {currencyExpenses.map(expense => (
-                            <ExpenseView
-                              key={expense.id}
+                      {/* Individual Expenses for this currency */}
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                      >
+                        <ShoppingCart sx={{ color: 'primary.main' }} />
+                        {currency} Expenses
+                      </Typography>
+                      <Stack spacing={1.5}>
+                        {currencyExpenses.map(expense => (
+                          <Paper
+                            key={expense.id}
+                            elevation={1}
+                            sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              transition: 'all 0.2s ease-in-out',
+                              '&:hover': {
+                                elevation: 3,
+                                transform: 'translateY(-1px)',
+                              },
+                              border: '1px solid rgba(0, 0, 0, 0.06)',
+                            }}
+                          >
+                            <ExpenseCardView
                               expense={expense}
                               refresh={refresh}
                               deleteExpense={deleteExpense}
                             />
-                          ))}
-                        </Table>
-                      </TableContainer>
-                    </Box>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    </Paper>
                   );
                 })}
-              </Box>
+              </Stack>
             )}
           </Box>
         </>
