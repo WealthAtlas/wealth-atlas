@@ -2,14 +2,14 @@ export interface Snapshot {
   schemaVersion: number;
   data: {
     assets: unknown[];
-    assetTransactions: unknown[];
-    scheduledAssetTransactions: unknown[];
+    investments: unknown[];
+    sips: unknown[];
     expenses: unknown[];
     loans: unknown[];
-    paymentSchedules: unknown[];
-    loanPayments: unknown[];
+    emis: unknown[];
+    payments: unknown[];
     goals: unknown[];
-    assetGoalAllocations: unknown[];
+    allocations: unknown[];
   };
 }
 

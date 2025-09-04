@@ -12,7 +12,7 @@ import { AutoSyncService } from './sync/AutoSyncService';
 
 export class WealthAtlasDB extends Dexie {
   assets!: Table<IAsset>;
-  assetTransactions!: Table<IInvestment>;
+  investments!: Table<IInvestment>;
   sips!: Table<ISIP>;
   expenses!: Table<IExpense>;
   loans!: Table<ILoan>;
@@ -28,10 +28,11 @@ export class WealthAtlasDB extends Dexie {
   }
 
   private setupSchema(): void {
-    this.version(1).stores({
-      assets: '++id, name, description, category, currency, currentMarketValue, valueUpdatedAt',
-      assetTransactions: '++id, assetId, transactionType, quantity, price, date',
-      sips: '++id, assetId, transactionType, quantity, price, scheduledDate, frequency, endDate, totalOccurrences, isActive, isExecuted, executedTransactionId',
+    this.version(2).stores({
+      assets:
+        '++id, name, description, category, currency, valueModel, interestRate, maturityDate, maturityAmount, marketValue, marketValueUpdatedAt, apiPath',
+      investments: '++id, assetId, type, quantity, price, date',
+      sips: '++id, assetId, quantity, price, startDate, endDate, frequency, executedTill',
       expenses: '++id, amount, currency, date, category, isEssential, description',
       loans: '++id, name, lenderName, principalAmount, currency, startDate, description',
       emis: '++id, loanId, name, amount, frequency, startDate, endDate, lastGeneratedDate',

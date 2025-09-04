@@ -26,7 +26,7 @@ export function ExpenseFormContainer({
       currency: expenseToEdit?.currency || Currency.INR,
       date: expenseToEdit?.date || new Date(),
       category: expenseToEdit?.category || ExpenseCategory.OTHER,
-      isEssential: expenseToEdit?.isEssential || true,
+      isEssential: expenseToEdit?.isEssential !== undefined ? expenseToEdit?.isEssential : false,
       description: expenseToEdit?.description || '',
     }),
     [expenseToEdit]

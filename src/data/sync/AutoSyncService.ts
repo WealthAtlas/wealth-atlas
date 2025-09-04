@@ -20,7 +20,7 @@ export class AutoSyncService {
     // Listen to all tables for changes
     const tables = [
       db.assets,
-      db.assetTransactions,
+      db.investments,
       db.sips,
       db.expenses,
       db.loans,

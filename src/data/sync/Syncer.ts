@@ -40,44 +40,35 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function getSchemaVersion(): number {
-  // Keep in sync with Dexie latest version (currently 7)
-  return 7;
+  // Keep in sync with Dexie latest version (currently 8)
+  return 8;
 }
 
 async function exportSnapshot(): Promise<Snapshot> {
-  const [
-    assets,
-    assetTransactions,
-    scheduledAssetTransactions,
-    expenses,
-    loans,
-    paymentSchedules,
-    loanPayments,
-    goals,
-    assetGoalAllocations,
-  ] = await Promise.all([
-    db.assets.toArray(),
-    db.assetTransactions.toArray(),
-    db.sips.toArray(),
-    db.expenses.toArray(),
-    db.loans.toArray(),
-    db.emis.toArray(),
-    db.payments.toArray(),
-    db.goals.toArray(),
-    db.allocations.toArray(),
-  ]);
+  const [assets, investments, sips, expenses, loans, emis, payments, goals, allocations] =
+    await Promise.all([
+      db.assets.toArray(),
+      db.investments.toArray(),
+      db.sips.toArray(),
+      db.expenses.toArray(),
+      db.loans.toArray(),
+      db.emis.toArray(),
+      db.payments.toArray(),
+      db.goals.toArray(),
+      db.allocations.toArray(),
+    ]);
   return {
     schemaVersion: getSchemaVersion(),
     data: {
       assets,
-      assetTransactions,
-      scheduledAssetTransactions,
+      investments,
+      sips,
       expenses,
       loans,
-      paymentSchedules,
-      loanPayments,
+      emis,
+      payments,
       goals,
-      assetGoalAllocations,
+      allocations,
     },
   };
 }
@@ -92,7 +83,7 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
     'rw',
     [
       db.assets,
-      db.assetTransactions,
+      db.investments,
       db.sips,
       db.expenses,
       db.loans,
@@ -110,30 +101,30 @@ async function importSnapshot(snapshot: Snapshot): Promise<void> {
         db.loans.clear(),
         db.expenses.clear(),
         db.sips.clear(),
-        db.assetTransactions.clear(),
+        db.investments.clear(),
         db.assets.clear(),
       ]);
       const d = snapshot.data as {
         assets?: IAsset[];
-        assetTransactions?: IInvestment[];
-        scheduledAssetTransactions?: ISIP[];
+        investments?: IInvestment[];
+        sips?: ISIP[];
         expenses?: IExpense[];
         loans?: ILoan[];
-        paymentSchedules?: IEMI[];
-        loanPayments?: IPayment[];
+        emis?: IEMI[];
+        payments?: IPayment[];
         goals?: IGoal[];
-        assetGoalAllocations?: IAllocation[];
+        allocations?: IAllocation[];
       };
       // Order respects dependencies
       await db.assets.bulkPut(d.assets || []);
-      await db.assetTransactions.bulkPut(d.assetTransactions || []);
-      await db.sips.bulkPut(d.scheduledAssetTransactions || []);
+      await db.investments.bulkPut(d.investments || []);
+      await db.sips.bulkPut(d.sips || []);
       await db.expenses.bulkPut(d.expenses || []);
       await db.loans.bulkPut(d.loans || []);
-      await db.emis.bulkPut(d.paymentSchedules || []);
-      await db.payments.bulkPut(d.loanPayments || []);
+      await db.emis.bulkPut(d.emis || []);
+      await db.payments.bulkPut(d.payments || []);
       await db.goals.bulkPut(d.goals || []);
-      await db.allocations.bulkPut(d.assetGoalAllocations || []);
+      await db.allocations.bulkPut(d.allocations || []);
     }
   );
 }
