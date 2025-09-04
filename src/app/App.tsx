@@ -31,9 +31,9 @@ export default function App() {
       }
     };
 
-    // Setup periodic sync every 5 minutes
+    // Setup periodic sync every 30 seconds
     const setupPeriodicSync = () => {
-      const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+      const SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
 
       syncIntervalRef.current = setInterval(async () => {
         try {
