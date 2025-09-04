@@ -4,4 +4,7 @@ export enum AssetCategory {
   DEBT = 'Debt',
   REAL_ESTATE = 'Real Estate',
   GOLD = 'Gold',
+  CASH = 'Cash',
+  CRYPTOCURRENCY = 'Cryptocurrency',
+  OTHER = 'Other',
 }
