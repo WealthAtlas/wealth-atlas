@@ -3,7 +3,8 @@ import { Box, Card, CardContent, Fab, List, Typography } from '@mui/material';
 import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { ExpenseFormContainer } from '../../containers/expense/ExpenseFormContainer';
-import { ExpenseChart } from '../views/ExpenseChart';
+import { ExpenseCategoryChart } from '../views/ExpenseCategoryChart';
+import { ExpenseChart } from '../views/MonthlyExpenseChart';
 import { MonthlyExpenseView } from '../views/MonthlyExpenseView';
 
 export interface ExpensesPageProps {
@@ -34,6 +35,15 @@ export function ExpensesPage({ monthlyExpenses, deleteExpense, refresh }: Expens
               Monthly Expense Trends
             </Typography>
             <ExpenseChart monthlyExpenses={monthlyExpenses} />
+          </CardContent>
+        </Card>
+
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Expense Categories
+            </Typography>
+            <ExpenseCategoryChart monthlyExpenses={monthlyExpenses} />
           </CardContent>
         </Card>
 

@@ -45,4 +45,25 @@ export class MonthlyExpense {
   hasMultipleCurrencies(): boolean {
     return this.getUniqueCurrencies().length > 1;
   }
+
+  // Category-related methods
+  getCategoriesByCurrency(currency: Currency): string[] {
+    const categories = new Set(
+      this.expenses
+        .filter(expense => expense.currency === currency)
+        .map(expense => expense.category)
+    );
+    return Array.from(categories);
+  }
+
+  getCategoryTotalByCurrency(currency: Currency, category: string): number {
+    return this.expenses
+      .filter(expense => expense.currency === currency && expense.category === category)
+      .reduce((total, expense) => total + expense.amount, 0);
+  }
+
+  getAllCategories(): string[] {
+    const categories = new Set(this.expenses.map(expense => expense.category));
+    return Array.from(categories);
+  }
 }

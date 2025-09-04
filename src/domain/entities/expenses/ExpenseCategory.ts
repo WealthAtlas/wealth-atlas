@@ -3,6 +3,7 @@ export enum ExpenseCategory {
   DINING_OUT = 'Dining Out',
   TRANSPORT = 'Transport',
   UTILITIES = 'Utilities',
+  TAX = 'Tax', //Not income tax
   INTERNET = 'Internet',
   RENT = 'Rent',
   HOME_MAINTENANCE = 'Home Maintenance',
