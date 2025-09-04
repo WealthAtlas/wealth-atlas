@@ -74,18 +74,20 @@ export class Asset implements IAsset {
     return this.investments
       .filter(t => t.assetId === this.id)
       .reduce((total, transaction) => {
-        const amount = (transaction.quantity || 1) * transaction.price;
+        const amount = transaction.getTotalAmount();
         return total + amount;
       }, 0);
   }
 
-  public getCurrentHoldings(): number {
-    return this.investments
+  public getCurrentHoldings(): number | undefined {
+    const holding = this.investments
       .filter(t => t.assetId === this.id)
       .reduce((total, transaction) => {
-        const quantity = transaction.quantity || 1;
+        const quantity = transaction.quantity;
+        if (quantity === undefined) return total;
         return total + quantity;
       }, 0);
+    return holding < 1 ? undefined : holding;
   }
 
   public getProfitLoss(): number | undefined {
@@ -93,7 +95,7 @@ export class Asset implements IAsset {
 
     const totalInvested = this.getTotalInvestedAmount();
     const currentHoldings = this.getCurrentHoldings();
-    const currentTotalValue = currentHoldings * this.getValue()!;
+    const currentTotalValue = (currentHoldings ?? 1) * this.getValue()!;
 
     return currentTotalValue - totalInvested;
   }

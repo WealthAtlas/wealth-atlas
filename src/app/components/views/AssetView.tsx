@@ -36,6 +36,9 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
   const profitLossPercentage = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
   const irr = asset.getIRR(new Date());
 
+  // Determine if this asset has tradeable units/holdings
+  const hasHoldings = currentHoldings !== undefined && currentHoldings > 0;
+
   // Color coding for profit/loss
   const getProfitLossColor = () => {
     if (profitLoss > 0) return 'success.main';
@@ -86,19 +89,25 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
           refresh();
         }}
       />
-      <Grid item xs={12} md={6} key={asset.id}>
+      <Grid item xs={12} lg={6} key={asset.id}>
         <Card
-          elevation={3}
+          elevation={2}
           sx={{
             height: '100%',
-            transition: 'all 0.3s ease',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            border: '1px solid',
+            borderColor: 'grey.200',
             '&:hover': {
-              elevation: 6,
-              transform: 'translateY(-2px)',
+              elevation: 4,
+              transform: 'translateY(-4px)',
+              borderColor: 'primary.300',
+              boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
             },
           }}
         >
-          <CardContent sx={{ p: 3 }}>
+          <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
             {/* Header Section */}
             <Box
               sx={{
@@ -108,19 +117,37 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
                 mb: 2,
               }}
             >
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h5" component="div" sx={{ fontWeight: 600, mb: 1 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  variant="h5"
+                  component="div"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 1,
+                    wordBreak: 'break-word',
+                  }}
+                >
                   {asset.name}
                 </Typography>
                 <Box
-                  sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}
+                  sx={{
+                    display: 'flex',
+                    gap: 1,
+                    mb: 1,
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                  }}
                 >
                   <Chip label={asset.category} size="small" variant="outlined" color="primary" />
                   <Chip
                     label={getValueModelDescription()}
                     size="small"
                     variant="filled"
-                    sx={{ bgcolor: 'grey.100', color: 'text.secondary' }}
+                    sx={{
+                      bgcolor: 'primary.50',
+                      color: 'primary.700',
+                      fontWeight: 500,
+                    }}
                   />
                   {asset.currency && (
                     <Chip
@@ -135,7 +162,14 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ mt: 1, lineHeight: 1.4 }}
+                    sx={{
+                      mt: 1,
+                      lineHeight: 1.5,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
                   >
                     {asset.description}
                   </Typography>
@@ -143,28 +177,34 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
               </Box>
 
               {/* Action Buttons */}
-              <Box sx={{ display: 'flex', gap: 0.5, ml: 2 }}>
-                <Tooltip title="View Transactions">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, ml: 2 }}>
+                <Tooltip title="View Transactions" placement="left">
                   <IconButton
                     size="small"
                     onClick={() => setShowViewTransactions(true)}
                     aria-label="view transactions"
-                    sx={{ bgcolor: 'action.hover' }}
+                    sx={{
+                      bgcolor: 'action.hover',
+                      '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' },
+                    }}
                   >
                     <List fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Edit Asset">
+                <Tooltip title="Edit Asset" placement="left">
                   <IconButton
                     size="small"
                     onClick={() => setShowEditAsset(true)}
                     aria-label="edit asset"
-                    sx={{ bgcolor: 'action.hover' }}
+                    sx={{
+                      bgcolor: 'action.hover',
+                      '&:hover': { bgcolor: 'warning.light', color: 'warning.contrastText' },
+                    }}
                   >
                     <Edit fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Delete Asset">
+                <Tooltip title="Delete Asset" placement="left">
                   <IconButton
                     size="small"
                     onClick={() => deleteAsset(asset.id!)}
@@ -184,48 +224,77 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
 
             {/* Financial Metrics Section */}
             <Box sx={{ mt: 2 }}>
-              {/* Current Value & Performance */}
-              <Box sx={{ mb: 3 }}>
+              {/* Current Value & Performance - Enhanced Layout */}
+              <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  bgcolor: 'grey.50',
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'grey.200',
+                }}
+              >
                 <Box
                   sx={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     mb: 1,
+                    flexWrap: 'wrap',
+                    gap: 2,
                   }}
                 >
-                  <Typography variant="h4" component="div" sx={{ fontWeight: 700 }}>
-                    {UIUtils.formatCurrency(currentValue, asset.currency)}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {getTrendIcon()}
-                    <Typography
-                      variant="h6"
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Current Value
+                    </Typography>
+                    <Typography variant="h4" component="div" sx={{ fontWeight: 700 }}>
+                      {UIUtils.formatCurrency(currentValue, asset.currency)}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Performance
+                    </Typography>
+                    <Box
                       sx={{
-                        color: getProfitLossColor(),
-                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        justifyContent: 'flex-end',
                       }}
                     >
-                      {formatPercentage(profitLossPercentage)}
+                      {getTrendIcon()}
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: getProfitLossColor(),
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatPercentage(profitLossPercentage)}
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: getProfitLossColor(),
+                        fontWeight: 500,
+                        mt: 0.5,
+                      }}
+                    >
+                      {profitLoss >= 0 ? '+' : ''}
+                      {UIUtils.formatCurrency(profitLoss, asset.currency)}
                     </Typography>
                   </Box>
                 </Box>
-
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: getProfitLossColor(),
-                    fontWeight: 500,
-                  }}
-                >
-                  {profitLoss >= 0 ? '+' : ''}
-                  {UIUtils.formatCurrency(profitLoss, asset.currency)}
-                </Typography>
               </Box>
 
               {/* Investment Summary */}
               <Grid container spacing={2}>
-                <Grid item xs={6}>
+                <Grid item xs={hasHoldings ? 6 : 12}>
                   <Box>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                       Total Invested
@@ -235,21 +304,25 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
                     </Typography>
                   </Box>
                 </Grid>
-                <Grid item xs={6}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                      Holdings
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {currentHoldings.toLocaleString()}
-                      {asset.valueModel === ValueModel.MARKET_BASED && ' units'}
-                    </Typography>
-                  </Box>
-                </Grid>
+
+                {/* Only show holdings if they exist */}
+                {hasHoldings && (
+                  <Grid item xs={6}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        Holdings
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {currentHoldings!.toLocaleString()}
+                        {asset.valueModel === ValueModel.MARKET_BASED && ' units'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                )}
 
                 {/* IRR Display */}
-                {irr && (
-                  <Grid item xs={6}>
+                {irr !== undefined && (
+                  <Grid item xs={6} sm={hasHoldings ? 4 : 6}>
                     <Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                         IRR (Annual)
@@ -269,13 +342,13 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
 
                 {/* Additional Info based on Value Model */}
                 {asset.valueModel === ValueModel.FIXED_INCOME && asset.interestRate && (
-                  <Grid item xs={6}>
+                  <Grid item xs={6} sm={hasHoldings ? 4 : 6}>
                     <Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                         Interest Rate
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                        {asset.interestRate}%
+                        {asset.interestRate}% p.a.
                       </Typography>
                     </Box>
                   </Grid>
@@ -283,16 +356,36 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
 
                 {asset.maturityDate && (
                   <Grid item xs={12}>
-                    <Box>
+                    <Box
+                      sx={{
+                        p: 2,
+                        bgcolor: 'info.50',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'info.200',
+                      }}
+                    >
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                        Maturity Date
+                        Maturity Information
                       </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {asset.maturityDate.toLocaleDateString()}
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {asset.maturityDate.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
                         {asset.maturityAmount && (
-                          <span style={{ color: 'text.secondary', marginLeft: 8 }}>
+                          <Typography
+                            component="span"
+                            variant="body1"
+                            sx={{
+                              color: 'success.main',
+                              marginLeft: 2,
+                              fontWeight: 600,
+                            }}
+                          >
                             • {UIUtils.formatCurrency(asset.maturityAmount, asset.currency)}
-                          </span>
+                          </Typography>
                         )}
                       </Typography>
                     </Box>
@@ -302,9 +395,16 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
                 {/* Market Value Info */}
                 {asset.valueModel === ValueModel.MARKET_BASED && asset.marketValueUpdatedAt && (
                   <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary">
-                      Market value as of {asset.marketValueUpdatedAt.toLocaleDateString()}
-                    </Typography>
+                    <Box sx={{ textAlign: 'center', mt: 1 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Market value updated on{' '}
+                        {asset.marketValueUpdatedAt.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </Typography>
+                    </Box>
                   </Grid>
                 )}
               </Grid>
