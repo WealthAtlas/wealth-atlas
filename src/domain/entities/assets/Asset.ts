@@ -80,13 +80,11 @@ export class Asset implements IAsset {
   }
 
   public getCurrentHoldings(): number | undefined {
-    const holding = this.investments
-      .filter(t => t.assetId === this.id)
-      .reduce((total, transaction) => {
-        const quantity = transaction.quantity;
-        if (quantity === undefined) return total;
-        return total + quantity;
-      }, 0);
+    const holding = this.investments.reduce((total, transaction) => {
+      const quantity = transaction.quantity;
+      if (quantity === undefined) return total;
+      return total + quantity;
+    }, 0);
     return holding < 1 ? undefined : holding;
   }
 
@@ -94,8 +92,7 @@ export class Asset implements IAsset {
     if (!this.getValue()) return undefined;
 
     const totalInvested = this.getTotalInvestedAmount();
-    const currentHoldings = this.getCurrentHoldings();
-    const currentTotalValue = (currentHoldings ?? 1) * this.getValue()!;
+    const currentTotalValue = this.getValue()!;
 
     return currentTotalValue - totalInvested;
   }

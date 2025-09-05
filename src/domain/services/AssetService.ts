@@ -106,9 +106,10 @@ export class AssetService {
       for (const asset of assets) {
         if (asset.script) {
           const newValue = await executeValueScript(asset.script);
+          const qty = asset.getCurrentHoldings() ?? 1;
           const updatedAsset = {
             ...asset,
-            marketValue: newValue,
+            marketValue: newValue * qty,
             marketValueUpdatedAt: new Date(),
           };
           await this.assetRepository.update(updatedAsset);
