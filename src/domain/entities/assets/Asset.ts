@@ -60,10 +60,10 @@ export class Asset implements IAsset {
     this.currency = currency;
     this.valueModel = valueModel;
     this.interestRate = interestRate;
-    this.maturityDate = maturityDate;
+    this.maturityDate = maturityDate ? new Date(maturityDate) : undefined;
     this.maturityAmount = maturityAmount;
     this.marketValue = marketValue;
-    this.marketValueUpdatedAt = marketValueUpdatedAt;
+    this.marketValueUpdatedAt = marketValueUpdatedAt ? new Date(marketValueUpdatedAt) : undefined;
     this.script = script;
     this.investments = investments;
     this.sips = sips;

@@ -120,7 +120,7 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
 
   // Clear script test results when script changes
   const handleScriptChange = (newScript: string) => {
-    onAssetChange({ ...asset, script: newScript });
+    onAssetChange({ ...asset, script: newScript === '' ? undefined : newScript });
     setScriptTestResult(null);
   };
 
@@ -307,8 +307,7 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="body2">
-                      Advanced Scripting{' '}
-                      {asset.script && asset.script.trim() !== '' && '(Configured)'}
+                      Advanced Scripting {asset.script && asset.script.trim() !== ''}
                     </Typography>
                   </Box>
                 </Button>
