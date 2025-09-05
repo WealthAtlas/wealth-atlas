@@ -53,7 +53,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/service-worker.js'],
+    files: ['public/service-worker.js'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: {
