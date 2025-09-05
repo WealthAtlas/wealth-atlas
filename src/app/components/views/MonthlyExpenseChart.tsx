@@ -1,5 +1,12 @@
 import { Box, useMediaQuery, useTheme } from '@mui/material';
-import { BarChart } from '@mui/x-charts';
+import {
+  BarPlot,
+  ChartContainer,
+  ChartsLegend,
+  ChartsXAxis,
+  ChartsYAxis,
+  LinePlot,
+} from '@mui/x-charts';
 import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { Currency } from '../../../domain/entities/shared/Currency';
@@ -42,33 +49,64 @@ export function ExpenseChart(props: ExpenseChartProps) {
 
     const displayMonths = isMobile ? months.slice(-3) : months.slice(-12);
 
-    const series: Array<{
+    const barSeries: Array<{
       dataKey: string;
       label: string;
       stack: string;
       color: string;
+      type: 'bar';
+    }> = [];
+
+    const lineSeries: Array<{
+      dataKey: string;
+      label: string;
+      color: string;
+      type: 'line';
     }> = [];
 
     const data: Array<Record<string, number | string>> = displayMonths.map(month => ({ month }));
+
+    // Calculate averages for each currency across all available data
+    const currencyAverages: Record<string, number> = {};
+    currencies.forEach(currency => {
+      const totalAmounts = props.monthlyExpenses.map(
+        monthData =>
+          (monthData.getEssentialAmountByCurrency(currency) || 0) +
+          (monthData.getNonEssentialAmountByCurrency(currency) || 0)
+      );
+      currencyAverages[currency] =
+        totalAmounts.reduce((sum, amount) => sum + amount, 0) / totalAmounts.length;
+    });
 
     currencies.forEach((currency, currencyIndex) => {
       const currencyColor = getCurrencyColor(currency, currencyIndex);
 
       const essentialKey = `${currency}_essential`;
       const nonEssentialKey = `${currency}_nonEssential`;
+      const averageKey = `${currency}_average`;
 
-      series.push({
+      barSeries.push({
         dataKey: essentialKey,
         label: `${currency} - Essential`,
         stack: `${currency}`,
         color: currencyColor.essential,
+        type: 'bar',
       });
 
-      series.push({
+      barSeries.push({
         dataKey: nonEssentialKey,
         label: `${currency} - Non-Essential`,
         stack: `${currency}`,
         color: currencyColor.nonEssential,
+        type: 'bar',
+      });
+
+      // Add average line series
+      lineSeries.push({
+        dataKey: averageKey,
+        label: `${currency} - Average`,
+        color: theme.palette.text.primary,
+        type: 'line',
       });
 
       data.forEach(item => {
@@ -81,11 +119,12 @@ export function ExpenseChart(props: ExpenseChartProps) {
 
         item[essentialKey] = monthData?.getEssentialAmountByCurrency(currency) || 0;
         item[nonEssentialKey] = monthData?.getNonEssentialAmountByCurrency(currency) || 0;
+        item[averageKey] = currencyAverages[currency];
       });
     });
 
-    return { data, series, displayMonths };
-  }, [props, isMobile, getCurrencyColor]);
+    return { data, barSeries, lineSeries, displayMonths };
+  }, [props, isMobile, getCurrencyColor, theme.palette.text.primary]);
 
   const formatMonthLabel = (month: string) => {
     const date = new Date(month + '-01');
@@ -112,7 +151,7 @@ export function ExpenseChart(props: ExpenseChartProps) {
   }
 
   // Calculate minimum width needed for the chart based on number of months and unique currencies
-  const uniqueCurrencies = Array.from(new Set(chartData.series.map(s => s.stack)));
+  const uniqueCurrencies = Array.from(new Set(chartData.barSeries.map(s => s.stack)));
   const minChartWidth = chartData.displayMonths.length * (uniqueCurrencies.length * 80);
   const chartWidth = Math.max(minChartWidth, isMobile ? 350 : 800);
 
@@ -125,9 +164,9 @@ export function ExpenseChart(props: ExpenseChartProps) {
       }}
     >
       <Box sx={{ width: chartWidth, height: '100%' }}>
-        <BarChart
+        <ChartContainer
           dataset={chartData.data}
-          series={chartData.series}
+          series={[...chartData.barSeries, ...chartData.lineSeries]}
           xAxis={[
             {
               scaleType: 'band',
@@ -146,7 +185,13 @@ export function ExpenseChart(props: ExpenseChartProps) {
             top: 30,
             bottom: 60,
           }}
-        />
+        >
+          <BarPlot />
+          <LinePlot />
+          <ChartsXAxis />
+          <ChartsYAxis />
+          <ChartsLegend />
+        </ChartContainer>
       </Box>
     </Box>
   );
