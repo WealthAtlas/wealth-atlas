@@ -18,7 +18,7 @@ export interface IAsset {
   //Market value model
   marketValue: number | undefined;
   marketValueUpdatedAt: Date | undefined;
-  apiPath: string | undefined; // API path to fetch current market value per unit
+  script: string | undefined;
 }
 
 export class Asset implements IAsset {
@@ -33,7 +33,7 @@ export class Asset implements IAsset {
   public readonly maturityAmount: number | undefined;
   public readonly marketValue: number | undefined;
   public readonly marketValueUpdatedAt: Date | undefined;
-  public readonly apiPath: string | undefined;
+  public readonly script: string | undefined;
   private readonly investments: Investment[];
   private readonly sips: SIP[];
 
@@ -49,7 +49,7 @@ export class Asset implements IAsset {
     maturityAmount,
     marketValue,
     marketValueUpdatedAt,
-    apiPath,
+    script,
     investments: investments = [],
     sips = [],
   }: IAsset & { investments: Investment[]; sips: SIP[] }) {
@@ -64,7 +64,7 @@ export class Asset implements IAsset {
     this.maturityAmount = maturityAmount;
     this.marketValue = marketValue;
     this.marketValueUpdatedAt = marketValueUpdatedAt;
-    this.apiPath = apiPath;
+    this.script = script;
     this.investments = investments;
     this.sips = sips;
   }

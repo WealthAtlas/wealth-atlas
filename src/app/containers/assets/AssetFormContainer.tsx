@@ -22,7 +22,7 @@ export function AssetFormContainer({ open, assetToEdit, onClose, onSuccess }: As
       currency: assetToEdit?.currency || 'INR',
       marketValue: assetToEdit?.marketValue || undefined,
       marketValueUpdatedAt: assetToEdit?.marketValueUpdatedAt || undefined,
-      apiPath: assetToEdit?.apiPath || undefined,
+      script: assetToEdit?.script || undefined,
       interestRate: assetToEdit?.interestRate || undefined,
       maturityAmount: assetToEdit?.maturityAmount || undefined,
       maturityDate: assetToEdit?.maturityDate || undefined,

@@ -1,9 +1,15 @@
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
 import { Currency } from '@/domain/entities/shared/Currency';
+import { executeValueScript } from '@/domain/utils/ScriptExecutor';
+import { scriptTemplates } from '@/domain/utils/ScriptTemplate';
+import { ExpandLess, ExpandMore, PlayArrow } from '@mui/icons-material';
 import {
+  Alert,
   Box,
   Button,
+  CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -15,8 +21,10 @@ import {
   Select,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
-import React from 'react';
+import React, { useState } from 'react';
 import { IAsset } from '../../../domain/entities/assets/Asset';
 
 export interface AssetFormDialogProps {
@@ -29,6 +37,12 @@ export interface AssetFormDialogProps {
   onAssetChange: (asset: IAsset) => void;
 }
 
+interface ScriptTestResult {
+  success: boolean;
+  value?: number;
+  error?: string;
+}
+
 export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
   open,
   title,
@@ -38,9 +52,76 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
   onSubmit,
   onAssetChange,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // State for script functionality
+  const [scriptSectionOpen, setScriptSectionOpen] = useState(false);
+  const [isTestingScript, setIsTestingScript] = useState(false);
+  const [scriptTestResult, setScriptTestResult] = useState<ScriptTestResult | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   const formatDateForInput = (date: Date | undefined): string => {
     if (!date) return '';
     return date.toISOString().split('T')[0];
+  };
+
+  // Script testing functionality
+  const handleTestScript = async () => {
+    if (!asset.script || asset.script.trim() === '') {
+      setScriptTestResult({
+        success: false,
+        error: 'No script to test. Please enter a script first.',
+      });
+      return;
+    }
+
+    setIsTestingScript(true);
+    setScriptTestResult(null);
+
+    try {
+      const value = await executeValueScript(asset.script);
+      setScriptTestResult({
+        success: true,
+        value,
+      });
+    } catch (error) {
+      setScriptTestResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      });
+    } finally {
+      setIsTestingScript(false);
+    }
+  };
+
+  // Template selection functionality - simple replace
+  const handleTemplateSelection = (templateKey: string) => {
+    if (!templateKey) return;
+
+    const template = scriptTemplates[templateKey as keyof typeof scriptTemplates];
+    if (template) {
+      onAssetChange({ ...asset, script: template.template });
+      setScriptTestResult(null);
+    }
+    setSelectedTemplate('');
+  };
+
+  // Simple script validation
+  const validateScript = (script: string): string | null => {
+    if (!script || script.trim() === '') return null;
+
+    // Basic validation - check if it contains getValue export
+    if (!script.includes('getValue')) {
+      return 'Script should export a getValue function';
+    }
+
+    return null;
+  };
+
+  // Clear script test results when script changes
+  const handleScriptChange = (newScript: string) => {
+    onAssetChange({ ...asset, script: newScript });
+    setScriptTestResult(null);
   };
 
   return (
@@ -207,17 +288,119 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
                 margin="normal"
                 placeholder="Current market price per unit"
                 inputProps={{ min: 0, step: 0.01 }}
-                helperText="Leave empty if using API integration"
+                helperText="Leave empty if using script for live market data"
               />
-              <TextField
-                label="API Path (Optional)"
-                value={asset.apiPath || ''}
-                onChange={e => onAssetChange({ ...asset, apiPath: e.target.value })}
-                fullWidth
-                margin="normal"
-                placeholder="API endpoint for live market data"
-                helperText="For automatic price updates"
-              />
+
+              {/* Advanced Scripting Section */}
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setScriptSectionOpen(!scriptSectionOpen)}
+                  startIcon={scriptSectionOpen ? <ExpandLess /> : <ExpandMore />}
+                  fullWidth
+                  sx={{
+                    justifyContent: 'space-between',
+                    textTransform: 'none',
+                    color: 'text.secondary',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">
+                      Advanced Scripting{' '}
+                      {asset.script && asset.script.trim() !== '' && '(Configured)'}
+                    </Typography>
+                  </Box>
+                </Button>
+
+                <Collapse in={scriptSectionOpen}>
+                  <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Write custom JavaScript to fetch live market data from APIs. The script must
+                      export a getValue() function that returns a number.
+                    </Typography>
+
+                    {/* Template Selection */}
+                    <FormControl fullWidth margin="normal" size="small">
+                      <InputLabel>Choose Template (Optional)</InputLabel>
+                      <Select
+                        value={selectedTemplate}
+                        label="Choose Template (Optional)"
+                        onChange={e => handleTemplateSelection(e.target.value)}
+                      >
+                        <MenuItem value="">
+                          <em>No template - write custom script</em>
+                        </MenuItem>
+                        {Object.entries(scriptTemplates).map(([key, template]) => (
+                          <MenuItem key={key} value={key}>
+                            {template.name} - {template.description}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {/* Script Editor */}
+                    <TextField
+                      label="JavaScript Code"
+                      value={asset.script || ''}
+                      onChange={e => handleScriptChange(e.target.value)}
+                      fullWidth
+                      margin="normal"
+                      multiline
+                      rows={isMobile ? 6 : 10}
+                      placeholder="// Example:
+// exports.getValue = async function() {
+//   const response = await fetch('https://api.example.com/price');
+//   const data = await response.json();
+//   return data.price;
+// };"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          fontFamily: 'monospace',
+                          fontSize: isMobile ? '0.75rem' : '0.875rem',
+                          lineHeight: 1.4,
+                        },
+                      }}
+                      helperText={
+                        validateScript(asset.script || '') ||
+                        'Script must export getValue() function that returns a number'
+                      }
+                      error={!!validateScript(asset.script || '')}
+                    />
+
+                    {/* Simple Script Test Results */}
+                    {scriptTestResult && (
+                      <Alert
+                        severity={scriptTestResult.success ? 'success' : 'error'}
+                        sx={{ mt: 2 }}
+                        onClose={() => setScriptTestResult(null)}
+                      >
+                        {scriptTestResult.success ? (
+                          <Typography variant="body2">
+                            Success! Value:{' '}
+                            <strong>{scriptTestResult.value?.toLocaleString()}</strong>
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2">Error: {scriptTestResult.error}</Typography>
+                        )}
+                      </Alert>
+                    )}
+
+                    {/* Simple Script Actions */}
+                    <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleTestScript}
+                        disabled={isTestingScript || !asset.script || asset.script.trim() === ''}
+                        startIcon={isTestingScript ? <CircularProgress size={16} /> : <PlayArrow />}
+                      >
+                        {isTestingScript ? 'Testing...' : 'Test'}
+                      </Button>
+                    </Box>
+                  </Box>
+                </Collapse>
+              </Box>
             </Box>
           )}
         </Box>

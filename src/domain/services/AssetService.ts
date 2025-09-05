@@ -1,22 +1,20 @@
-import { ValueFetcher } from '@/data/apis/ValueFetcher';
 import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { InvestmentRepository } from '@/data/repositories/assets/InvestmentRepository';
 import { SIPRepository } from '@/data/repositories/assets/SIPRepository';
 import { Asset, IAsset } from '../entities/assets/Asset';
 import { IInvestment, Investment } from '../entities/assets/Investment';
 import { ISIP, SIP } from '../entities/assets/SIP';
+import { executeValueScript } from '../utils/ScriptExecutor';
 
 export class AssetService {
   private readonly assetRepository: AssetRepository;
   private readonly inestmentRepository: InvestmentRepository;
   private readonly sipRepository: SIPRepository;
-  private readonly valueFetcher: ValueFetcher;
 
   constructor() {
     this.assetRepository = new AssetRepository();
     this.inestmentRepository = new InvestmentRepository();
     this.sipRepository = new SIPRepository();
-    this.valueFetcher = new ValueFetcher();
   }
 
   public async createAsset(asset: IAsset): Promise<Asset> {
@@ -106,8 +104,8 @@ export class AssetService {
   public async updateValues(): Promise<void> {
     return await this.getAssets().then(async assets => {
       for (const asset of assets) {
-        if (asset.apiPath) {
-          const newValue = await this.valueFetcher.fetchValue(asset.apiPath);
+        if (asset.script) {
+          const newValue = await executeValueScript(asset.script);
           const updatedAsset = {
             ...asset,
             marketValue: newValue,
