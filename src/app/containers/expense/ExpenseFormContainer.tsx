@@ -10,15 +10,9 @@ export interface ExpenseFormContainerProps {
   open: boolean;
   expenseToEdit?: Expense | undefined;
   onClose: () => void;
-  onSuccess: () => void;
 }
 
-export function ExpenseFormContainer({
-  open,
-  expenseToEdit,
-  onClose,
-  onSuccess,
-}: ExpenseFormContainerProps) {
+export function ExpenseFormContainer({ open, expenseToEdit, onClose }: ExpenseFormContainerProps) {
   const initialExpense: IExpense = useMemo(
     () => ({
       id: expenseToEdit?.id || undefined,
@@ -61,13 +55,11 @@ export function ExpenseFormContainer({
       } else {
         await expenseService.createExpense(expenseEntity);
       }
-
-      onSuccess();
-      onClose();
     } catch (error) {
       Logger.error('Failed to save expense:', error);
     } finally {
       setIsSubmitting(false);
+      onClose();
     }
   };
 

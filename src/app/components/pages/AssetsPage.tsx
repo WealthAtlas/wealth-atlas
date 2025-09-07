@@ -78,7 +78,12 @@ export function AssetsPage({
 
         <Grid container spacing={3}>
           {assets.map(asset => (
-            <AssetViewContainer key={asset.id} assetId={asset.id!} deleteAsset={deleteAsset} />
+            <AssetViewContainer
+              key={asset.id}
+              assetId={asset.id!}
+              deleteAsset={deleteAsset}
+              refresh={refresh}
+            />
           ))}
         </Grid>
 

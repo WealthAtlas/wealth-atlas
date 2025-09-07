@@ -7,9 +7,10 @@ import { AssetView } from '../../components/views/AssetView';
 export interface AssetViewContainerProps {
   assetId: number;
   deleteAsset: (id: number) => void;
+  refresh: () => void;
 }
 
-export function AssetViewContainer({ assetId, deleteAsset }: AssetViewContainerProps) {
+export function AssetViewContainer({ assetId, deleteAsset, refresh }: AssetViewContainerProps) {
   const [asset, setAsset] = useState<Asset | undefined>(undefined);
   const [showViewTransactions, setShowViewTransactions] = useState<boolean>(false);
   const [showEditAsset, setShowEditAsset] = useState<boolean>(false);
@@ -33,7 +34,10 @@ export function AssetViewContainer({ assetId, deleteAsset }: AssetViewContainerP
       {asset && (
         <AssetView
           asset={asset}
-          refresh={loadAsset}
+          refresh={() => {
+            loadAsset();
+            refresh();
+          }}
           deleteAsset={deleteAsset}
           showViewTransactions={showViewTransactions}
           showEditAsset={showEditAsset}

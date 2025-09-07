@@ -25,8 +25,8 @@ export function ExpenseCardView({
         <ExpenseFormContainer
           open={showExpenseEdit}
           expenseToEdit={expense}
-          onClose={() => setShowExpenseEdit(false)}
-          onSuccess={() => {
+          onClose={() => {
+            setShowExpenseEdit(false);
             refresh();
           }}
         />

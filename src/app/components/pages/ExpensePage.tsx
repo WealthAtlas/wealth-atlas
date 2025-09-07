@@ -26,8 +26,10 @@ export function ExpensesPage({
       <ExpenseFormContainer
         open={showAddExpense}
         expenseToEdit={undefined}
-        onClose={() => setShowAddExpense(false)}
-        onSuccess={() => refresh()}
+        onClose={() => {
+          setShowAddExpense(false);
+          refresh();
+        }}
       />
       <Box sx={{ p: 3, pb: 10 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -66,7 +68,7 @@ export function ExpensesPage({
                 {monthlyExpenses.map(monthlyExpense => (
                   <MonthlyExpenseViewContainer
                     key={monthlyExpense.month.toISOString()}
-                    monthlyExpense={monthlyExpense}
+                    month={monthlyExpense.month}
                     deleteExpense={deleteExpense}
                     refresh={refresh}
                   />

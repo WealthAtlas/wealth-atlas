@@ -464,9 +464,9 @@ export function MonthlyExpenseView({
                           }}
                         >
                           <ExpenseCardContainer
-                            expense={expense}
-                            refresh={refresh}
+                            expenseId={expense.id!}
                             deleteExpense={deleteExpense}
+                            refresh={refresh}
                           />
                         </Box>
                       ))}
@@ -624,9 +624,9 @@ export function MonthlyExpenseView({
                             }}
                           >
                             <ExpenseCardContainer
-                              expense={expense}
-                              refresh={refresh}
+                              expenseId={expense.id!}
                               deleteExpense={deleteExpense}
+                              refresh={refresh}
                             />
                           </Box>
                         ))}
