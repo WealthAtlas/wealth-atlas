@@ -1,4 +1,4 @@
-import { Asset } from '@/domain/entities/assets/Asset';
+import { IAsset } from '@/domain/entities/assets/Asset';
 import { Investment, InvestmentType } from '@/domain/entities/assets/Investment';
 import { Add, Close, TrendingDown, TrendingUp } from '@mui/icons-material';
 import {
@@ -27,7 +27,7 @@ import { InvestmentView } from '../views/InvestmentView';
 
 export interface InvestmentListDialogProps {
   open: boolean;
-  asset: Asset;
+  asset: IAsset;
   investments: Investment[];
   deleteInvestment: (id: number) => void;
   refresh: () => void;
@@ -61,8 +61,7 @@ export function InvestmentListDialog({
           open={showAddTransaction}
           asset={asset}
           investmentToEdit={undefined}
-          onClose={() => setShowAddTransaction(false)}
-          onSuccess={() => {
+          onClose={() => {
             setShowAddTransaction(false);
             refresh();
           }}

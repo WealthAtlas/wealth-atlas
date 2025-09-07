@@ -1,4 +1,4 @@
-import { Asset } from '@/domain/entities/assets/Asset';
+import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment, InvestmentType } from '@/domain/entities/assets/Investment';
 import {
   Button,
@@ -20,7 +20,7 @@ import { UIUtils } from '../../utils/UIUtils';
 export interface InvestmentFormDialogProps {
   open: boolean;
   title: string;
-  asset: Asset;
+  asset: IAsset;
   investment: IInvestment;
   isSubmitting: boolean;
   onClose: () => void;

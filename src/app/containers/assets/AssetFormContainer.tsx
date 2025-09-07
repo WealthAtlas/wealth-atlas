@@ -9,10 +9,9 @@ export interface AssetFormContainer {
   open: boolean;
   assetToEdit: Asset | undefined;
   onClose: () => void;
-  onSuccess: () => void;
 }
 
-export function AssetFormContainer({ open, assetToEdit, onClose, onSuccess }: AssetFormContainer) {
+export function AssetFormContainer({ open, assetToEdit, onClose }: AssetFormContainer) {
   const initialAsset: IAsset = React.useMemo(
     () => ({
       id: assetToEdit?.id,
@@ -63,12 +62,11 @@ export function AssetFormContainer({ open, assetToEdit, onClose, onSuccess }: As
           } else {
             await assetService.createAsset(asset);
           }
-
-          onSuccess();
         } catch (error) {
           Logger.error('Failed to save asset:', error);
         } finally {
           setIsSubmitting(false);
+          onClose();
         }
       }}
       onAssetChange={function (asset: IAsset): void {

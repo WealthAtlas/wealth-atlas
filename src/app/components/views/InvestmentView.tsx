@@ -1,13 +1,13 @@
 import { Delete, Edit, TrendingDown, TrendingUp } from '@mui/icons-material';
 import { Box, Chip, IconButton, TableCell, TableRow, Tooltip } from '@mui/material';
 import { useState } from 'react';
-import { Asset } from '../../../domain/entities/assets/Asset';
+import { IAsset } from '../../../domain/entities/assets/Asset';
 import { Investment, InvestmentType } from '../../../domain/entities/assets/Investment';
 import { InvestmentFormContainer } from '../../containers/assets/investment/InvestmentFormContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
 export interface InvestmentViewProps {
-  asset: Asset;
+  asset: IAsset;
   transaction: Investment;
   deleteInvestment: (id: number) => void;
   refresh: () => void;
@@ -32,8 +32,7 @@ export function InvestmentView({
           open={showTransactionEdit}
           asset={asset}
           investmentToEdit={transaction}
-          onClose={() => setShowTransactionEdit(false)}
-          onSuccess={() => {
+          onClose={() => {
             setShowTransactionEdit(false);
             refresh();
           }}

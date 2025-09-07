@@ -1,4 +1,3 @@
-import { InvestmentListDialog } from '@/app/components/dialogs/InvestmentListDialog';
 import { AssetFormContainer } from '@/app/containers/assets/AssetFormContainer';
 import { UIUtils } from '@/app/utils/UIUtils';
 import { Asset } from '@/domain/entities/assets/Asset';
@@ -16,15 +15,15 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
+import { InvestmentListContainer } from '../../containers/assets/investment/InvestmentListContainer';
 
 export interface AssetViewProps {
   asset: Asset;
   deleteAsset: (id: number) => void;
-  deleteInvestment: (id: number) => void;
   refresh: () => void;
 }
 
-export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: AssetViewProps) {
+export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
   const [showViewTransactions, setShowViewTransactions] = useState<boolean>(false);
   const [showEditAsset, setShowEditAsset] = useState<boolean>(false);
 
@@ -72,22 +71,21 @@ export function AssetView({ asset, deleteAsset, deleteInvestment, refresh }: Ass
 
   return (
     <>
-      <InvestmentListDialog
+      <InvestmentListContainer
         open={showViewTransactions}
         asset={asset}
-        investments={asset.getTransactions(new Date(), false)}
-        deleteInvestment={deleteInvestment}
-        onClose={() => setShowViewTransactions(false)}
-        refresh={refresh}
+        onClose={() => {
+          setShowViewTransactions(false);
+          refresh();
+        }}
       />
       <AssetFormContainer
         assetToEdit={asset}
-        onClose={() => setShowEditAsset(false)}
-        open={showEditAsset}
-        onSuccess={() => {
+        onClose={() => {
           setShowEditAsset(false);
           refresh();
         }}
+        open={showEditAsset}
       />
       <Grid item xs={12} lg={6} key={asset.id}>
         <Card

@@ -6,18 +6,15 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 export function AssetsContainer() {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showAddAsset, setShowAddAsset] = React.useState(false);
   const assetService = React.useMemo(() => new AssetService(), []);
 
   const loadAssets = useCallback(async () => {
     try {
-      setIsLoading(true);
       const loadedAssets = await assetService.getAssets();
       setAssets(loadedAssets);
     } catch (error) {
       Logger.error('Failed to load assets:', error);
-    } finally {
-      setIsLoading(false);
     }
   }, [assetService]);
 
@@ -25,21 +22,9 @@ export function AssetsContainer() {
     async (id: number) => {
       try {
         await assetService.deleteAsset(id);
-        await loadAssets(); // Refresh the list
+        await loadAssets();
       } catch (error) {
         Logger.error('Failed to delete asset:', error);
-      }
-    },
-    [assetService, loadAssets]
-  );
-
-  const deleteInvestment = useCallback(
-    async (id: number) => {
-      try {
-        await assetService.deleteInvestment(id);
-        await loadAssets(); // Refresh the list
-      } catch (error) {
-        Logger.error('Failed to delete investment:', error);
       }
     },
     [assetService, loadAssets]
@@ -67,11 +52,11 @@ export function AssetsContainer() {
     <>
       <AssetsPage
         assets={assets}
-        isLoading={isLoading}
+        portfolioMetrics={portfolioMetrics}
+        showAddAsset={showAddAsset}
         refresh={loadAssets}
         deleteAsset={deleteAsset}
-        deleteInvestment={deleteInvestment}
-        portfolioMetrics={portfolioMetrics}
+        setShowAddAsset={setShowAddAsset}
       />
     </>
   );

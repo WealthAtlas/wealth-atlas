@@ -1,60 +1,41 @@
 import { Asset } from '@/domain/entities/assets/Asset';
 import { Add } from '@mui/icons-material';
-import { Box, Button, CircularProgress, Fab, Grid, Paper, Typography } from '@mui/material';
-import React from 'react';
+import { Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
 import { AssetFormContainer } from '../../containers/assets/AssetFormContainer';
 import { UIUtils } from '../../utils/UIUtils';
 import { AssetView } from '../views/AssetView';
 
 export interface AssetsPageProps {
   assets: Asset[];
-  isLoading: boolean;
-  refresh: () => void;
-  deleteAsset: (id: number) => void;
-  deleteInvestment: (id: number) => void;
+  showAddAsset: boolean;
   portfolioMetrics: {
     totalValue: number;
     totalInvested: number;
     totalProfitLoss: number;
     totalProfitLossPercentage: number;
   };
+  refresh: () => void;
+  deleteAsset: (id: number) => void;
+  setShowAddAsset: (show: boolean) => void;
 }
 
 export function AssetsPage({
   assets,
-  isLoading,
+  showAddAsset,
+  portfolioMetrics,
   refresh,
   deleteAsset,
-  deleteInvestment,
-  portfolioMetrics,
+  setShowAddAsset,
 }: AssetsPageProps) {
-  const [showAddAsset, setShowAddAsset] = React.useState(false);
-
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: 'calc(100vh - 200px)',
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <>
       <AssetFormContainer
         assetToEdit={undefined}
-        onClose={() => setShowAddAsset(false)}
-        open={showAddAsset}
-        onSuccess={() => {
+        onClose={() => {
           setShowAddAsset(false);
           refresh();
         }}
+        open={showAddAsset}
       />
       <Box sx={{ p: 3, pb: 10 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -97,13 +78,7 @@ export function AssetsPage({
 
         <Grid container spacing={3}>
           {assets.map(asset => (
-            <AssetView
-              key={asset.id}
-              asset={asset}
-              deleteAsset={deleteAsset}
-              deleteInvestment={deleteInvestment}
-              refresh={refresh}
-            />
+            <AssetView key={asset.id} asset={asset} deleteAsset={deleteAsset} refresh={refresh} />
           ))}
         </Grid>
 

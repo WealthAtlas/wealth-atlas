@@ -136,7 +136,7 @@ export class Asset implements IAsset {
     }
   }
 
-  public getTransactions(till: Date, considerFutureTransactions: boolean): Investment[] {
+  public getInvestments(till: Date, considerFutureTransactions: boolean): Investment[] {
     let allTransactions = this.investments.filter(t => t.date <= till);
     if (considerFutureTransactions) {
       const futureTransactions = this.sips.map(sip => sip.getPendingOccurences(till)).flat();
@@ -147,7 +147,7 @@ export class Asset implements IAsset {
 
   public getIRR(till: Date): number | undefined {
     return IRRCalculator.getInstance().calculateIRR({
-      transactions: this.getTransactions(till, true).map(tx => ({
+      transactions: this.getInvestments(till, true).map(tx => ({
         date: tx.date,
         amount: tx.getTotalAmount(),
       })),

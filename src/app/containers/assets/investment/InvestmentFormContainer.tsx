@@ -1,5 +1,5 @@
 import { InvestmentFormDialog } from '@/app/components/dialogs/InvestmentFormDialog';
-import { Asset } from '@/domain/entities/assets/Asset';
+import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment, Investment, InvestmentType } from '@/domain/entities/assets/Investment';
 import { AssetService } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
@@ -7,10 +7,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 export interface InestmentFormContainerProps {
   open: boolean;
-  asset: Asset;
-  investmentToEdit?: Investment | undefined;
+  asset: IAsset;
+  investmentToEdit?: IInvestment | undefined;
   onClose: () => void;
-  onSuccess: () => void;
 }
 
 export function InvestmentFormContainer({
@@ -18,7 +17,6 @@ export function InvestmentFormContainer({
   asset,
   investmentToEdit: transactionToEdit,
   onClose,
-  onSuccess,
 }: InestmentFormContainerProps) {
   const initialInvestment: IInvestment = React.useMemo(
     () => ({
@@ -61,13 +59,11 @@ export function InvestmentFormContainer({
       } else {
         await assetService.addInvestment(transactionEntity);
       }
-
-      onSuccess();
-      onClose();
     } catch (error) {
       Logger.error('Failed to save transaction:', error);
     } finally {
       setIsSubmitting(false);
+      onClose();
     }
   };
 
