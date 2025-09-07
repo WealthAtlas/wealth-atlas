@@ -14,6 +14,7 @@ export interface InvestmentListContainerProps {
 export function InvestmentListContainer({ open, asset, onClose }: InvestmentListContainerProps) {
   const assetService = React.useMemo(() => new AssetService(), []);
   const [investments, setInvestments] = React.useState<Investment[]>([]);
+  const [showAddTransaction, setShowAddTransaction] = React.useState<boolean>(false);
 
   const loadInvestments = useCallback(async () => {
     try {
@@ -49,6 +50,8 @@ export function InvestmentListContainer({ open, asset, onClose }: InvestmentList
       open={open}
       asset={asset}
       investments={investments}
+      showAddTransaction={showAddTransaction}
+      setShowAddTransaction={setShowAddTransaction}
       deleteInvestment={deleteInvestment}
       onClose={onClose}
       refresh={refresh}

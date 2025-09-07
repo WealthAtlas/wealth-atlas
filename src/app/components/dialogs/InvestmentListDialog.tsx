@@ -20,15 +20,16 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
 import { InvestmentFormContainer } from '../../containers/assets/investment/InvestmentFormContainer';
+import { InvestmentViewContainer } from '../../containers/assets/investment/InvestmentViewContainer';
 import { UIUtils } from '../../utils/UIUtils';
-import { InvestmentView } from '../views/InvestmentView';
 
 export interface InvestmentListDialogProps {
   open: boolean;
   asset: IAsset;
   investments: Investment[];
+  showAddTransaction: boolean;
+  setShowAddTransaction: (show: boolean) => void;
   deleteInvestment: (id: number) => void;
   refresh: () => void;
   onClose: () => void;
@@ -38,12 +39,12 @@ export function InvestmentListDialog({
   open,
   asset,
   investments,
+  showAddTransaction,
+  setShowAddTransaction,
   deleteInvestment,
   refresh,
   onClose,
 }: InvestmentListDialogProps) {
-  const [showAddTransaction, setShowAddTransaction] = useState<boolean>(false);
-
   // Calculate summary statistics
   const totalBuyTransactions = investments.filter(t => t.type === InvestmentType.BUY).length;
   const totalSellTransactions = investments.filter(t => t.type === InvestmentType.SELL).length;
@@ -200,13 +201,10 @@ export function InvestmentListDialog({
                   </TableHead>
                   <TableBody>
                     {investments.map(transaction => (
-                      <InvestmentView
+                      <InvestmentViewContainer
                         key={transaction.id}
                         asset={asset}
-                        transaction={transaction}
-                        refresh={() => {
-                          refresh();
-                        }}
+                        investmentId={transaction.id!}
                         deleteInvestment={deleteInvestment}
                       />
                     ))}
