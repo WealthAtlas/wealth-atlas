@@ -1,24 +1,33 @@
 import { ExpenseCategory } from '@/domain/entities/expenses/ExpenseCategory';
 import { Currency } from '@/domain/entities/shared/Currency';
 import {
+  CalendarToday as CalendarIcon,
+  Category as CategoryIcon,
+  AttachMoney as MoneyIcon,
+  Notes as NotesIcon,
+} from '@mui/icons-material';
+import {
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
-  FormControlLabel,
+  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
+  Stack,
   Switch,
   TextField,
   Typography,
 } from '@mui/material';
-import { ChangeEvent } from 'react';
-import { IExpense } from '../../../domain/entities/expenses/Expense';
 import { SelectChangeEvent } from '@mui/material/Select';
+import { ChangeEvent, useEffect, useState } from 'react';
+import { IExpense } from '../../../domain/entities/expenses/Expense';
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -39,22 +48,59 @@ export function ExpenseFormDialog({
   onSubmit,
   onFormDataChange,
 }: ExpenseFormDialogProps) {
+  const [displayAmount, setDisplayAmount] = useState<string>('');
+
+  // Sync display amount with form data
+  useEffect(() => {
+    if (formData.amount === 0) {
+      setDisplayAmount('');
+    } else {
+      setDisplayAmount(formatDisplayAmount(formData.amount));
+    }
+  }, [formData.amount]);
+
   const isFormValid =
     formData.amount && parseFloat(String(formData.amount)) > 0 && formData.currency;
 
+  // Format amount for display with proper decimal places
+  const formatDisplayAmount = (value: number): string => {
+    if (value === 0) return '';
+    return value.toFixed(2).replace(/\.?0+$/, ''); // Remove trailing zeros
+  };
+
+  // Parse display amount to number
+  const parseDisplayAmount = (value: string): number => {
+    const cleaned = value.replace(/[^\d.]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100; // Round to 2 decimal places
+  };
+
   // Event handlers for cleaner JSX
+  const handleAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+
+    // Allow only numbers and decimal point
+    if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+      setDisplayAmount(value);
+      const numericValue = parseDisplayAmount(value);
+      onFormDataChange({
+        ...formData,
+        amount: numericValue,
+      });
+    }
+  };
+
+  const handleAmountBlur = () => {
+    // Format on blur for consistent display
+    if (displayAmount && formData.amount > 0) {
+      setDisplayAmount(formatDisplayAmount(formData.amount));
+    }
+  };
+
   const handleInputChange = (field: keyof IExpense) => (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
 
-    if (field === 'amount') {
-      // Handle amount with validation
-      if (value === '' || /^\d*\.?\d*$/.test(value)) {
-        onFormDataChange({
-          ...formData,
-          [field]: value === '' ? 0 : parseFloat(value) || 0,
-        });
-      }
-    } else if (field === 'date') {
+    if (field === 'date') {
       onFormDataChange({
         ...formData,
         [field]: new Date(value),
@@ -86,59 +132,138 @@ export function ExpenseFormDialog({
     return date.toISOString().split('T')[0];
   };
 
+  const getCurrencySymbol = (currency: Currency): string => {
+    const symbols: Record<Currency, string> = {
+      [Currency.USD]: '$',
+      [Currency.GBP]: '£',
+      [Currency.INR]: '₹',
+    };
+    return symbols[currency] || currency;
+  };
+
+  const getEssentialColor = (isEssential: boolean) => (isEssential ? 'success' : 'default');
+
+  const getEssentialText = (isEssential: boolean) => (isEssential ? 'Essential' : 'Non-Essential');
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 2 },
+      }}
+    >
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <MoneyIcon color="primary" />
+          <Typography variant="h6" component="div">
+            {title}
+          </Typography>
+        </Stack>
+      </DialogTitle>
+
       <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <TextField
-            label="Amount"
-            type="text"
-            value={formData.amount === 0 ? '' : String(formData.amount)}
-            onChange={handleInputChange('amount')}
-            required
-            placeholder="Enter amount"
-            autoFocus
-            fullWidth
-            inputProps={{
-              inputMode: 'decimal',
-              pattern: '[0-9]*\\.?[0-9]*',
-            }}
-          />
-
-          <FormControl fullWidth>
-            <InputLabel>Currency</InputLabel>
-            <Select
-              value={formData.currency || ''}
-              onChange={handleSelectChange('currency')}
-              label="Currency"
+        <Stack spacing={3} sx={{ pt: 2 }}>
+          {/* Amount Input */}
+          <Box>
+            <TextField
+              label="Amount"
+              type="text"
+              value={displayAmount}
+              onChange={handleAmountChange}
+              onBlur={handleAmountBlur}
               required
-            >
-              {Object.entries(Currency).map(([key, value]) => (
-                <MenuItem key={key} value={value}>
-                  {key} - {String(value)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              placeholder="0.00"
+              autoFocus
+              fullWidth
+              InputProps={{
+                startAdornment: formData.currency ? (
+                  <InputAdornment position="start">
+                    <Typography variant="body1" color="primary" fontWeight="bold">
+                      {getCurrencySymbol(formData.currency)}
+                    </Typography>
+                  </InputAdornment>
+                ) : undefined,
+              }}
+              inputProps={{
+                inputMode: 'decimal',
+                pattern: '[0-9]*\\.?[0-9]*',
+                style: { fontSize: '1.2rem', fontWeight: '500' },
+              }}
+              sx={{
+                '& .MuiInputBase-input': {
+                  textAlign: 'right',
+                },
+              }}
+            />
+            {displayAmount && formData.amount > 0 && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ ml: 1, mt: 0.5, display: 'block' }}
+              >
+                Formatted: {getCurrencySymbol(formData.currency || Currency.USD)}{' '}
+                {formatDisplayAmount(formData.amount)}
+              </Typography>
+            )}
+          </Box>
 
-          <TextField
-            name="expenseDate"
-            label="Date"
-            type="date"
-            value={formatDateForInput(formData.date)}
-            onChange={handleInputChange('date')}
-            required
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
+          {/* Currency and Date Row */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <FormControl fullWidth>
+              <InputLabel>Currency</InputLabel>
+              <Select
+                value={formData.currency || ''}
+                onChange={handleSelectChange('currency')}
+                label="Currency"
+                required
+              >
+                {Object.entries(Currency).map(([key, value]) => (
+                  <MenuItem key={key} value={value}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography fontWeight="bold">{getCurrencySymbol(value)}</Typography>
+                      <Typography>{key}</Typography>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
+            <TextField
+              name="expenseDate"
+              label="Date"
+              type="date"
+              value={formatDateForInput(formData.date)}
+              onChange={handleInputChange('date')}
+              required
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+              fullWidth
+            />
+          </Stack>
+
+          <Divider />
+
+          {/* Category Selection */}
           <FormControl fullWidth>
             <InputLabel>Category</InputLabel>
             <Select
               value={formData.category || ''}
               onChange={handleSelectChange('category')}
               label="Category"
+              startAdornment={
+                <InputAdornment position="start">
+                  <CategoryIcon color="action" />
+                </InputAdornment>
+              }
             >
               {Object.entries(ExpenseCategory).map(([value, label]) => (
                 <MenuItem key={value} value={value}>
@@ -148,34 +273,65 @@ export function ExpenseFormDialog({
             </Select>
           </FormControl>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <FormControlLabel
-              control={
+          {/* Essential Toggle */}
+          <Box
+            sx={{
+              p: 2,
+              bgcolor: 'grey.50',
+              borderRadius: 1,
+              border: '1px solid',
+              borderColor: 'grey.200',
+            }}
+          >
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Expense Priority
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {formData.isEssential
+                    ? 'This is a necessary expense (rent, utilities, groceries)'
+                    : 'This is a discretionary expense (entertainment, dining out)'}
+                </Typography>
+              </Box>
+              <Stack alignItems="center" spacing={1}>
                 <Switch
                   checked={formData.isEssential}
                   onChange={handleSwitchChange('isEssential')}
+                  color="success"
                 />
-              }
-              label="Essential Expense"
-            />
-            <Typography variant="body2" color="text.secondary">
-              {formData.isEssential ? 'Necessary expense' : 'Non-essential expense'}
-            </Typography>
+                <Chip
+                  label={getEssentialText(formData.isEssential)}
+                  color={getEssentialColor(formData.isEssential)}
+                  size="small"
+                  variant="outlined"
+                />
+              </Stack>
+            </Stack>
           </Box>
 
+          {/* Description */}
           <TextField
-            label="Description (Optional)"
+            label="Description"
             value={formData.description || ''}
             onChange={handleInputChange('description')}
             multiline
-            rows={2}
-            placeholder="Add notes about this expense..."
+            rows={3}
+            placeholder="Add notes about this expense (optional)..."
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                  <NotesIcon color="action" />
+                </InputAdornment>
+              ),
+            }}
             fullWidth
           />
-        </Box>
+        </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={isSubmitting} color="secondary">
+
+      <DialogActions sx={{ p: 2.5, pt: 1.5 }}>
+        <Button onClick={onClose} disabled={isSubmitting} color="inherit" size="large">
           Cancel
         </Button>
         <Button
@@ -183,8 +339,10 @@ export function ExpenseFormDialog({
           disabled={isSubmitting || !isFormValid}
           variant="contained"
           color="primary"
+          size="large"
+          sx={{ minWidth: 120 }}
         >
-          {isSubmitting ? 'Submitting...' : 'Save'}
+          {isSubmitting ? 'Saving...' : 'Save Expense'}
         </Button>
       </DialogActions>
     </Dialog>
