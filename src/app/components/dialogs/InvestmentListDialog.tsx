@@ -1,12 +1,15 @@
 import { Asset } from '@/domain/entities/assets/Asset';
-import { Investment } from '@/domain/entities/assets/Investment';
-import { Add, Close } from '@mui/icons-material';
+import { Investment, InvestmentType } from '@/domain/entities/assets/Investment';
+import { Add, Close, TrendingDown, TrendingUp } from '@mui/icons-material';
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogTitle,
+  Grid,
   IconButton,
   Paper,
   Table,
@@ -19,6 +22,7 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import { InvestmentFormContainer } from '../../containers/assets/investment/InvestmentFormContainer';
+import { UIUtils } from '../../utils/UIUtils';
 import { InvestmentView } from '../views/InvestmentView';
 
 export interface InvestmentListDialogProps {
@@ -26,8 +30,8 @@ export interface InvestmentListDialogProps {
   asset: Asset;
   investments: Investment[];
   deleteInvestment: (id: number) => void;
-  onClose: () => void;
   refresh: () => void;
+  onClose: () => void;
 }
 
 export function InvestmentListDialog({
@@ -35,14 +39,20 @@ export function InvestmentListDialog({
   asset,
   investments,
   deleteInvestment,
-  onClose,
   refresh,
+  onClose,
 }: InvestmentListDialogProps) {
   const [showAddTransaction, setShowAddTransaction] = useState<boolean>(false);
 
-  const sortedTransactions = [...investments].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  // Calculate summary statistics
+  const totalBuyTransactions = investments.filter(t => t.type === InvestmentType.BUY).length;
+  const totalSellTransactions = investments.filter(t => t.type === InvestmentType.SELL).length;
+  const totalInvested = investments
+    .filter(t => t.type === InvestmentType.BUY)
+    .reduce((sum, t) => sum + t.getTotalAmount(), 0);
+  const totalRedeemed = investments
+    .filter(t => t.type === InvestmentType.SELL)
+    .reduce((sum, t) => sum + t.getTotalAmount(), 0);
 
   return (
     <>
@@ -58,10 +68,10 @@ export function InvestmentListDialog({
           }}
         />
       )}
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+      <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Transactions for {asset.name}</Typography>
+            <Typography variant="h6">Transactions - {asset.name}</Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="contained"
@@ -78,7 +88,7 @@ export function InvestmentListDialog({
           </Box>
         </DialogTitle>
         <DialogContent>
-          {sortedTransactions.length === 0 ? (
+          {investments.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" gutterBottom>
                 No transactions found
@@ -95,31 +105,116 @@ export function InvestmentListDialog({
               </Button>
             </Box>
           ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell align="right">Quantity</TableCell>
-                    <TableCell align="right">Price</TableCell>
-                    <TableCell align="right">Total Amount</TableCell>
-                    <TableCell align="center">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sortedTransactions.map(transaction => (
-                    <InvestmentView
-                      key={transaction.id}
-                      asset={asset}
-                      transaction={transaction}
-                      refresh={refresh}
-                      deleteInvestment={deleteInvestment}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box sx={{ space: 2 }}>
+              {/* Summary Cards */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card variant="outlined">
+                    <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mb: 1,
+                        }}
+                      >
+                        <TrendingUp color="success" sx={{ mr: 1 }} />
+                        <Typography variant="h6" color="success.main">
+                          {totalBuyTransactions}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Buy Orders
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card variant="outlined">
+                    <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mb: 1,
+                        }}
+                      >
+                        <TrendingDown color="error" sx={{ mr: 1 }} />
+                        <Typography variant="h6" color="error.main">
+                          {totalSellTransactions}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Sell Orders
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card variant="outlined">
+                    <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                      <Typography variant="h6" color="success.main">
+                        {UIUtils.formatCurrency(totalInvested, asset.currency)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Total Invested
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card variant="outlined">
+                    <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                      <Typography variant="h6" color="error.main">
+                        {UIUtils.formatCurrency(totalRedeemed, asset.currency)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Total Redeemed
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              {/* Transactions Table */}
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                        Quantity
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                        Unit Price
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                        Total Amount
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                        Actions
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {investments.map(transaction => (
+                      <InvestmentView
+                        key={transaction.id}
+                        asset={asset}
+                        transaction={transaction}
+                        refresh={() => {
+                          refresh();
+                        }}
+                        deleteInvestment={deleteInvestment}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
           )}
         </DialogContent>
       </Dialog>

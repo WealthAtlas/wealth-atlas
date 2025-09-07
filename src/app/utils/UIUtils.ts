@@ -13,12 +13,41 @@ export class UIUtils {
     };
 
     const symbol = currencySymbols[currency] || currency;
-    return `${symbol}${amount.toLocaleString()}`;
+
+    // Format in Indian numbering system for INR, otherwise use standard formatting
+    if (currency === 'INR') {
+      return `${symbol}${amount.toLocaleString('en-IN')}`;
+    } else {
+      return `${symbol}${amount.toLocaleString()}`;
+    }
   }
 
   public static formatPercentage(percentage: number | undefined): string {
     if (percentage === undefined) return 'N/A';
     const sign = percentage >= 0 ? '+' : '';
     return `${sign}${percentage.toFixed(2)}%`;
+  }
+
+  public static formatNumberInput(value: string, currency: string): string {
+    // Remove any existing formatting and non-numeric characters except decimal point
+    const cleanValue = value.replace(/[^\d.]/g, '');
+    const numericValue = parseFloat(cleanValue);
+
+    if (isNaN(numericValue) || cleanValue === '') {
+      return '';
+    }
+
+    // Format based on currency
+    if (currency === 'INR') {
+      return numericValue.toLocaleString('en-IN');
+    } else {
+      return numericValue.toLocaleString();
+    }
+  }
+
+  public static parseFormattedNumber(formattedValue: string): number {
+    // Remove all formatting and parse as number
+    const cleanValue = formattedValue.replace(/[^\d.]/g, '');
+    return parseFloat(cleanValue) || 0;
   }
 }

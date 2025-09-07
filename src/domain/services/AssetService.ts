@@ -4,6 +4,7 @@ import { SIPRepository } from '@/data/repositories/assets/SIPRepository';
 import { Asset, IAsset } from '../entities/assets/Asset';
 import { IInvestment, Investment } from '../entities/assets/Investment';
 import { ISIP, SIP } from '../entities/assets/SIP';
+import { Logger } from '../utils/Logger';
 import { executeValueScript } from '../utils/ScriptExecutor';
 
 export class AssetService {
@@ -106,6 +107,8 @@ export class AssetService {
       for (const asset of assets) {
         if (asset.script) {
           const newValue = await executeValueScript(asset.script);
+          if (newValue === undefined) continue;
+          Logger.info(`Updating market value for ${asset.name} to ${newValue}`);
           const qty = asset.getCurrentHoldings() ?? 1;
           const updatedAsset = {
             ...asset,

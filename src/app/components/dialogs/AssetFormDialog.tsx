@@ -24,7 +24,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { IAsset } from '../../../domain/entities/assets/Asset';
 
 export interface AssetFormDialogProps {
@@ -43,7 +43,7 @@ interface ScriptTestResult {
   error?: string;
 }
 
-export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
+export function AssetFormDialog({
   open,
   title,
   asset,
@@ -51,7 +51,8 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
   onClose,
   onSubmit,
   onAssetChange,
-}) => {
+}: AssetFormDialogProps) {
+  // Responsive design
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -307,7 +308,8 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="body2">
-                      Advanced Scripting {asset.script && asset.script.trim() !== ''}
+                      Advanced Scripting{' '}
+                      {asset.script && asset.script.trim() !== '' ? '(configured)' : ''}
                     </Typography>
                   </Box>
                 </Button>
@@ -414,4 +416,4 @@ export const AssetFormDialog: React.FC<AssetFormDialogProps> = ({
       </DialogActions>
     </Dialog>
   );
-};
+}

@@ -1,5 +1,5 @@
 import { Asset } from '@/domain/entities/assets/Asset';
-import { IInvestment } from '@/domain/entities/assets/Investment';
+import { IInvestment, InvestmentType } from '@/domain/entities/assets/Investment';
 import {
   Button,
   Dialog,
@@ -14,6 +14,8 @@ import {
   RadioGroup,
   TextField,
 } from '@mui/material';
+import { useState } from 'react';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface InvestmentFormDialogProps {
   open: boolean;
@@ -36,61 +38,99 @@ export function InvestmentFormDialog({
   onSubmit,
   onTransactionChange,
 }: InvestmentFormDialogProps) {
+  const [formattedAmount, setFormattedAmount] = useState<string>(
+    investment.price ? UIUtils.formatNumberInput(investment.price.toString(), asset.currency) : ''
+  );
+
+  const handleAmountChange = (value: string) => {
+    // Remove any existing formatting to get clean numeric input
+    const cleanValue = value.replace(/[^\d.]/g, '');
+
+    // Update the investment with the numeric value
+    const numericValue = parseFloat(cleanValue) || 0;
+    onTransactionChange({
+      ...investment,
+      price: numericValue,
+    });
+
+    // Format and display the value with proper locale formatting
+    if (cleanValue && !isNaN(numericValue)) {
+      const formatted = UIUtils.formatNumberInput(cleanValue, asset.currency);
+      setFormattedAmount(formatted);
+    } else {
+      setFormattedAmount(cleanValue);
+    }
+  };
+
+  const handleAmountBlur = () => {
+    // Reformat the amount when field loses focus
+    if (formattedAmount) {
+      const formatted = UIUtils.formatNumberInput(formattedAmount, asset.currency);
+      setFormattedAmount(formatted);
+    }
+  };
+
+  const getCurrencySymbol = (currency: string): string => {
+    const symbols: Record<string, string> = {
+      USD: '$',
+      INR: '₹',
+      GBP: '£',
+    };
+    return symbols[currency] || currency;
+  };
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
-        <FormControl component="fieldset" margin="normal">
+        <FormControl component="fieldset" margin="normal" fullWidth>
           <FormLabel component="legend">Transaction Type</FormLabel>
           <RadioGroup
             row
-            value={investment.price > 0 ? 'buy' : 'sell'}
+            value={investment.type || InvestmentType.BUY}
             onChange={e =>
               onTransactionChange({
                 ...investment,
-                quantity:
-                  e.target.value == 'buy' ? investment.quantity || 1 : -(investment.quantity || -1),
-                price: e.target.value == 'buy' ? investment.price || 0 : -(investment.price || -1),
+                type: e.target.value as InvestmentType,
               })
             }
           >
-            <FormControlLabel value="buy" control={<Radio />} label="Buy" />
-            <FormControlLabel value="sell" control={<Radio />} label="Sell" />
+            <FormControlLabel value={InvestmentType.BUY} control={<Radio />} label="Buy" />
+            <FormControlLabel value={InvestmentType.SELL} control={<Radio />} label="Sell" />
           </RadioGroup>
         </FormControl>
 
         <TextField
-          label="Quantity"
-          value={investment.quantity}
+          label="Quantity / Units"
+          value={investment.quantity || ''}
           onChange={e =>
-            onTransactionChange({ ...investment, quantity: parseFloat(e.target.value) || 0 })
+            onTransactionChange({
+              ...investment,
+              quantity: parseFloat(e.target.value) || undefined,
+            })
           }
           type="number"
           inputProps={{ min: 0, step: 'any' }}
-          helperText="Leave empty for assets where quantity doesn't apply (e.g., Fixed Deposits)"
+          helperText="Number of units/shares purchased"
           fullWidth
           margin="normal"
         />
 
         <TextField
-          label="Price per Unit"
-          value={investment.price}
-          onChange={e =>
-            onTransactionChange({ ...investment, price: parseFloat(e.target.value) || 0 })
-          }
-          type="number"
-          inputProps={{ min: 0, step: 'any' }}
+          label="Total Amount"
+          value={formattedAmount}
+          onChange={e => handleAmountChange(e.target.value)}
+          onBlur={handleAmountBlur}
+          type="text"
           InputProps={{
             startAdornment: (
-              <InputAdornment position="start">
-                {asset.currency === 'USD' ? '$' : asset.currency === 'INR' ? '₹' : '£'}
-              </InputAdornment>
+              <InputAdornment position="start">{getCurrencySymbol(asset.currency)}</InputAdornment>
             ),
           }}
           required
           fullWidth
           margin="normal"
-          helperText="Include all fees and charges in the price"
+          helperText="Total amount invested (including all fees and charges)"
         />
 
         <TextField
@@ -113,7 +153,7 @@ export function InvestmentFormDialog({
         <Button onClick={onClose} disabled={isSubmitting} color="secondary">
           Cancel
         </Button>
-        <Button onClick={onSubmit} disabled={isSubmitting} color="primary">
+        <Button onClick={onSubmit} disabled={isSubmitting} color="primary" variant="contained">
           {isSubmitting ? 'Submitting...' : 'Submit'}
         </Button>
       </DialogActions>

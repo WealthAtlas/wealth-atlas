@@ -30,6 +30,10 @@ export class Investment implements IInvestment {
   }
 
   getTotalAmount(): number {
-    return (this.quantity || 1) * this.price;
+    return this.price;
+  }
+
+  getUnitPrice(): number {
+    return this.price / (this.quantity || 1);
   }
 }
