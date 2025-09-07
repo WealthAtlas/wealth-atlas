@@ -2,8 +2,8 @@ import { Asset } from '@/domain/entities/assets/Asset';
 import { Add } from '@mui/icons-material';
 import { Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
 import { AssetFormContainer } from '../../containers/assets/AssetFormContainer';
+import { AssetViewContainer } from '../../containers/assets/AssetViewContainer';
 import { UIUtils } from '../../utils/UIUtils';
-import { AssetView } from '../views/AssetView';
 
 export interface AssetsPageProps {
   assets: Asset[];
@@ -78,7 +78,7 @@ export function AssetsPage({
 
         <Grid container spacing={3}>
           {assets.map(asset => (
-            <AssetView key={asset.id} asset={asset} deleteAsset={deleteAsset} refresh={refresh} />
+            <AssetViewContainer key={asset.id} assetId={asset.id!} deleteAsset={deleteAsset} />
           ))}
         </Grid>
 

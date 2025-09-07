@@ -14,19 +14,27 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
 import { InvestmentListContainer } from '../../containers/assets/investment/InvestmentListContainer';
 
 export interface AssetViewProps {
   asset: Asset;
+  showViewTransactions: boolean;
+  showEditAsset: boolean;
+  setShowViewTransactions: (show: boolean) => void;
+  setShowEditAsset: (show: boolean) => void;
   deleteAsset: (id: number) => void;
   refresh: () => void;
 }
 
-export function AssetView({ asset, deleteAsset, refresh }: AssetViewProps) {
-  const [showViewTransactions, setShowViewTransactions] = useState<boolean>(false);
-  const [showEditAsset, setShowEditAsset] = useState<boolean>(false);
-
+export function AssetView({
+  asset,
+  deleteAsset,
+  refresh,
+  showViewTransactions,
+  showEditAsset,
+  setShowViewTransactions,
+  setShowEditAsset,
+}: AssetViewProps) {
   // Calculate financial metrics
   const totalInvested = asset.getTotalInvestedAmount();
   const currentValue = asset.getValue() || 0;
