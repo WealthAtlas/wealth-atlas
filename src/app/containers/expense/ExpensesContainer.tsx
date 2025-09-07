@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 export function ExpensesContainer() {
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpense[]>([]);
+  const [showAddExpense, setShowAddExpense] = React.useState(false);
   const expenseService = React.useMemo(() => new ExpenseService(), []);
 
   const loadExpenses = useCallback(async () => {
@@ -37,6 +38,8 @@ export function ExpensesContainer() {
     <>
       <ExpensesPage
         monthlyExpenses={monthlyExpenses}
+        showAddExpense={showAddExpense}
+        setShowAddExpense={setShowAddExpense}
         deleteExpense={deleteExpense}
         refresh={loadExpenses}
       />

@@ -24,8 +24,8 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
+import { ExpenseCardContainer } from '../../containers/expense/ExpenseCardContainer';
 import { UIUtils } from '../../utils/UIUtils';
-import { ExpenseCardView } from './ExpenseCardView';
 
 export interface MonthlyExpenseViewProps {
   monthlyExpense: MonthlyExpense;
@@ -463,7 +463,7 @@ export function MonthlyExpenseView({
                             backgroundColor: 'background.paper',
                           }}
                         >
-                          <ExpenseCardView
+                          <ExpenseCardContainer
                             expense={expense}
                             refresh={refresh}
                             deleteExpense={deleteExpense}
@@ -623,7 +623,7 @@ export function MonthlyExpenseView({
                               backgroundColor: 'background.paper',
                             }}
                           >
-                            <ExpenseCardView
+                            <ExpenseCardContainer
                               expense={expense}
                               refresh={refresh}
                               deleteExpense={deleteExpense}

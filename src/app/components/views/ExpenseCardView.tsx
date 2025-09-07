@@ -1,19 +1,24 @@
-import { AttachMoney, CalendarToday, Category, Delete, Edit } from '@mui/icons-material';
+import { CalendarToday, Category, Delete, Edit } from '@mui/icons-material';
 import { Box, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
-import { useState } from 'react';
 import { Expense } from '../../../domain/entities/expenses/Expense';
 import { ExpenseFormContainer } from '../../containers/expense/ExpenseFormContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
 export interface ExpenseCardViewProps {
   expense: Expense;
+  showExpenseEdit: boolean;
+  setShowExpenseEdit: (show: boolean) => void;
   deleteExpense: (id: number) => void;
   refresh: () => void;
 }
 
-export function ExpenseCardView({ expense, deleteExpense, refresh }: ExpenseCardViewProps) {
-  const [showExpenseEdit, setShowExpenseEdit] = useState<boolean>(false);
-
+export function ExpenseCardView({
+  expense,
+  showExpenseEdit,
+  setShowExpenseEdit,
+  deleteExpense,
+  refresh,
+}: ExpenseCardViewProps) {
   return (
     <>
       {showExpenseEdit && (
@@ -86,7 +91,6 @@ export function ExpenseCardView({ expense, deleteExpense, refresh }: ExpenseCard
         {/* Right section - Amount and Actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 'fit-content' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <AttachMoney sx={{ color: 'success.main', fontSize: 18 }} />
             <Typography variant="h6" fontWeight="bold" color="text.primary">
               {UIUtils.formatCurrency(expense.amount, expense.currency)}
             </Typography>

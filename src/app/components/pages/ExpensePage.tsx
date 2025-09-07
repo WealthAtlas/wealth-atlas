@@ -1,21 +1,26 @@
 import { Add as AddIcon } from '@mui/icons-material';
 import { Box, Card, CardContent, Fab, List, Typography } from '@mui/material';
-import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { ExpenseFormContainer } from '../../containers/expense/ExpenseFormContainer';
+import { MonthlyExpenseViewContainer } from '../../containers/expense/MonthlyExpenseViewContainer';
 import { ExpenseCategoryChart } from '../views/ExpenseCategoryChart';
 import { ExpenseChart } from '../views/MonthlyExpenseChart';
-import { MonthlyExpenseView } from '../views/MonthlyExpenseView';
 
 export interface ExpensesPageProps {
   monthlyExpenses: MonthlyExpense[];
+  showAddExpense: boolean;
+  setShowAddExpense: (show: boolean) => void;
   deleteExpense: (id: number) => void;
   refresh: () => void;
 }
 
-export function ExpensesPage({ monthlyExpenses, deleteExpense, refresh }: ExpensesPageProps) {
-  const [showAddExpense, setShowAddExpense] = React.useState(false);
-
+export function ExpensesPage({
+  monthlyExpenses,
+  showAddExpense,
+  setShowAddExpense,
+  deleteExpense,
+  refresh,
+}: ExpensesPageProps) {
   return (
     <>
       <ExpenseFormContainer
@@ -59,7 +64,7 @@ export function ExpensesPage({ monthlyExpenses, deleteExpense, refresh }: Expens
             ) : (
               <List>
                 {monthlyExpenses.map(monthlyExpense => (
-                  <MonthlyExpenseView
+                  <MonthlyExpenseViewContainer
                     key={monthlyExpense.month.toISOString()}
                     monthlyExpense={monthlyExpense}
                     deleteExpense={deleteExpense}

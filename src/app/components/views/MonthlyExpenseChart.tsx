@@ -3,6 +3,7 @@ import {
   BarPlot,
   ChartContainer,
   ChartsLegend,
+  ChartsTooltip,
   ChartsXAxis,
   ChartsYAxis,
   LinePlot,
@@ -22,11 +23,30 @@ export function ExpenseChart(props: ExpenseChartProps) {
   const getCurrencyColor = React.useCallback(
     (_currency: Currency, index: number) => {
       const colors = [
-        { essential: theme.palette.primary.main, nonEssential: theme.palette.primary.light },
-        { essential: theme.palette.secondary.main, nonEssential: theme.palette.secondary.light },
-        { essential: theme.palette.success.main, nonEssential: theme.palette.success.light },
-        { essential: theme.palette.warning.main, nonEssential: theme.palette.warning.light },
-        { essential: theme.palette.error.main, nonEssential: theme.palette.error.light },
+        {
+          essential: theme.palette.primary.main,
+          nonEssential: theme.palette.primary.light,
+        },
+        {
+          essential: theme.palette.secondary.main,
+          nonEssential: theme.palette.secondary.light,
+        },
+        {
+          essential: theme.palette.success.main,
+          nonEssential: theme.palette.success.light,
+        },
+        {
+          essential: theme.palette.warning.main,
+          nonEssential: theme.palette.warning.light,
+        },
+        {
+          essential: theme.palette.error.main,
+          nonEssential: theme.palette.error.light,
+        },
+        {
+          essential: theme.palette.info.main,
+          nonEssential: theme.palette.info.light,
+        },
       ];
       return colors[index % colors.length];
     },
@@ -87,7 +107,7 @@ export function ExpenseChart(props: ExpenseChartProps) {
 
       barSeries.push({
         dataKey: essentialKey,
-        label: `${currency} - Essential`,
+        label: `🔵 Essential (${currency})`, // Added emoji for visual distinction
         stack: `${currency}`,
         color: currencyColor.essential,
         type: 'bar',
@@ -95,7 +115,7 @@ export function ExpenseChart(props: ExpenseChartProps) {
 
       barSeries.push({
         dataKey: nonEssentialKey,
-        label: `${currency} - Non-Essential`,
+        label: `⚪ Non-Essential (${currency})`, // Added emoji for visual distinction
         stack: `${currency}`,
         color: currencyColor.nonEssential,
         type: 'bar',
@@ -104,8 +124,8 @@ export function ExpenseChart(props: ExpenseChartProps) {
       // Add average line series
       lineSeries.push({
         dataKey: averageKey,
-        label: `${currency} - Average`,
-        color: theme.palette.text.primary,
+        label: `Avg Total (${currency})`, // Improved label format
+        color: theme.palette.grey[600], // More neutral color for average lines
         type: 'line',
       });
 
@@ -124,15 +144,74 @@ export function ExpenseChart(props: ExpenseChartProps) {
     });
 
     return { data, barSeries, lineSeries, displayMonths };
-  }, [props, isMobile, getCurrencyColor, theme.palette.text.primary]);
+  }, [props, isMobile, getCurrencyColor, theme.palette.grey]);
 
-  const formatMonthLabel = (month: string) => {
-    const date = new Date(month + '-01');
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      year: isMobile ? undefined : '2-digit',
-    });
-  };
+  const formatMonthLabel = React.useCallback(
+    (month: string) => {
+      const date = new Date(month + '-01');
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        year: isMobile ? undefined : '2-digit',
+      });
+    },
+    [isMobile]
+  );
+
+  // Custom tooltip formatter
+  const tooltipFormatter = React.useCallback(
+    (params: {
+      dataIndex?: number;
+      series?: Array<{ value: number; color: string; label: string; type: string }>;
+    }) => {
+      if (!params || typeof params.dataIndex !== 'number') return null;
+
+      const monthData = chartData.data[params.dataIndex];
+      const month = formatMonthLabel(monthData.month as string);
+
+      return (
+        <Box
+          sx={{
+            p: 1,
+            bgcolor: 'background.paper',
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1,
+          }}
+        >
+          <Box sx={{ fontWeight: 'bold', mb: 1 }}>{month}</Box>
+          {params.series?.map(
+            (
+              serie: { value: number; color: string; label: string; type: string },
+              index: number
+            ) => {
+              if (serie.value === 0) return null;
+
+              const isLine = serie.type === 'line';
+              const currency = serie.label.match(/\(([^)]+)\)/)?.[1] || '';
+              const type = serie.label.split(' (')[0];
+
+              return (
+                <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      bgcolor: serie.color,
+                      borderRadius: isLine ? '50%' : 0,
+                    }}
+                  />
+                  <Box>
+                    {type}: {currency} {serie.value?.toLocaleString()}
+                  </Box>
+                </Box>
+              );
+            }
+          )}
+        </Box>
+      );
+    },
+    [chartData.data, formatMonthLabel]
+  );
 
   if (chartData.data.length === 0) {
     return (
@@ -159,7 +238,7 @@ export function ExpenseChart(props: ExpenseChartProps) {
     <Box
       sx={{
         width: '100%',
-        height: isMobile ? 250 : 400,
+        height: isMobile ? 350 : 500, // Increased height to accommodate legend
         overflowX: 'auto',
       }}
     >
@@ -172,24 +251,25 @@ export function ExpenseChart(props: ExpenseChartProps) {
               scaleType: 'band',
               dataKey: 'month',
               valueFormatter: formatMonthLabel,
-              categoryGapRatio: 0.3, // Controls gap between month groups
-              barGapRatio: 0.1, // Controls gap between currency stacks
+              categoryGapRatio: 0.3,
+              barGapRatio: 0.1,
             },
           ]}
           yAxis={[{}]}
-          height={isMobile ? 250 : 400}
+          height={isMobile ? 350 : 500}
           width={chartWidth}
           margin={{
             left: 80,
             right: 30,
             top: 30,
-            bottom: 60,
+            bottom: 100, // Increased bottom margin for legend
           }}
         >
           <BarPlot />
           <LinePlot />
           <ChartsXAxis />
           <ChartsYAxis />
+          <ChartsTooltip trigger="item" formatter={tooltipFormatter} />
           <ChartsLegend />
         </ChartContainer>
       </Box>
