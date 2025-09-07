@@ -29,7 +29,7 @@ export function InvestmentViewContainer({
     } catch (error) {
       Logger.error('Failed to load investment:', error);
     }
-  }, [assetService, asset.id]);
+  }, [assetService, asset.id, investmentId]);
 
   useEffect(() => {
     loadInvestment();
