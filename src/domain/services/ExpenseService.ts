@@ -20,7 +20,9 @@ export class ExpenseService {
   public async getExpenses(): Promise<Expense[]> {
     return await this.expenseRepository.getAll().then(async expenses => {
       const expensePromises = expenses.map(expense => this.toExpense(expense));
-      return await Promise.all(expensePromises);
+      return (await Promise.all(expensePromises)).sort(
+        (a, b) => a.date.getTime() - b.date.getTime()
+      );
     });
   }
 

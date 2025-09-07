@@ -449,7 +449,7 @@ export function MonthlyExpenseView({
                       Individual Expenses
                     </Typography>
                     <Stack spacing={1.5}>
-                      {monthlyExpense.expenses.map(expense => (
+                      {monthlyExpense.getSortedExpenses().map(expense => (
                         <Box
                           key={expense.id}
                           sx={{
@@ -479,7 +479,10 @@ export function MonthlyExpenseView({
               <Stack spacing={3}>
                 {uniqueCurrencies.map(currency => {
                   const currencyExpenses =
-                    monthlyExpense.getExpensesByCurrency().get(currency) || [];
+                    monthlyExpense
+                      .getExpensesByCurrency()
+                      .get(currency)
+                      ?.sort((a, b) => b.date.getTime() - a.date.getTime()) || [];
                   const currencyTotal = monthlyExpense.getTotalAmountByCurrency(currency);
                   const currencyEssential = monthlyExpense.getEssentialAmountByCurrency(currency);
                   const currencyNonEssential =

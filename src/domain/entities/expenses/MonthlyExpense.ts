@@ -66,4 +66,8 @@ export class MonthlyExpense {
     const categories = new Set(this.expenses.map(expense => expense.category));
     return Array.from(categories);
   }
+
+  getSortedExpenses(): Expense[] {
+    return this.expenses.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }
 }

@@ -42,7 +42,9 @@ export class AssetService {
   }
 
   public async getAssets(): Promise<Asset[]> {
-    const assets = await this.assetRepository.getAll();
+    const assets = (await this.assetRepository.getAll()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
     return Promise.all(
       assets.map(async asset => {
         return this.toAsset(asset);
@@ -65,11 +67,13 @@ export class AssetService {
   }
 
   public async getInvestmentByAssetId(assetId: number): Promise<Investment[]> {
-    return (await this.inestmentRepository.getByAssetId(assetId)).map(transaction => {
-      return new Investment({
-        ...transaction,
-      });
-    });
+    return (await this.inestmentRepository.getByAssetId(assetId))
+      .map(transaction => {
+        return new Investment({
+          ...transaction,
+        });
+      })
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
   }
 
   public async deleteInvestment(id: number): Promise<void> {
