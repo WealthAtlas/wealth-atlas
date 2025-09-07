@@ -3,18 +3,26 @@ import { ValueModel } from '@/domain/entities/assets/ValueModel';
 import { Currency } from '@/domain/entities/shared/Currency';
 import { executeValueScript } from '@/domain/utils/ScriptExecutor';
 import { scriptTemplates } from '@/domain/utils/ScriptTemplate';
-import { ExpandLess, ExpandMore, PlayArrow } from '@mui/icons-material';
+import {
+  AccountBalance,
+  Code,
+  ExpandLess,
+  ExpandMore,
+  PlayArrow,
+  TrendingUp,
+} from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   CircularProgress,
   Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -52,15 +60,15 @@ export function AssetFormDialog({
   onSubmit,
   onAssetChange,
 }: AssetFormDialogProps) {
-  // Responsive design
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // State for script functionality
+  // Script functionality state
   const [scriptSectionOpen, setScriptSectionOpen] = useState(false);
   const [isTestingScript, setIsTestingScript] = useState(false);
   const [scriptTestResult, setScriptTestResult] = useState<ScriptTestResult | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+
   const formatDateForInput = (date: Date | undefined): string => {
     if (!date) return '';
     return date.toISOString().split('T')[0];
@@ -95,7 +103,7 @@ export function AssetFormDialog({
     }
   };
 
-  // Template selection functionality - simple replace
+  // Template selection functionality
   const handleTemplateSelection = (templateKey: string) => {
     if (!templateKey) return;
 
@@ -107,220 +115,322 @@ export function AssetFormDialog({
     setSelectedTemplate('');
   };
 
-  // Simple script validation
+  // Script validation
   const validateScript = (script: string): string | null => {
     if (!script || script.trim() === '') return null;
-
-    // Basic validation - check if it contains getValue export
     if (!script.includes('getValue')) {
       return 'Script should export a getValue function';
     }
-
     return null;
   };
 
-  // Clear script test results when script changes
   const handleScriptChange = (newScript: string) => {
     onAssetChange({ ...asset, script: newScript === '' ? undefined : newScript });
     setScriptTestResult(null);
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <Box sx={{ mt: 1 }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" scroll="paper">
+      <DialogTitle>
+        <Typography variant="h5" component="div">
+          {title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Configure your asset with valuation model and pricing details
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ pb: 0 }}>
+        <Box sx={{ mt: 2 }}>
           {/* Basic Information Section */}
-          <Typography variant="h6" color="primary" gutterBottom>
-            Basic Information
-          </Typography>
+          <Card variant="outlined" sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <AccountBalance color="primary" />
+                <Typography variant="h6" color="primary">
+                  Basic Information
+                </Typography>
+              </Box>
 
-          <TextField
-            label="Asset Name"
-            value={asset.name}
-            onChange={e => onAssetChange({ ...asset, name: e.target.value })}
-            fullWidth
-            margin="normal"
-            required
-            placeholder="e.g., Axis Bluechip Fund, HDFC Bank Stock"
-          />
+              <TextField
+                label="Asset Name"
+                value={asset.name}
+                onChange={e => onAssetChange({ ...asset, name: e.target.value })}
+                fullWidth
+                margin="normal"
+                required
+                placeholder="e.g., Axis Bluechip Fund, HDFC Bank Stock"
+                error={asset.name.trim() === ''}
+                helperText={asset.name.trim() === '' ? 'Asset name is required' : ''}
+              />
 
-          <TextField
-            label="Description"
-            value={asset.description}
-            onChange={e => onAssetChange({ ...asset, description: e.target.value })}
-            fullWidth
-            margin="normal"
-            multiline
-            rows={2}
-            placeholder="Optional details about this asset"
-          />
+              <TextField
+                label="Description"
+                value={asset.description}
+                onChange={e => onAssetChange({ ...asset, description: e.target.value })}
+                fullWidth
+                margin="normal"
+                multiline
+                rows={2}
+                placeholder="Optional details about this asset"
+              />
 
-          <FormControl fullWidth margin="normal" required>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={asset.category}
-              label="Category"
-              onChange={e => onAssetChange({ ...asset, category: e.target.value })}
-            >
-              {Object.values(AssetCategory).map(category => (
-                <MenuItem key={category} value={category}>
-                  {category}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <FormControl fullWidth required>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={asset.category}
+                    label="Category"
+                    onChange={e => onAssetChange({ ...asset, category: e.target.value })}
+                  >
+                    {Object.values(AssetCategory).map(category => (
+                      <MenuItem key={category} value={category}>
+                        {category}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
-          <FormControl fullWidth margin="normal" required>
-            <InputLabel>Currency</InputLabel>
-            <Select
-              value={asset.currency}
-              label="Currency"
-              onChange={e => onAssetChange({ ...asset, currency: e.target.value })}
-            >
-              {Object.entries(Currency).map(([key, value]) => (
-                <MenuItem key={key} value={key}>
-                  {key} - {value}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <Divider sx={{ my: 3 }} />
+                <FormControl fullWidth required>
+                  <InputLabel>Currency</InputLabel>
+                  <Select
+                    value={asset.currency}
+                    label="Currency"
+                    onChange={e => onAssetChange({ ...asset, currency: e.target.value })}
+                  >
+                    {Object.entries(Currency).map(([key, value]) => (
+                      <MenuItem key={key} value={key}>
+                        {key} - {value}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </CardContent>
+          </Card>
 
           {/* Valuation Model Section */}
-          <Typography variant="h6" color="primary" gutterBottom>
-            Valuation Model
-          </Typography>
+          <Card variant="outlined" sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <TrendingUp color="primary" />
+                <Typography variant="h6" color="primary">
+                  Valuation Model
+                </Typography>
+              </Box>
 
-          <FormControl fullWidth margin="normal" required>
-            <InputLabel>Pricing Model</InputLabel>
-            <Select
-              value={asset.valueModel}
-              label="Pricing Model"
-              onChange={e => onAssetChange({ ...asset, valueModel: e.target.value as ValueModel })}
-            >
-              <MenuItem value={ValueModel.MARKET_BASED}>
-                Market Based - Current market value (Stocks, MFs, REITs)
-              </MenuItem>
-              <MenuItem value={ValueModel.FIXED_INCOME}>
-                Fixed Income - Calculated from interest rate (FDs, Bonds)
-              </MenuItem>
-              <MenuItem value={ValueModel.MATURITY_BASED}>
-                Maturity Based - Fixed maturity amount (Insurance, Endowments)
-              </MenuItem>
-            </Select>
-          </FormControl>
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Pricing Model</InputLabel>
+                <Select
+                  value={asset.valueModel}
+                  label="Pricing Model"
+                  onChange={e =>
+                    onAssetChange({ ...asset, valueModel: e.target.value as ValueModel })
+                  }
+                >
+                  <MenuItem value={ValueModel.MARKET_BASED}>
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        Market Based
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Current market value (Stocks, Mutual Funds, REITs)
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value={ValueModel.FIXED_INCOME}>
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        Fixed Income
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Calculated from interest rate (Fixed Deposits, Bonds)
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value={ValueModel.MATURITY_BASED}>
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        Maturity Based
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Fixed maturity amount (Insurance, Endowments)
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
 
-          {/* Conditional Fields Based on Value Model */}
-          {asset.valueModel === ValueModel.FIXED_INCOME && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Fixed Income Details
-              </Typography>
-              <TextField
-                label="Annual Interest Rate (%)"
-                value={asset.interestRate || ''}
-                onChange={e =>
-                  onAssetChange({ ...asset, interestRate: parseFloat(e.target.value) || undefined })
-                }
-                type="number"
-                fullWidth
-                margin="normal"
-                required
-                placeholder="e.g., 7.5"
-                inputProps={{ min: 0, max: 100, step: 0.1 }}
-              />
-            </Box>
-          )}
+              {/* Conditional Fields Based on Value Model */}
+              {asset.valueModel === ValueModel.FIXED_INCOME && (
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+                  <Typography
+                    variant="subtitle1"
+                    gutterBottom
+                    color="primary.main"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    Fixed Income Configuration
+                  </Typography>
+                  <TextField
+                    label="Annual Interest Rate (%)"
+                    value={asset.interestRate || ''}
+                    onChange={e =>
+                      onAssetChange({
+                        ...asset,
+                        interestRate: parseFloat(e.target.value) || undefined,
+                      })
+                    }
+                    type="number"
+                    fullWidth
+                    margin="normal"
+                    required
+                    placeholder="e.g., 7.5"
+                    inputProps={{ min: 0, max: 100, step: 0.1 }}
+                    error={!asset.interestRate || asset.interestRate <= 0}
+                    helperText="Enter the annual interest rate for this fixed income instrument"
+                  />
+                </Box>
+              )}
 
-          {asset.valueModel === ValueModel.MATURITY_BASED && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Maturity Details
-              </Typography>
-              <TextField
-                label="Maturity Date"
-                value={formatDateForInput(asset.maturityDate)}
-                onChange={e =>
-                  onAssetChange({
-                    ...asset,
-                    maturityDate: e.target.value ? new Date(e.target.value) : undefined,
-                  })
-                }
-                type="date"
-                fullWidth
-                margin="normal"
-                required
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="Maturity Amount"
-                value={asset.maturityAmount || ''}
-                onChange={e =>
-                  onAssetChange({
-                    ...asset,
-                    maturityAmount: parseFloat(e.target.value) || undefined,
-                  })
-                }
-                type="number"
-                fullWidth
-                margin="normal"
-                required
-                placeholder="Final amount at maturity"
-                inputProps={{ min: 0, step: 0.01 }}
-              />
-            </Box>
-          )}
+              {asset.valueModel === ValueModel.MATURITY_BASED && (
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'warning.50', borderRadius: 1 }}>
+                  <Typography
+                    variant="subtitle1"
+                    gutterBottom
+                    color="warning.main"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    Maturity Configuration
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexDirection: isMobile ? 'column' : 'row' }}>
+                    <TextField
+                      label="Maturity Date"
+                      value={formatDateForInput(asset.maturityDate)}
+                      onChange={e =>
+                        onAssetChange({
+                          ...asset,
+                          maturityDate: e.target.value ? new Date(e.target.value) : undefined,
+                        })
+                      }
+                      type="date"
+                      fullWidth
+                      margin="normal"
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      error={!asset.maturityDate}
+                    />
+                    <TextField
+                      label="Maturity Amount"
+                      value={asset.maturityAmount || ''}
+                      onChange={e =>
+                        onAssetChange({
+                          ...asset,
+                          maturityAmount: parseFloat(e.target.value) || undefined,
+                        })
+                      }
+                      type="number"
+                      fullWidth
+                      margin="normal"
+                      required
+                      placeholder="Final amount at maturity"
+                      inputProps={{ min: 0, step: 0.01 }}
+                      error={!asset.maturityAmount || asset.maturityAmount <= 0}
+                      helperText="Expected amount to be received at maturity"
+                    />
+                  </Box>
+                </Box>
+              )}
 
+              {asset.valueModel === ValueModel.MARKET_BASED && (
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'success.50', borderRadius: 1 }}>
+                  <Typography
+                    variant="subtitle1"
+                    gutterBottom
+                    color="success.main"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    Market-Based Configuration
+                  </Typography>
+                  <TextField
+                    label="Current Market Value (Optional)"
+                    value={asset.marketValue || ''}
+                    onChange={e =>
+                      onAssetChange({
+                        ...asset,
+                        marketValue: parseFloat(e.target.value) || undefined,
+                      })
+                    }
+                    type="number"
+                    fullWidth
+                    margin="normal"
+                    placeholder="Current market price per unit"
+                    inputProps={{ min: 0, step: 0.01 }}
+                    helperText="Leave empty to configure live market data below, or enter a fixed market value"
+                  />
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Advanced Scripting Section - Only for Market Based */}
           {asset.valueModel === ValueModel.MARKET_BASED && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Market-Based Details
-              </Typography>
-              <TextField
-                label="Current Market Value (Optional)"
-                value={asset.marketValue || ''}
-                onChange={e =>
-                  onAssetChange({ ...asset, marketValue: parseFloat(e.target.value) || undefined })
-                }
-                type="number"
-                fullWidth
-                margin="normal"
-                placeholder="Current market price per unit"
-                inputProps={{ min: 0, step: 0.01 }}
-                helperText="Leave empty if using script for live market data"
-              />
+            <Card variant="outlined" sx={{ mb: 3 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Code color="primary" />
+                  <Typography variant="h6" color="primary">
+                    Live Market Data (Advanced)
+                  </Typography>
+                </Box>
 
-              {/* Advanced Scripting Section */}
-              <Box sx={{ mt: 3 }}>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  Configure JavaScript code to automatically fetch live market prices from APIs.
+                  This is optional - you can leave this empty and manually update market values.
+                </Typography>
+
                 <Button
                   variant="outlined"
                   onClick={() => setScriptSectionOpen(!scriptSectionOpen)}
                   startIcon={scriptSectionOpen ? <ExpandLess /> : <ExpandMore />}
                   fullWidth
                   sx={{
-                    justifyContent: 'space-between',
+                    mb: 2,
+                    justifyContent: 'flex-start',
                     textTransform: 'none',
-                    color: 'text.secondary',
-                    borderColor: 'divider',
+                    py: 1.5,
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2">
-                      Advanced Scripting{' '}
-                      {asset.script && asset.script.trim() !== '' ? '(configured)' : ''}
-                    </Typography>
+                    <Typography variant="body1">JavaScript Configuration</Typography>
+                    {asset.script && asset.script.trim() !== '' && (
+                      <Box
+                        sx={{
+                          px: 1,
+                          py: 0.25,
+                          bgcolor: 'success.main',
+                          color: 'success.contrastText',
+                          borderRadius: 0.5,
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        Configured
+                      </Box>
+                    )}
                   </Box>
                 </Button>
 
                 <Collapse in={scriptSectionOpen}>
-                  <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Write custom JavaScript to fetch live market data from APIs. The script must
-                      export a getValue() function that returns a number.
-                    </Typography>
-
+                  <Box
+                    sx={{
+                      mt: 2,
+                      p: 2,
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      bgcolor: 'grey.50',
+                    }}
+                  >
                     {/* Template Selection */}
                     <FormControl fullWidth margin="normal" size="small">
                       <InputLabel>Choose Template (Optional)</InputLabel>
@@ -334,7 +444,14 @@ export function AssetFormDialog({
                         </MenuItem>
                         {Object.entries(scriptTemplates).map(([key, template]) => (
                           <MenuItem key={key} value={key}>
-                            {template.name} - {template.description}
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {template.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {template.description}
+                              </Typography>
+                            </Box>
                           </MenuItem>
                         ))}
                       </Select>
@@ -348,7 +465,7 @@ export function AssetFormDialog({
                       fullWidth
                       margin="normal"
                       multiline
-                      rows={isMobile ? 6 : 10}
+                      rows={isMobile ? 8 : 10}
                       placeholder="// Example:
 // exports.getValue = async function() {
 //   const response = await fetch('https://api.example.com/price');
@@ -357,19 +474,32 @@ export function AssetFormDialog({
 // };"
                       sx={{
                         '& .MuiInputBase-input': {
-                          fontFamily: 'monospace',
+                          fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
                           fontSize: isMobile ? '0.75rem' : '0.875rem',
-                          lineHeight: 1.4,
+                          lineHeight: 1.5,
                         },
                       }}
                       helperText={
                         validateScript(asset.script || '') ||
-                        'Script must export getValue() function that returns a number'
+                        'Script must export a getValue() function that returns a number'
                       }
                       error={!!validateScript(asset.script || '')}
                     />
 
-                    {/* Simple Script Test Results */}
+                    {/* Script Testing */}
+                    <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleTestScript}
+                        disabled={isTestingScript || !asset.script || asset.script.trim() === ''}
+                        startIcon={isTestingScript ? <CircularProgress size={16} /> : <PlayArrow />}
+                      >
+                        {isTestingScript ? 'Testing...' : 'Test Script'}
+                      </Button>
+                    </Box>
+
+                    {/* Test Results */}
                     {scriptTestResult && (
                       <Alert
                         severity={scriptTestResult.success ? 'success' : 'error'}
@@ -378,7 +508,7 @@ export function AssetFormDialog({
                       >
                         {scriptTestResult.success ? (
                           <Typography variant="body2">
-                            Success! Value:{' '}
+                            Success! Retrieved value:{' '}
                             <strong>{scriptTestResult.value?.toLocaleString()}</strong>
                           </Typography>
                         ) : (
@@ -386,32 +516,45 @@ export function AssetFormDialog({
                         )}
                       </Alert>
                     )}
-
-                    {/* Simple Script Actions */}
-                    <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={handleTestScript}
-                        disabled={isTestingScript || !asset.script || asset.script.trim() === ''}
-                        startIcon={isTestingScript ? <CircularProgress size={16} /> : <PlayArrow />}
-                      >
-                        {isTestingScript ? 'Testing...' : 'Test'}
-                      </Button>
-                    </Box>
                   </Box>
                 </Collapse>
-              </Box>
-            </Box>
+              </CardContent>
+            </Card>
           )}
         </Box>
       </DialogContent>
-      <DialogActions sx={{ p: 2, gap: 1 }}>
-        <Button onClick={onClose} disabled={isSubmitting} variant="outlined" color="secondary">
+
+      <DialogActions sx={{ px: 3, py: 2, borderTop: 1, borderColor: 'divider' }}>
+        <Button
+          onClick={onClose}
+          disabled={isSubmitting}
+          variant="outlined"
+          color="secondary"
+          sx={{ minWidth: 100 }}
+        >
           Cancel
         </Button>
-        <Button onClick={onSubmit} disabled={isSubmitting} variant="contained" color="primary">
-          {isSubmitting ? 'Submitting...' : 'Save Asset'}
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          onClick={onSubmit}
+          disabled={
+            isSubmitting ||
+            asset.name.trim() === '' ||
+            !asset.category ||
+            !asset.currency ||
+            !asset.valueModel ||
+            (asset.valueModel === ValueModel.FIXED_INCOME &&
+              (!asset.interestRate || asset.interestRate <= 0)) ||
+            (asset.valueModel === ValueModel.MATURITY_BASED &&
+              (!asset.maturityDate || !asset.maturityAmount || asset.maturityAmount <= 0))
+          }
+          variant="contained"
+          color="primary"
+          sx={{ minWidth: 120 }}
+        >
+          {isSubmitting ? 'Saving...' : 'Save Asset'}
         </Button>
       </DialogActions>
     </Dialog>
