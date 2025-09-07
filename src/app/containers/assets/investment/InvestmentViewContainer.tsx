@@ -22,14 +22,14 @@ export function InvestmentViewContainer({
 
   const loadInvestment = useCallback(async () => {
     try {
-      const investment = (await assetService.getInvestmentByAssetId(investmentId)).filter(
+      const investment = (await assetService.getInvestmentByAssetId(asset.id!)).filter(
         inv => inv.id === investmentId
       )[0];
       setInvestment(investment);
     } catch (error) {
       Logger.error('Failed to load investment:', error);
     }
-  }, [assetService, investmentId]);
+  }, [assetService, asset.id]);
 
   useEffect(() => {
     loadInvestment();

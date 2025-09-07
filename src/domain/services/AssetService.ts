@@ -106,16 +106,20 @@ export class AssetService {
     return await this.getAssets().then(async assets => {
       for (const asset of assets) {
         if (asset.script) {
-          const newValue = await executeValueScript(asset.script);
-          if (newValue === undefined) continue;
-          Logger.info(`Updating market value for ${asset.name} to ${newValue}`);
-          const qty = asset.getCurrentHoldings() ?? 1;
-          const updatedAsset = {
-            ...asset,
-            marketValue: newValue * qty,
-            marketValueUpdatedAt: new Date(),
-          };
-          await this.assetRepository.update(updatedAsset);
+          try {
+            const newValue = await executeValueScript(asset.script);
+            if (newValue === undefined) continue;
+            Logger.info(`Updating market value for ${asset.name} to ${newValue}`);
+            const qty = asset.getCurrentHoldings() ?? 1;
+            const updatedAsset = {
+              ...asset,
+              marketValue: newValue * qty,
+              marketValueUpdatedAt: new Date(),
+            };
+            await this.assetRepository.update(updatedAsset);
+          } catch (error) {
+            Logger.error(`Failed to update market value for ${asset.name}:`, error);
+          }
         }
       }
     });

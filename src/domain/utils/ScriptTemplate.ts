@@ -35,37 +35,40 @@ exports.getValue = async function() {
 }
 `;
 
-// Example 2: Fetching cryptocurrency price from CoinGecko API
-export const coinGeckoCryptoTemplate = `
+// Example 2: Fetching mutual fund price from MFAPI
+export const mfAPI = `
 /**
- * Fetches the current price of a cryptocurrency from CoinGecko API
- * @returns {Promise<number>} The current crypto price in USD
+ * Fetches the current NAV of a mutual fund from MFAPI
+ * @param {string|number} schemeCode - The MFAPI scheme code (e.g., 101525)
+ * @returns {Promise<number>} The current NAV
  */
-async function fetchCryptoPrice() {
-  // CoinGecko API endpoint - no API key required for basic usage
-  const COIN_ID = 'bitcoin'; // Change to the coin you want to track
-  const url = \`https://api.coingecko.com/api/v3/simple/price?ids=\${COIN_ID}&vs_currencies=usd\`;
-  
+async function fetchFundNAV(schemeCode) {
+  const requestOptions = {
+    method: 'GET',
+    redirect: 'follow'
+  };
   try {
-    const response = await fetch(url);
+    const url = \`https://api.mfapi.in/mf/\${schemeCode}/latest\`;
+    const response = await fetch(url, requestOptions);
     const data = await response.json();
-    
-    // Check if we got a valid response
-    if (data[COIN_ID] && data[COIN_ID].usd) {
-      return data[COIN_ID].usd;
+
+    if (data && data.data && data.data.length > 0) {
+      const nav = parseFloat(data.data[0].nav);
+      return nav;
     } else {
-      throw new Error('Invalid response from CoinGecko API');
+      throw new Error("Invalid response structure or no NAV found");
     }
   } catch (error) {
-    console.error('Error fetching crypto price:', error);
+    console.error('Error fetching NAV:', error);
     throw error;
   }
 }
 
 // Export the getValue function that will be called by the application
-exports.getValue = async function() {
-  return fetchCryptoPrice();
-}
+exports.getValue = async function () {
+  const schemeCode = <SCHEME_CODE>; // HDFC Nifty 50 Index Fund - Growth Plan
+  return fetchFundNAV(schemeCode);
+};
 `;
 
 // Example 3: Fetching currency exchange rates from ExchangeRate API
@@ -210,10 +213,10 @@ export const scriptTemplates = {
     description: 'Fetch current stock price using AlphaVantage API',
     template: alphaVantageStockTemplate,
   },
-  crypto: {
-    name: 'Cryptocurrency (CoinGecko)',
-    description: 'Fetch current cryptocurrency price using CoinGecko API',
-    template: coinGeckoCryptoTemplate,
+  mutualFund: {
+    name: 'Mutual Fund (MFAPI)',
+    description: 'Fetch current mutual fund NAV using MFAPI',
+    template: mfAPI,
   },
   forex: {
     name: 'Currency Exchange Rate',

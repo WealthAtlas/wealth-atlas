@@ -101,17 +101,17 @@ export function InvestmentFormDialog({
         </FormControl>
 
         <TextField
-          label="Quantity / Units"
-          value={investment.quantity || ''}
+          label="Transaction Date"
+          value={investment.date?.toISOString().split('T')[0] || ''}
           onChange={e =>
             onTransactionChange({
               ...investment,
-              quantity: parseFloat(e.target.value) || undefined,
+              date: e.target.value ? new Date(e.target.value) : new Date(),
             })
           }
-          type="number"
-          inputProps={{ min: 0, step: 'any' }}
-          helperText="Number of units/shares purchased"
+          type="date"
+          InputLabelProps={{ shrink: true }}
+          required
           fullWidth
           margin="normal"
         />
@@ -134,17 +134,17 @@ export function InvestmentFormDialog({
         />
 
         <TextField
-          label="Transaction Date"
-          value={investment.date?.toISOString().split('T')[0] || ''}
+          label="Quantity / Units"
+          value={investment.quantity || ''}
           onChange={e =>
             onTransactionChange({
               ...investment,
-              date: e.target.value ? new Date(e.target.value) : new Date(),
+              quantity: parseFloat(e.target.value) || undefined,
             })
           }
-          type="date"
-          InputLabelProps={{ shrink: true }}
-          required
+          type="number"
+          inputProps={{ min: 0, step: 'any' }}
+          helperText="Number of units/shares purchased"
           fullWidth
           margin="normal"
         />

@@ -202,7 +202,7 @@ export function InvestmentListDialog({
                   <TableBody>
                     {investments.map(transaction => (
                       <InvestmentViewContainer
-                        key={transaction.id}
+                        key={transaction.id!}
                         asset={asset}
                         investmentId={transaction.id!}
                         deleteInvestment={deleteInvestment}
