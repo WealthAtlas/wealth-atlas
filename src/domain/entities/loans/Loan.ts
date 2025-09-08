@@ -6,7 +6,6 @@ export interface ILoan {
   id: number | undefined;
   name: string;
   description: string;
-  lenderName: string;
   principalAmount: number;
   currency: string;
   startDate: Date;
@@ -16,7 +15,6 @@ export class Loan implements ILoan {
   public readonly id: number | undefined;
   public readonly name: string;
   public readonly description: string;
-  public readonly lenderName: string;
   public readonly principalAmount: number;
   public readonly currency: string;
   public readonly startDate: Date;
@@ -26,7 +24,6 @@ export class Loan implements ILoan {
   constructor({
     id,
     name,
-    lenderName,
     principalAmount,
     currency,
     startDate,
@@ -37,7 +34,6 @@ export class Loan implements ILoan {
     this.id = id;
     this.name = name;
     this.description = description;
-    this.lenderName = lenderName;
     this.principalAmount = principalAmount;
     this.currency = currency;
     this.startDate = new Date(startDate);

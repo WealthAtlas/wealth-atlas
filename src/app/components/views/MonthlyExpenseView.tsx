@@ -489,7 +489,6 @@ export function MonthlyExpenseView({
                     monthlyExpense.getNonEssentialAmountByCurrency(currency);
                   const currencyEssentialPercentage =
                     currencyTotal > 0 ? Math.round((currencyEssential / currencyTotal) * 100) : 0;
-
                   return (
                     <Paper
                       key={currency}
