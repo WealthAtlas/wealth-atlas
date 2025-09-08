@@ -1,12 +1,12 @@
 import { Loan } from '@/domain/entities/loans/Loan';
-import { LoanSummary } from '@/domain/services/LoanService';
 import { Add } from '@mui/icons-material';
 import { Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
+import { LoanFormContainer } from '../../containers/loan/LoanFormContainer';
+import { LoanViewContainer } from '../../containers/loan/LoanViewContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
 export interface LoansPageProps {
   loans: Loan[];
-  loanSummaries: LoanSummary[];
   showAddLoan: boolean;
   portfolioMetrics: {
     totalOutstanding: number;
@@ -21,7 +21,6 @@ export interface LoansPageProps {
 
 export function LoansPage({
   loans,
-  loanSummaries,
   showAddLoan,
   portfolioMetrics,
   refresh,
@@ -30,7 +29,14 @@ export function LoansPage({
 }: LoansPageProps) {
   return (
     <>
-      {/* TODO: Add LoanFormContainer when it's created */}
+      <LoanFormContainer
+        loanToEdit={undefined}
+        onClose={() => {
+          setShowAddLoan(false);
+          refresh();
+        }}
+        open={showAddLoan}
+      />
       <Box sx={{ p: 3, pb: 10 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box>
@@ -73,69 +79,13 @@ export function LoansPage({
         </Box>
 
         <Grid container spacing={3}>
-          {loanSummaries.map(summary => (
-            <Grid item xs={12} sm={6} md={4} key={summary.loan.id}>
-              <Paper elevation={2} sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  {summary.loan.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {summary.loan.description}
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2">Principal:</Typography>
-                    <Typography variant="body2">
-                      {UIUtils.formatCurrency(summary.loan.principalAmount, summary.loan.currency)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2">Remaining:</Typography>
-                    <Typography
-                      variant="body2"
-                      color={summary.remainingBalance > 0 ? 'error.main' : 'success.main'}
-                    >
-                      {UIUtils.formatCurrency(summary.remainingBalance, summary.loan.currency)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2">Paid:</Typography>
-                    <Typography variant="body2" color="success.main">
-                      {UIUtils.formatCurrency(summary.totalPaid, summary.loan.currency)}
-                    </Typography>
-                  </Box>
-                  {summary.isFullyPaid && (
-                    <Typography
-                      variant="body2"
-                      color="success.main"
-                      sx={{ fontWeight: 'bold', mt: 1 }}
-                    >
-                      ✓ Fully Paid
-                    </Typography>
-                  )}
-                  {summary.nextPaymentDate && !summary.isFullyPaid && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Next Payment: {UIUtils.formatDate(summary.nextPaymentDate)}
-                    </Typography>
-                  )}
-                  {summary.overduePayments.length > 0 && (
-                    <Typography variant="body2" color="error.main" sx={{ mt: 1 }}>
-                      ⚠ {summary.overduePayments.length} overdue payment(s)
-                    </Typography>
-                  )}
-                </Box>
-                <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => deleteLoan(summary.loan.id!)}
-                    color="error"
-                  >
-                    Delete
-                  </Button>
-                </Box>
-              </Paper>
-            </Grid>
+          {loans.map(loan => (
+            <LoanViewContainer
+              key={loan.id}
+              loanId={loan.id!}
+              deleteLoan={deleteLoan}
+              refresh={refresh}
+            />
           ))}
         </Grid>
 

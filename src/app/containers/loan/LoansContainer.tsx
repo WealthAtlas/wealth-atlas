@@ -62,7 +62,6 @@ export function LoansContainer() {
     <>
       <LoansPage
         loans={loans}
-        loanSummaries={loanSummaries}
         portfolioMetrics={portfolioMetrics}
         showAddLoan={showAddLoan}
         refresh={loadLoans}
