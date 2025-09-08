@@ -1,7 +1,15 @@
 import { UIUtils } from '@/app/utils/UIUtils';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { LoanSummary } from '@/domain/services/LoanService';
-import { Delete, Edit, Payment, TrendingDown, TrendingFlat, TrendingUp } from '@mui/icons-material';
+import {
+  Delete,
+  Edit,
+  Payment,
+  Schedule,
+  TrendingDown,
+  TrendingFlat,
+  TrendingUp,
+} from '@mui/icons-material';
 import { Box, Card, CardContent, Chip, Divider, Grid, IconButton, Typography } from '@mui/material';
 import { LoanFormContainer } from '../../containers/loan/LoanFormContainer';
 
@@ -10,6 +18,10 @@ export interface LoanViewProps {
   loanSummary: LoanSummary;
   showEditLoan: boolean;
   setShowEditLoan: (show: boolean) => void;
+  showEMIList: boolean;
+  setShowEMIList: (show: boolean) => void;
+  showPaymentList: boolean;
+  setShowPaymentList: (show: boolean) => void;
   deleteLoan: (id: number) => void;
   refresh: () => void;
 }
@@ -20,6 +32,8 @@ export function LoanView({
   deleteLoan,
   setShowEditLoan,
   showEditLoan,
+  setShowEMIList,
+  setShowPaymentList,
   refresh,
 }: LoanViewProps) {
   // Color coding for loan status
@@ -168,45 +182,52 @@ export function LoanView({
             </Box>
 
             {/* Payment History Summary */}
-            {loan.payments.length > 0 && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Box
-                  sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    Payments Made:
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Payments Made:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" fontWeight="medium">
+                    {loan.payments.length}
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" fontWeight="medium">
-                      {loan.payments.length}
-                    </Typography>
-                    <IconButton size="small" title="View Payment History">
-                      <Payment fontSize="small" />
-                    </IconButton>
-                  </Box>
+                  <IconButton
+                    size="small"
+                    title={loan.payments.length > 0 ? 'View Payment History' : 'Manage Payments'}
+                    onClick={() => setShowPaymentList(true)}
+                  >
+                    <Payment fontSize="small" />
+                  </IconButton>
                 </Box>
-              </>
-            )}
+              </Box>
+            </>
 
             {/* EMI Schedule Summary */}
-            {loan.emis.length > 0 && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  mt: 1,
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  EMI Schedules:
-                </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mt: 1,
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                EMI Schedules:
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="body2" fontWeight="medium">
                   {loan.emis.length}
                 </Typography>
+                <IconButton
+                  size="small"
+                  title={loan.emis.length > 0 ? 'View EMI Schedules' : 'Manage EMI Schedules'}
+                  onClick={() => setShowEMIList(true)}
+                >
+                  <Schedule fontSize="small" />
+                </IconButton>
               </Box>
-            )}
+            </Box>
           </CardContent>
         </Card>
       </Grid>

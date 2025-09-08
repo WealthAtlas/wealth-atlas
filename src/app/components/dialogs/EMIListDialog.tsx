@@ -57,7 +57,7 @@ export function EMIListDialog({
       <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Transactions - {loan.name}</Typography>
+            <Typography variant="h6">EMI - {loan.name}</Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="contained"
@@ -65,7 +65,7 @@ export function EMIListDialog({
                 onClick={() => setShowAddTransaction(true)}
                 size="small"
               >
-                Add Transaction
+                Add EMI
               </Button>
               <IconButton onClick={onClose} size="small">
                 <Close />
@@ -77,23 +77,23 @@ export function EMIListDialog({
           {emis.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" gutterBottom>
-                No transactions found
+                No emis found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Start tracking your investments by adding your first transaction.
+                Start tracking your investments by adding your first emi.
               </Typography>
               <Button
                 variant="contained"
                 startIcon={<Add />}
                 onClick={() => setShowAddTransaction(true)}
               >
-                Add First Transaction
+                Add First Emi
               </Button>
             </Box>
           ) : (
             <Box sx={{ space: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Recent Transactions
+                Recent Emis
               </Typography>
 
               {/* Transactions Table */}

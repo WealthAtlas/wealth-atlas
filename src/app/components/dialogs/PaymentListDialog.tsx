@@ -57,7 +57,7 @@ export function PaymentListDialog({
       <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Transactions - {loan.name}</Typography>
+            <Typography variant="h6">Payments - {loan.name}</Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="contained"
@@ -65,7 +65,7 @@ export function PaymentListDialog({
                 onClick={() => setShowAddTransaction(true)}
                 size="small"
               >
-                Add Transaction
+                Add Payment
               </Button>
               <IconButton onClick={onClose} size="small">
                 <Close />
@@ -77,17 +77,17 @@ export function PaymentListDialog({
           {payments.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" gutterBottom>
-                No transactions found
+                No payments found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Start tracking your investments by adding your first transaction.
+                Start tracking your investments by adding your first payment.
               </Typography>
               <Button
                 variant="contained"
                 startIcon={<Add />}
                 onClick={() => setShowAddTransaction(true)}
               >
-                Add First Transaction
+                Add First Payment
               </Button>
             </Box>
           ) : (

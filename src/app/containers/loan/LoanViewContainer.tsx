@@ -3,6 +3,8 @@ import { LoanService, LoanSummary } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LoanView } from '../../components/views/LoanView';
+import { EMIListContainer } from './emi/EMIListContainer';
+import { PaymentListContainer } from './payment/PaymentListContainer';
 
 export interface LoanViewContainerProps {
   loanId: number;
@@ -14,6 +16,8 @@ export function LoanViewContainer({ loanId, deleteLoan, refresh }: LoanViewConta
   const [loan, setLoan] = useState<Loan | undefined>(undefined);
   const [loanSummary, setLoanSummary] = useState<LoanSummary | undefined>(undefined);
   const [showEditLoan, setShowEditLoan] = useState<boolean>(false);
+  const [showEMIList, setShowEMIList] = useState<boolean>(false);
+  const [showPaymentList, setShowPaymentList] = useState<boolean>(false);
   const loanService = React.useMemo(() => new LoanService(), []);
 
   const loadLoan = useCallback(async () => {
@@ -46,6 +50,32 @@ export function LoanViewContainer({ loanId, deleteLoan, refresh }: LoanViewConta
           deleteLoan={deleteLoan}
           showEditLoan={showEditLoan}
           setShowEditLoan={setShowEditLoan}
+          showEMIList={showEMIList}
+          setShowEMIList={setShowEMIList}
+          showPaymentList={showPaymentList}
+          setShowPaymentList={setShowPaymentList}
+        />
+      )}
+      {loan && showEMIList && (
+        <EMIListContainer
+          open={showEMIList}
+          loan={loan}
+          onClose={() => {
+            setShowEMIList(false);
+            loadLoan();
+            refresh();
+          }}
+        />
+      )}
+      {loan && showPaymentList && (
+        <PaymentListContainer
+          open={showPaymentList}
+          loan={loan}
+          onClose={() => {
+            setShowPaymentList(false);
+            loadLoan();
+            refresh();
+          }}
         />
       )}
     </>
