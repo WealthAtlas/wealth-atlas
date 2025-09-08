@@ -50,4 +50,12 @@ export class UIUtils {
     const cleanValue = formattedValue.replace(/[^\d.]/g, '');
     return parseFloat(cleanValue) || 0;
   }
+
+  public static formatDate(date: Date): string {
+    return date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
 }
