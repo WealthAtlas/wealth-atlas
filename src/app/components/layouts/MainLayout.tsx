@@ -1,4 +1,12 @@
-import { AccountBalance, Assessment, Dashboard, MoreVert, Receipt } from '@mui/icons-material';
+import {
+  AccountBalance,
+  Assessment,
+  CreditCard,
+  Dashboard,
+  MoreVert,
+  Receipt,
+  TrendingUp,
+} from '@mui/icons-material';
 import {
   AppBar,
   BottomNavigation,
@@ -39,9 +47,9 @@ export function MainLayout({
   const navigationItems = [
     { label: 'Dashboard', icon: <Dashboard />, value: 0 },
     { label: 'Assets', icon: <AccountBalance />, value: 1 },
-    // { label: 'Loans', icon: <CreditCard />, value: 2 },
-    { label: 'Expenses', icon: <Receipt />, value: 3 },
-    // { label: 'Goals', icon: <TrendingUp />, value: 4 },
+    { label: 'Expenses', icon: <Receipt />, value: 2 },
+    { label: 'Loans', icon: <CreditCard />, value: 3 },
+    { label: 'Goals', icon: <TrendingUp />, value: 4 },
   ];
 
   return (

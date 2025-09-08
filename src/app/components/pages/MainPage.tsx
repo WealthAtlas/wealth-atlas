@@ -83,9 +83,9 @@ export function MainPage() {
       case 1:
         return <AssetsContainer />;
       case 2:
-        return <LoansContainer />;
-      case 3:
         return <ExpensesContainer />;
+      case 3:
+        return <LoansContainer />;
       case 4:
         return <GoalsContainer />;
       default:
