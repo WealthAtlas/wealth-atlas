@@ -15,10 +15,23 @@ export class GoalService {
     this.assetService = new AssetService();
   }
 
-  public async createGoal(goal: IGoal): Promise<Goal> {
-    return await this.goalRepository
-      .create(goal)
-      .then(async createdGoal => this.toGoal(createdGoal));
+  public async createGoal(
+    goal: IGoal,
+    assetAllocations: { assetId: number; percentage: number }[] = []
+  ): Promise<Goal> {
+    const createdGoal = await this.goalRepository.create(goal);
+
+    // Create asset allocations
+    for (const allocation of assetAllocations) {
+      await this.assetGoalAllocationRepository.create({
+        id: undefined,
+        goalId: createdGoal.id!,
+        assetId: allocation.assetId,
+        allocationPercentage: allocation.percentage,
+      });
+    }
+
+    return await this.toGoal(createdGoal);
   }
 
   private async toGoal(data: IGoal): Promise<Goal> {
@@ -36,8 +49,10 @@ export class GoalService {
     return new Goal({
       ...data,
       assetAllocations: allocations,
+      createdAt: data.createdAt || new Date(),
     });
   }
+
   public async deleteGoal(goalId: number): Promise<void> {
     await this.assetGoalAllocationRepository.deleteByGoal(goalId);
     await this.goalRepository.delete(goalId);
@@ -48,12 +63,30 @@ export class GoalService {
     return await Promise.all(goals.map(goal => this.toGoal(goal)));
   }
 
-  public async updateGoal(goalId: number, goalData: IGoal): Promise<Goal> {
+  public async updateGoal(
+    goalId: number,
+    goalData: IGoal,
+    assetAllocations: { assetId: number; percentage: number }[] = []
+  ): Promise<Goal> {
     const updatedGoal: IGoal = {
       ...goalData,
       id: goalId,
       createdAt: goalData.createdAt || new Date(),
     };
-    return await this.goalRepository.create(updatedGoal).then(async g => this.toGoal(g));
+
+    const goal = await this.goalRepository.create(updatedGoal);
+
+    // Delete existing allocations and create new ones
+    await this.assetGoalAllocationRepository.deleteByGoal(goalId);
+    for (const allocation of assetAllocations) {
+      await this.assetGoalAllocationRepository.create({
+        id: undefined,
+        goalId: goalId,
+        assetId: allocation.assetId,
+        allocationPercentage: allocation.percentage,
+      });
+    }
+
+    return await this.toGoal(goal);
   }
 }

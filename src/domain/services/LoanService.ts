@@ -108,6 +108,7 @@ export class LoanService {
             date: occurrence.date,
           });
         });
+        
       }
     });
   }

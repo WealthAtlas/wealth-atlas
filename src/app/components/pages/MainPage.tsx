@@ -19,9 +19,9 @@ export function MainPage() {
         return 0;
       case '/assets':
         return 1;
-      case '/loans':
-        return 2;
       case '/expenses':
+        return 2;
+      case '/loans':
         return 3;
       case '/goals':
         return 4;
@@ -51,10 +51,10 @@ export function MainPage() {
         navigate('/assets');
         break;
       case 2:
-        navigate('/loans');
+        navigate('/expenses');
         break;
       case 3:
-        navigate('/expenses');
+        navigate('/loans');
         break;
       case 4:
         navigate('/goals');
