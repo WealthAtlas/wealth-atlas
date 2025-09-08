@@ -99,16 +99,27 @@ export class LoanService {
     await this.paymentScheduleRepository.getAll().then(async schedules => {
       for (const schedule of schedules) {
         const sch = new EMI(schedule);
-        sch.getPendingOccurences(new Date()).forEach(async occurrence => {
-          await this.loanPaymentRepository.create({
-            id: undefined,
-            loanId: occurrence.loanId,
-            description: `Scheduled payment for loan ${occurrence.loanId}`,
-            amount: occurrence.amount,
-            date: occurrence.date,
+        const pendingOccurrences = sch.getPendingOccurences(new Date());
+
+        if (pendingOccurrences.length > 0) {
+          // Create all payments for this schedule
+          for (const occurrence of pendingOccurrences) {
+            await this.loanPaymentRepository.create({
+              id: undefined,
+              loanId: occurrence.loanId,
+              description: `Scheduled payment for loan ${occurrence.loanId}`,
+              amount: occurrence.amount,
+              date: occurrence.date,
+            });
+          }
+
+          // Update the lastGeneratedDate to the latest payment date
+          const latestPaymentDate = pendingOccurrences[pendingOccurrences.length - 1].date;
+          await this.paymentScheduleRepository.update({
+            ...schedule,
+            lastGeneratedDate: latestPaymentDate,
           });
-        });
-        
+        }
       }
     });
   }
