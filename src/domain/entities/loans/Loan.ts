@@ -45,13 +45,13 @@ export class Loan implements ILoan {
     const transactions: Transaction[] = [];
     //Initial loan disbursement
     transactions.push({
-      date: this.startDate,
+      date: new Date(this.startDate),
       amount: -this.principalAmount,
     });
     // Loan repayments
     transactions.push(
       ...this.payments.map(payment => ({
-        date: payment.date,
+        date: new Date(payment.date),
         amount: payment.amount,
       }))
     );
