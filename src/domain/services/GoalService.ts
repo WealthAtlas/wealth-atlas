@@ -74,7 +74,7 @@ export class GoalService {
       createdAt: goalData.createdAt || new Date(),
     };
 
-    const goal = await this.goalRepository.create(updatedGoal);
+    const goal = await this.goalRepository.update(updatedGoal);
 
     // Delete existing allocations and create new ones
     await this.assetGoalAllocationRepository.deleteByGoal(goalId);
