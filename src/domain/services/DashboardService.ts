@@ -1,5 +1,6 @@
 import { Asset } from '../entities/assets/Asset';
 import { Investment } from '../entities/assets/Investment';
+import { Logger } from '../utils/Logger';
 import { AssetService } from './AssetService';
 import { LoanService } from './LoanService';
 
@@ -61,8 +62,8 @@ export class DashboardService {
       try {
         return total + loan.getOutstandingPrincipal();
       } catch (error) {
-        // If calculation fails, use principal amount as fallback
-        console.warn(
+        Logger.error(`Failed to calculate outstanding principal for loan ${loan.id}: ${error}`);
+        Logger.warn(
           `Failed to calculate outstanding principal for loan ${loan.id}, using principal amount`
         );
         return total + loan.principalAmount;
@@ -198,8 +199,8 @@ export class DashboardService {
         const value = asset.getValueOn(date);
         return total + (value || 0);
       } catch (error) {
+        Logger.error(`Failed to calculate asset value for ${asset.name} at ${date}: ${error}`);
         // If calculation fails, return 0 for this asset at this date
-        console.warn(`Failed to calculate asset value for ${asset.name} at ${date}`);
         return total;
       }
     }, 0);
