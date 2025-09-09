@@ -14,6 +14,7 @@ export function AssetViewContainer({ assetId, deleteAsset, refresh }: AssetViewC
   const [asset, setAsset] = useState<Asset | undefined>(undefined);
   const [showViewTransactions, setShowViewTransactions] = useState<boolean>(false);
   const [showEditAsset, setShowEditAsset] = useState<boolean>(false);
+  const [showViewSIPs, setShowViewSIPs] = useState<boolean>(false);
   const assetService = React.useMemo(() => new AssetService(), []);
 
   const loadAsset = useCallback(async () => {
@@ -41,8 +42,10 @@ export function AssetViewContainer({ assetId, deleteAsset, refresh }: AssetViewC
           deleteAsset={deleteAsset}
           showViewTransactions={showViewTransactions}
           showEditAsset={showEditAsset}
+          showViewSIPs={showViewSIPs}
           setShowViewTransactions={setShowViewTransactions}
           setShowEditAsset={setShowEditAsset}
+          setShowViewSIPs={setShowViewSIPs}
         />
       )}
     </>

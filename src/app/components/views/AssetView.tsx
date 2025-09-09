@@ -2,26 +2,42 @@ import { AssetFormContainer } from '@/app/containers/assets/AssetFormContainer';
 import { UIUtils } from '@/app/utils/UIUtils';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
-import { Delete, Edit, List, TrendingDown, TrendingFlat, TrendingUp } from '@mui/icons-material';
+import {
+  Delete,
+  Edit,
+  List,
+  MoreVert,
+  Repeat,
+  TrendingDown,
+  TrendingFlat,
+  TrendingUp,
+} from '@mui/icons-material';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
   Divider,
   Grid,
   IconButton,
+  Menu,
+  MenuItem,
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useState } from 'react';
 import { InvestmentListContainer } from '../../containers/assets/investment/InvestmentListContainer';
+import { SIPListContainer } from '../../containers/assets/sip/SIPListContainer';
 
 export interface AssetViewProps {
   asset: Asset;
   showViewTransactions: boolean;
   showEditAsset: boolean;
+  showViewSIPs: boolean;
   setShowViewTransactions: (show: boolean) => void;
   setShowEditAsset: (show: boolean) => void;
+  setShowViewSIPs: (show: boolean) => void;
   deleteAsset: (id: number) => void;
   refresh: () => void;
 }
@@ -32,9 +48,22 @@ export function AssetView({
   refresh,
   showViewTransactions,
   showEditAsset,
+  showViewSIPs,
   setShowViewTransactions,
   setShowEditAsset,
+  setShowViewSIPs,
 }: AssetViewProps) {
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(menuAnchorEl);
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
   // Calculate financial metrics
   const totalInvested = asset.getTotalInvestedAmount();
   const currentValue = asset.getValue() || 0;
@@ -79,6 +108,7 @@ export function AssetView({
 
   return (
     <>
+      {/* Dialog Containers */}
       <InvestmentListContainer
         open={showViewTransactions}
         asset={asset}
@@ -87,6 +117,16 @@ export function AssetView({
           refresh();
         }}
       />
+
+      <SIPListContainer
+        open={showViewSIPs}
+        asset={asset}
+        onClose={() => {
+          setShowViewSIPs(false);
+          refresh();
+        }}
+      />
+
       <AssetFormContainer
         assetToEdit={asset}
         onClose={() => {
@@ -95,6 +135,7 @@ export function AssetView({
         }}
         open={showEditAsset}
       />
+
       <Grid item xs={12} lg={6} key={asset.id}>
         <Card
           elevation={2}
@@ -114,7 +155,7 @@ export function AssetView({
           }}
         >
           <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {/* Header Section */}
+            {/* Header Section with Enhanced Action Buttons */}
             <Box
               sx={{
                 display: 'flex',
@@ -182,47 +223,94 @@ export function AssetView({
                 )}
               </Box>
 
-              {/* Action Buttons */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, ml: 2 }}>
-                <Tooltip title="View Transactions" placement="left">
-                  <IconButton
+              {/* Enhanced Action Buttons Section */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
+                {/* Primary Action Buttons Row */}
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant="outlined"
                     size="small"
+                    startIcon={<List />}
                     onClick={() => setShowViewTransactions(true)}
-                    aria-label="view transactions"
                     sx={{
-                      bgcolor: 'action.hover',
-                      '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' },
+                      minWidth: 'auto',
+                      px: 1.5,
+                      '&:hover': { bgcolor: 'primary.50' },
                     }}
                   >
-                    <List fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Edit Asset" placement="left">
-                  <IconButton
+                    Investments
+                  </Button>
+
+                  <Button
+                    variant="outlined"
                     size="small"
-                    onClick={() => setShowEditAsset(true)}
-                    aria-label="edit asset"
+                    startIcon={<Repeat />}
+                    onClick={() => setShowViewSIPs(true)}
                     sx={{
-                      bgcolor: 'action.hover',
-                      '&:hover': { bgcolor: 'warning.light', color: 'warning.contrastText' },
+                      minWidth: 'auto',
+                      px: 1.5,
+                      '&:hover': { bgcolor: 'secondary.50' },
                     }}
                   >
-                    <Edit fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete Asset" placement="left">
-                  <IconButton
-                    size="small"
-                    onClick={() => deleteAsset(asset.id!)}
-                    aria-label="delete asset"
-                    sx={{
-                      bgcolor: 'action.hover',
-                      '&:hover': { bgcolor: 'error.light', color: 'error.contrastText' },
+                    SIPs
+                  </Button>
+                </Box>
+
+                {/* Secondary Action Buttons Row */}
+                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                  <Tooltip title="Edit Asset" placement="left">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowEditAsset(true)}
+                      aria-label="edit asset"
+                      sx={{
+                        bgcolor: 'action.hover',
+                        '&:hover': { bgcolor: 'warning.light', color: 'warning.contrastText' },
+                      }}
+                    >
+                      <Edit fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Menu
+                    anchorEl={menuAnchorEl}
+                    open={menuOpen}
+                    onClose={handleMenuClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
                     }}
                   >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                    <MenuItem
+                      onClick={() => {
+                        deleteAsset(asset.id!);
+                        handleMenuClose();
+                      }}
+                      sx={{ color: 'error.main' }}
+                    >
+                      <Delete fontSize="small" sx={{ mr: 1 }} />
+                      Delete Asset
+                    </MenuItem>
+                  </Menu>
+
+                  <Tooltip title="More Actions" placement="left">
+                    <IconButton
+                      size="small"
+                      onClick={handleMenuClick}
+                      aria-label="more actions"
+                      sx={{
+                        bgcolor: 'action.hover',
+                        '&:hover': { bgcolor: 'grey.200' },
+                      }}
+                    >
+                      <MoreVert fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
               </Box>
             </Box>
 
