@@ -44,7 +44,7 @@ export class AssetService {
   public async getAssets(): Promise<Asset[]> {
     const assets = (await this.assetRepository.getAll()).sort((a, b) => {
       if (a.marketValue !== undefined && b.marketValue !== undefined) {
-        return a.marketValue - b.marketValue;
+        return b.marketValue - a.marketValue;
       } else {
         return a.name.localeCompare(b.name);
       }
