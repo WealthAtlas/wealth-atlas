@@ -1,6 +1,5 @@
 import { UIUtils } from '@/app/utils/UIUtils';
 import { Loan } from '@/domain/entities/loans/Loan';
-import { LoanSummary } from '@/domain/services/LoanService';
 import {
   AccessTime,
   CheckCircle,
@@ -31,7 +30,6 @@ import { LoanFormContainer } from '../../containers/loan/LoanFormContainer';
 
 export interface LoanViewProps {
   loan: Loan;
-  loanSummary: LoanSummary;
   showEditLoan: boolean;
   setShowEditLoan: (show: boolean) => void;
   showEMIList: boolean;
@@ -44,7 +42,6 @@ export interface LoanViewProps {
 
 export function LoanView({
   loan,
-  loanSummary,
   deleteLoan,
   setShowEditLoan,
   showEditLoan,
@@ -56,7 +53,7 @@ export function LoanView({
 
   // Enhanced status and color logic
   const getStatusConfig = () => {
-    if (loanSummary.isFullyPaid) {
+    if (loan.isFullyPaid()) {
       return {
         status: 'Fully Paid',
         color: 'success.main',
@@ -65,16 +62,16 @@ export function LoanView({
         priority: 'success',
       };
     }
-    if (loanSummary.overduePayments.length > 0) {
+    if (loan.getPendingPaymentsCount() > 0) {
       return {
-        status: `${loanSummary.overduePayments.length} Overdue`,
+        status: `${loan.getPendingPaymentsCount()} Overdue`,
         color: 'error.main',
         bgColor: alpha(theme.palette.error.main, 0.1),
         icon: <Warning />,
         priority: 'critical',
       };
     }
-    if (loanSummary.remainingBalance > 0) {
+    if (loan.getOutstandingAmount() > 0) {
       return {
         status: 'Active',
         color: 'primary.main',
@@ -95,8 +92,8 @@ export function LoanView({
   const statusConfig = getStatusConfig();
 
   // Calculate repayment progress
-  const totalPaid = loanSummary.totalPaid;
-  const totalLoanAmount = loan.principalAmount + loanSummary.totalInterestPaid;
+  const totalPaid = loan.getPaidAmount();
+  const totalLoanAmount = loan.getTotalAmount();
   const repaymentProgress = totalLoanAmount > 0 ? (totalPaid / totalLoanAmount) * 100 : 0;
 
   const getTrendIcon = () => {
@@ -108,9 +105,10 @@ export function LoanView({
 
   // Days until next payment
   const getDaysToNextPayment = () => {
-    if (!loanSummary.nextPaymentDate || loanSummary.isFullyPaid) return null;
+    if (!loan.getNextPaymentDate() || loan.isFullyPaid()) return null;
     const today = new Date();
-    const nextPayment = new Date(loanSummary.nextPaymentDate);
+    const nextPayment = loan.getNextPaymentDate();
+    if (!nextPayment) return null;
     const diffTime = nextPayment.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
@@ -314,10 +312,10 @@ export function LoanView({
                     variant="h6"
                     fontWeight={700}
                     sx={{
-                      color: loanSummary.remainingBalance > 0 ? 'error.main' : 'success.main',
+                      color: loan.getOutstandingAmount() > 0 ? 'error.main' : 'success.main',
                     }}
                   >
-                    {UIUtils.formatCurrency(loanSummary.remainingBalance, loan.currency)}
+                    {UIUtils.formatCurrency(loan.getOutstandingAmount(), loan.currency)}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -347,10 +345,10 @@ export function LoanView({
               <Grid item xs={6}>
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Interest Paid
+                    Interest Amount
                   </Typography>
                   <Typography variant="body1" fontWeight={600} color="warning.main">
-                    {UIUtils.formatCurrency(loanSummary.totalInterestPaid, loan.currency)}
+                    {UIUtils.formatCurrency(loan.getInterestAmount(), loan.currency)}
                   </Typography>
                 </Box>
               </Grid>
@@ -379,7 +377,7 @@ export function LoanView({
             </Grid>
 
             {/* Next Payment Alert */}
-            {!loanSummary.isFullyPaid && loanSummary.nextPaymentDate && nextPaymentUrgency && (
+            {!loan.isFullyPaid() && loan.getNextPaymentDate() && nextPaymentUrgency && (
               <Paper
                 elevation={0}
                 sx={{
@@ -414,7 +412,7 @@ export function LoanView({
                   </Typography>
                 </Box>
                 <Typography variant="body1" fontWeight={600}>
-                  {UIUtils.formatDate(loanSummary.nextPaymentDate)}
+                  {loan.getNextPaymentDate() && UIUtils.formatDate(loan.getNextPaymentDate()!)}
                 </Typography>
                 {daysToNextPayment !== null && (
                   <Typography variant="caption" sx={{ color: nextPaymentUrgency.color }}>

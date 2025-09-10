@@ -44,19 +44,10 @@ export class Loan implements ILoan {
   public getIRR(): number {
     const transactions: Transaction[] = [];
     transactions.push(
-      ...this.payments.map(payment => ({
+      ...this.getPayments(undefined, true).map(payment => ({
         date: new Date(payment.date),
         amount: payment.amount,
       }))
-    );
-    // Future loan repayments
-    transactions.push(
-      ...this.emis.flatMap(schedule =>
-        schedule.getPendingOccurences().map(payment => ({
-          date: payment.date,
-          amount: payment.amount,
-        }))
-      )
     );
 
     return -IRRCalculator.getInstance().calculateIRR({
@@ -67,12 +58,66 @@ export class Loan implements ILoan {
     });
   }
 
-  public getOutstandingPrincipal(): number {
-    const totalInterest = IRRCalculator.getInstance().calculateFutureValueOnIRR(
-      this.payments.map(payment => ({ date: new Date(payment.date), amount: payment.amount })),
-      this.getIRR(),
-      new Date()
-    );
-    return this.principalAmount + totalInterest;
+  public getTotalAmount(): number {
+    return this.getPayments(undefined, true).reduce((sum, payment) => sum + payment.amount, 0);
+  }
+
+  public getPaidAmount(): number {
+    return this.getPayments().reduce((sum, payment) => sum + payment.amount, 0);
+  }
+
+  public getOutstandingAmount(): number {
+    return this.getTotalAmount() - this.getPaidAmount();
+  }
+
+  public getInterestAmount(): number {
+    return this.getTotalAmount() - this.principalAmount;
+  }
+
+  public isFullyPaid(): boolean {
+    return this.getOutstandingAmount() <= 0;
+  }
+
+  public getNextPaymentDate(): Date | undefined {
+    const pendingPayments = this.emis
+      .flatMap(schedule => schedule.getPendingOccurences())
+      .map(occurrence => occurrence.date)
+      .filter(date => date >= new Date())
+      .sort((a, b) => a.getTime() - b.getTime());
+    return pendingPayments.length > 0 ? pendingPayments[0] : undefined;
+  }
+
+  public getPendingPaymentsCount(): number {
+    return this.emis
+      .flatMap(schedule => schedule.getPendingOccurences())
+      .map(occurrence => occurrence.date)
+      .filter(date => date >= new Date()).length;
+  }
+
+  public getPaidPaymentsCount(): number {
+    return this.payments.length;
+  }
+
+  private getPayments(till?: Date, considerFutureTransactions: boolean = false): Payment[] {
+    if (till) {
+      return this.payments.filter(payment => payment.date <= till);
+    }
+    if (considerFutureTransactions) {
+      const futureTransactions = this.emis
+        .map(emi => emi.getPendingOccurences(till))
+        .flat()
+        .map(
+          occurrence =>
+            new Payment({
+              id: undefined,
+              date: occurrence.date,
+              amount: occurrence.amount,
+              description: occurrence.description,
+              loanId: occurrence.loanId,
+            })
+        );
+      return this.payments.concat(futureTransactions);
+    }
+    return this.payments;
   }
 }

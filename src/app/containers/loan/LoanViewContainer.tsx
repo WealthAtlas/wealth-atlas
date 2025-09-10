@@ -1,5 +1,5 @@
 import { Loan } from '@/domain/entities/loans/Loan';
-import { LoanService, LoanSummary } from '@/domain/services/LoanService';
+import { LoanService } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LoanView } from '../../components/views/LoanView';
@@ -14,7 +14,6 @@ export interface LoanViewContainerProps {
 
 export function LoanViewContainer({ loanId, deleteLoan, refresh }: LoanViewContainerProps) {
   const [loan, setLoan] = useState<Loan | undefined>(undefined);
-  const [loanSummary, setLoanSummary] = useState<LoanSummary | undefined>(undefined);
   const [showEditLoan, setShowEditLoan] = useState<boolean>(false);
   const [showEMIList, setShowEMIList] = useState<boolean>(false);
   const [showPaymentList, setShowPaymentList] = useState<boolean>(false);
@@ -23,11 +22,7 @@ export function LoanViewContainer({ loanId, deleteLoan, refresh }: LoanViewConta
   const loadLoan = useCallback(async () => {
     try {
       const loadedLoan = await loanService.getLoan(loanId);
-      const summaries = await loanService.getAllLoanSummaries();
-      const summary = summaries.find(s => s.loan.id === loanId);
-
       setLoan(loadedLoan);
-      setLoanSummary(summary);
     } catch (error) {
       Logger.error('Failed to load loan:', error);
     }
@@ -39,10 +34,9 @@ export function LoanViewContainer({ loanId, deleteLoan, refresh }: LoanViewConta
 
   return (
     <>
-      {loan && loanSummary && (
+      {loan && (
         <LoanView
           loan={loan}
-          loanSummary={loanSummary}
           refresh={() => {
             loadLoan();
             refresh();

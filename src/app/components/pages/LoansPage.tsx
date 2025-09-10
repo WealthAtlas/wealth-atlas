@@ -11,7 +11,7 @@ export interface LoansPageProps {
   portfolioMetrics: {
     totalOutstanding: number;
     totalPaid: number;
-    totalInterestPaid: number;
+    totalInterestAmount: number;
     totalLoans: number;
   };
   refresh: () => void;
@@ -62,10 +62,10 @@ export function LoansPage({
               </Box>
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Interest Paid
+                  Interest Amount
                 </Typography>
                 <Typography variant="h6" color="warning.main">
-                  {UIUtils.formatCurrency(portfolioMetrics.totalInterestPaid, 'INR')}
+                  {UIUtils.formatCurrency(portfolioMetrics.totalInterestAmount, 'INR')}
                 </Typography>
               </Box>
               <Box>

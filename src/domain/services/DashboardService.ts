@@ -60,7 +60,7 @@ export class DashboardService {
 
     const totalLoanAmount = loans.reduce((total, loan) => {
       try {
-        return total + loan.getOutstandingPrincipal();
+        return total + loan.getOutstandingAmount();
       } catch (error) {
         Logger.error(`Failed to calculate outstanding principal for loan ${loan.id}: ${error}`);
         Logger.warn(

@@ -1,21 +1,18 @@
 import { LoansPage } from '@/app/components/pages/LoansPage';
 import { Loan } from '@/domain/entities/loans/Loan';
-import { LoanService, LoanSummary } from '@/domain/services/LoanService';
+import { LoanService } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
 
 export function LoansContainer() {
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [loanSummaries, setLoanSummaries] = useState<LoanSummary[]>([]);
   const [showAddLoan, setShowAddLoan] = React.useState(false);
   const loanService = React.useMemo(() => new LoanService(), []);
 
   const loadLoans = useCallback(async () => {
     try {
       const loadedLoans = await loanService.getLoans();
-      const summaries = await loanService.getAllLoanSummaries();
       setLoans(loadedLoans);
-      setLoanSummaries(summaries);
     } catch (error) {
       Logger.error('Failed to load loans:', error);
     }
@@ -35,24 +32,18 @@ export function LoansContainer() {
 
   // Calculate portfolio-level metrics
   const portfolioMetrics = React.useMemo(() => {
-    const totalOutstanding = loanSummaries.reduce(
-      (sum, summary) => sum + summary.remainingBalance,
-      0
-    );
-    const totalPaid = loanSummaries.reduce((sum, summary) => sum + summary.totalPaid, 0);
-    const totalInterestPaid = loanSummaries.reduce(
-      (sum, summary) => sum + summary.totalInterestPaid,
-      0
-    );
+    const totalOutstanding = loans.reduce((sum, loan) => sum + loan.getOutstandingAmount(), 0);
+    const totalPaid = loans.reduce((sum, loan) => sum + loan.getPaidAmount(), 0);
+    const totalInterestAmount = loans.reduce((sum, loan) => sum + loan.getInterestAmount(), 0);
     const totalLoans = loans.length;
 
     return {
       totalOutstanding,
       totalPaid,
-      totalInterestPaid,
+      totalInterestAmount,
       totalLoans,
     };
-  }, [loans, loanSummaries]);
+  }, [loans]);
 
   useEffect(() => {
     loadLoans();

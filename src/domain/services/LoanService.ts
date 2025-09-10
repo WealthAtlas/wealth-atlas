@@ -5,16 +5,6 @@ import { EMI, IEMI } from '../entities/loans/EMI';
 import { ILoan, Loan } from '../entities/loans/Loan';
 import { IPayment, Payment } from '../entities/loans/Payment';
 
-export interface LoanSummary {
-  loan: Loan;
-  remainingBalance: number;
-  totalPaid: number;
-  totalInterestPaid: number;
-  nextPaymentDate?: Date;
-  isFullyPaid: boolean;
-  overduePayments: Payment[];
-}
-
 export class LoanService {
   private readonly loanRepository: LoanRepository;
   private readonly paymentScheduleRepository: LoanPaymentScheduleRepository;
@@ -121,31 +111,6 @@ export class LoanService {
           });
         }
       }
-    });
-  }
-
-  async getAllLoanSummaries(): Promise<LoanSummary[]> {
-    const loans = await this.getLoans();
-
-    return loans.map(loan => {
-      const totalPaid = loan.payments.reduce((sum, payment) => sum + payment.amount, 0);
-      const remainingBalance = loan.getOutstandingPrincipal() - totalPaid;
-      const totalInterestPaid = loan.getOutstandingPrincipal() - loan.principalAmount;
-      const nextPaymentDate = loan.emis
-        .flatMap(schedule => schedule.getPendingOccurences())
-        .map(occurrence => occurrence.date)
-        .sort((a, b) => a.getTime() - b.getTime())[0];
-      const overduePayments = loan.payments.filter(payment => payment.date < new Date());
-
-      return {
-        loan,
-        remainingBalance,
-        totalPaid,
-        totalInterestPaid,
-        nextPaymentDate,
-        isFullyPaid: remainingBalance <= 0,
-        overduePayments,
-      };
     });
   }
 
