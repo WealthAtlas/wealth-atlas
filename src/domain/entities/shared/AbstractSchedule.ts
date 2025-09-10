@@ -43,7 +43,7 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
    * @param nextDate The date to check
    * @param till The upper bound (defaults to today)
    */
-  protected shouldAdd(nextDate: Date, till?: Date): boolean {
+  protected shouldAdd(nextDate: Date, till: Date | undefined): boolean {
     return (
       nextDate <= (till ?? this.endDate ?? new Date()) &&
       (this.endDate == null || nextDate < this.endDate)
@@ -90,13 +90,13 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
 
   public getNextOccurenceData(): T | undefined {
     const nextOccurenceDate = this.getNextOccurenceDate();
-    if (this.shouldAdd(nextOccurenceDate)) {
+    if (this.shouldAdd(nextOccurenceDate, undefined)) {
       return this.createDataForOccurence(nextOccurenceDate);
     }
     return undefined;
   }
 
-  public getPendingOccurences(till?: Date): T[] {
+  public getPendingOccurences(till: Date | undefined): T[] {
     const pendingOccurences: T[] = [];
     let nextOccurenceDate = this.getNextOccurenceDate();
     while (this.shouldAdd(nextOccurenceDate, till)) {

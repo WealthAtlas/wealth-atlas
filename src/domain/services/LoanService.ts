@@ -132,9 +132,9 @@ export class LoanService {
       const remainingBalance = loan.principalAmount - totalPaid;
       const totalInterestPaid = loan.payments.reduce((sum, payment) => sum + payment.amount, 0); // Placeholder for actual interest calculation
       const nextPaymentDate = loan.emis
-        .flatMap(schedule => schedule.getPendingOccurences())
+        .flatMap(schedule => schedule.getPendingOccurences(undefined))
         .map(occurrence => occurrence.date)
-        .sort()[0];
+        .sort((a, b) => a.getTime() - b.getTime())[0];
       const overduePayments = loan.payments.filter(payment => payment.date < new Date());
 
       return {
