@@ -1,4 +1,5 @@
 export enum AssetCategory {
+  INDEX_FUND = 'Index Fund',
   MUTUAL_FUNDS = 'Mutual Funds',
   STOCK = 'Stock',
   DEBT = 'Debt',
@@ -6,5 +7,7 @@ export enum AssetCategory {
   GOLD = 'Gold',
   CASH = 'Cash',
   CRYPTOCURRENCY = 'Cryptocurrency',
+  FIXED_DEPOSIT = 'Fixed Deposit',
+  PENSION = 'Pension',
   OTHER = 'Other',
 }
