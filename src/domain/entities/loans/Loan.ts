@@ -43,12 +43,6 @@ export class Loan implements ILoan {
 
   public getIRR(): number {
     const transactions: Transaction[] = [];
-    //Initial loan disbursement
-    transactions.push({
-      date: new Date(this.startDate),
-      amount: -this.principalAmount,
-    });
-    // Loan repayments
     transactions.push(
       ...this.payments.map(payment => ({
         date: new Date(payment.date),
@@ -65,10 +59,11 @@ export class Loan implements ILoan {
       )
     );
 
-    return IRRCalculator.getInstance().calculateIRR({
+    return -IRRCalculator.getInstance().calculateIRR({
       transactions: transactions,
-      value: transactions.reduce((sum, t) => sum + t.amount, 0) - this.principalAmount,
-      valueUpdatedOn: this.startDate,
+      value: this.principalAmount,
+      valueUpdatedOn:
+        transactions.length > 0 ? transactions[transactions.length - 1]?.date : new Date(),
     });
   }
 

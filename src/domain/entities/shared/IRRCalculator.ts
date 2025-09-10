@@ -30,7 +30,6 @@ export class IRRCalculator {
     const totalYears = this.calculateTotalYears(transactions, valueUpdatedOn);
 
     if (totalPayment === 0) return 0.0;
-    if (totalYears === 0) return 0.0;
     if (value - totalPayment === 0) return 0.0;
 
     let irrGuess = this.calculateInitialIRR(value, totalPayment, totalYears);
