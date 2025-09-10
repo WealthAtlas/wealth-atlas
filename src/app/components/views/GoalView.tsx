@@ -1,10 +1,11 @@
 import { Goal } from '@/domain/entities/goals/Goal';
 import {
+  AccessTime,
+  AccountBalance,
   CheckCircle,
   Delete,
   Edit,
-  Flag,
-  Schedule,
+  Star,
   Timeline,
   TrendingUp,
   Warning,
@@ -67,44 +68,99 @@ export function GoalView({
   const yearsToMaturity = goal.getYearsToMaturity();
   const isOverdue = yearsToMaturity <= 0;
   const isAchieved = progressPercentage >= 100;
-  const isBehind = progressPercentage < 80 && !isOverdue;
+  const isBehind = progressPercentage < 60 && yearsToMaturity < 2 && !isOverdue;
+  const isOnTrack = progressPercentage >= 60 && !isAchieved && !isOverdue;
 
-  // Determine status and colors
+  // Enhanced status configuration
   const getStatusConfig = () => {
     if (isAchieved) {
       return {
         status: 'Achieved',
-        color: theme.palette.success.main,
+        color: 'success.main',
         bgColor: alpha(theme.palette.success.main, 0.1),
         icon: <CheckCircle sx={{ color: theme.palette.success.main }} />,
+        priority: 'success',
       };
     }
     if (isOverdue) {
       return {
         status: 'Overdue',
-        color: theme.palette.error.main,
+        color: 'error.main',
         bgColor: alpha(theme.palette.error.main, 0.1),
         icon: <Warning sx={{ color: theme.palette.error.main }} />,
+        priority: 'critical',
       };
     }
     if (isBehind) {
       return {
-        status: 'Behind',
-        color: theme.palette.warning.main,
+        status: 'Behind Schedule',
+        color: 'warning.main',
         bgColor: alpha(theme.palette.warning.main, 0.1),
-        icon: <TrendingUp sx={{ color: theme.palette.warning.main }} />,
+        icon: <Warning sx={{ color: theme.palette.warning.main }} />,
+        priority: 'high',
+      };
+    }
+    if (isOnTrack) {
+      return {
+        status: 'On Track',
+        color: 'primary.main',
+        bgColor: alpha(theme.palette.primary.main, 0.1),
+        icon: <TrendingUp sx={{ color: theme.palette.primary.main }} />,
+        priority: 'normal',
       };
     }
     return {
-      status: 'On Track',
-      color: theme.palette.primary.main,
-      bgColor: alpha(theme.palette.primary.main, 0.1),
-      icon: <Timeline sx={{ color: theme.palette.primary.main }} />,
+      status: 'In Progress',
+      color: 'grey.600',
+      bgColor: alpha(theme.palette.grey[600], 0.1),
+      icon: <Timeline sx={{ color: theme.palette.grey[600] }} />,
+      priority: 'normal',
     };
   };
 
   const statusConfig = getStatusConfig();
   const circularProgress = Math.min(progressPercentage, 100);
+
+  // Time-based urgency indicators
+  const getTimeUrgency = () => {
+    if (isOverdue) return 'critical';
+    if (yearsToMaturity < 1) return 'high';
+    if (yearsToMaturity < 3) return 'medium';
+    return 'low';
+  };
+
+  const timeUrgency = getTimeUrgency();
+
+  const getTimeUrgencyColor = () => {
+    switch (timeUrgency) {
+      case 'critical':
+        return 'error.main';
+      case 'high':
+        return 'warning.main';
+      case 'medium':
+        return 'info.main';
+      default:
+        return 'text.secondary';
+    }
+  };
+
+  const getPaletteColor = (colorPath: string) => {
+    const [colorName] = colorPath.split('.');
+    switch (colorName) {
+      case 'success':
+        return theme.palette.success.main;
+      case 'error':
+        return theme.palette.error.main;
+      case 'warning':
+        return theme.palette.warning.main;
+      case 'primary':
+        return theme.palette.primary.main;
+      case 'grey':
+        return theme.palette.grey[600];
+      default:
+        return theme.palette.primary.main;
+    }
+  };
 
   return (
     <>
@@ -123,50 +179,80 @@ export function GoalView({
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            borderRadius: 2,
-            border: `1px solid ${alpha(statusConfig.color, 0.3)}`,
+            borderRadius: 3,
             transition: 'all 0.3s ease-in-out',
+            overflow: 'hidden',
             '&:hover': {
-              elevation: 6,
-              transform: 'translateY(-2px)',
+              elevation: 8,
+              transform: 'translateY(-4px)',
+              borderColor: statusConfig.color,
+              boxShadow: `0 12px 32px ${alpha(getPaletteColor(statusConfig.color), 0.25)}`,
             },
           }}
         >
-          <CardContent sx={{ flexGrow: 1, p: 3 }}>
-            {/* Header Section */}
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-              <Box
+          {/* Status Header Band */}
+          <Box
+            sx={{
+              bgcolor: statusConfig.color,
+              color: 'white',
+              py: 1,
+              px: 2,
+              display: 'flex',
+              boxShadow: `0 12px 32px ${alpha(getPaletteColor(statusConfig.color), 0.25)}`,
+              alignItems: 'center',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {statusConfig.icon}
+              <Typography variant="body2" fontWeight={600}>
+                {statusConfig.status}
+              </Typography>
+            </Box>
+            {statusConfig.priority === 'critical' && (
+              <Chip
+                label="URGENT"
+                size="small"
                 sx={{
-                  p: 1,
-                  borderRadius: '50%',
-                  backgroundColor: statusConfig.bgColor,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
                 }}
-              >
-                <Flag sx={{ color: statusConfig.color }} />
-              </Box>
-              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                <Typography variant="h6" component="h2" noWrap sx={{ fontWeight: 600, mb: 0.5 }}>
-                  {goal.name}
-                </Typography>
-                <Chip
-                  icon={statusConfig.icon}
-                  label={statusConfig.status}
-                  size="small"
-                  sx={{
-                    backgroundColor: statusConfig.bgColor,
-                    color: statusConfig.color,
-                    fontWeight: 500,
-                  }}
-                />
-              </Box>
-            </Stack>
+              />
+            )}
+          </Box>
 
-            {/* Progress Section */}
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <Box sx={{ position: 'relative', mr: 3 }}>
+          <CardContent sx={{ flexGrow: 1, p: { xs: 2, md: 3 } }}>
+            {/* Goal Header */}
+            <Box sx={{ mb: 3 }}>
+              <Typography
+                variant="h6"
+                component="h2"
+                sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}
+              >
+                {goal.name}
+              </Typography>
+
+              {/* Time to maturity with urgency indicator */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <AccessTime sx={{ fontSize: 16, color: getTimeUrgencyColor() }} />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 500,
+                    color: getTimeUrgencyColor(),
+                  }}
+                >
+                  {isOverdue
+                    ? `${Math.abs(yearsToMaturity).toFixed(1)} years overdue`
+                    : `${yearsToMaturity.toFixed(1)} years remaining`}
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Progress Visualization */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
+              <Box sx={{ position: 'relative' }}>
                 <CircularProgress
                   variant="determinate"
                   value={circularProgress}
@@ -191,16 +277,24 @@ export function GoalView({
                     justifyContent: 'center',
                   }}
                 >
-                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                    {UIUtils.formatPercentage(progressPercentage)}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                      color: statusConfig.color,
+                    }}
+                  >
+                    {Math.round(progressPercentage)}%
                   </Typography>
                 </Box>
               </Box>
+
               <Box sx={{ flexGrow: 1 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Progress towards goal
+                  Current Progress
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
                   {UIUtils.formatCurrency(currentValue, goal.currency)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -211,96 +305,137 @@ export function GoalView({
 
             <Divider sx={{ mb: 2 }} />
 
-            {/* Key Metrics */}
+            {/* Financial Details */}
             <Stack spacing={2}>
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  <Schedule sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                  Time Remaining
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                  {isOverdue
-                    ? `${Math.abs(yearsToMaturity).toFixed(1)} years overdue`
-                    : `${yearsToMaturity.toFixed(1)} years to go`}
-                </Typography>
-              </Box>
-
+              {/* Original Target vs Inflation Adjusted */}
               <Box>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Original Target
                 </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                  {UIUtils.formatCurrency(goal.targetAmount, goal.currency)}
+                <Box
+                  sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {UIUtils.formatCurrency(goal.targetAmount, goal.currency)}
+                  </Typography>
                   <Chip
                     label={`${UIUtils.formatPercentage(goal.inflationRate * 100)} inflation`}
                     size="small"
                     variant="outlined"
-                    sx={{ ml: 1, height: 20 }}
+                    color="info"
+                    sx={{ height: 20, fontSize: '0.7rem' }}
                   />
-                </Typography>
+                </Box>
               </Box>
 
+              {/* Shortfall Alert */}
               {shortfall > 0 && (
                 <Paper
                   elevation={0}
                   sx={{
                     p: 2,
-                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                    border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
-                    borderRadius: 1,
+                    backgroundColor: alpha(theme.palette.error.main, 0.1),
+                    border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                    borderRadius: 2,
                   }}
                 >
-                  <Typography variant="body2" color="warning.main" sx={{ fontWeight: 500 }}>
-                    <Warning sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                    Shortfall: {UIUtils.formatCurrency(shortfall, goal.currency)}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Warning sx={{ fontSize: 18, color: 'error.main' }} />
+                    <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                      Funding Gap
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" color="error.main" sx={{ fontWeight: 700 }}>
+                    {UIUtils.formatCurrency(shortfall, goal.currency)}
+                  </Typography>
+                  <Typography variant="caption" color="error.main">
+                    Additional funding needed to achieve goal
+                  </Typography>
+                </Paper>
+              )}
+
+              {/* Asset Allocations Summary */}
+              {goal.allocations.length > 0 && (
+                <Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                    sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                  >
+                    <AccountBalance sx={{ fontSize: 16 }} />
+                    Asset Allocations ({goal.allocations.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {goal.allocations.slice(0, 3).map(allocation => (
+                      <Box key={allocation.id}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mb: 0.5,
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {allocation.asset.name}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            {UIUtils.formatPercentage(allocation.allocationPercentage)}
+                          </Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={allocation.allocationPercentage}
+                          sx={{
+                            height: 6,
+                            borderRadius: 3,
+                          }}
+                        />
+                      </Box>
+                    ))}
+                    {goal.allocations.length > 3 && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ textAlign: 'center', mt: 1 }}
+                      >
+                        +{goal.allocations.length - 3} more allocations
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+              )}
+
+              {/* Achievement Indicator */}
+              {isAchieved && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    backgroundColor: alpha(theme.palette.success.main, 0.1),
+                    border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                    borderRadius: 2,
+                    textAlign: 'center',
+                  }}
+                >
+                  <Star sx={{ fontSize: 24, color: 'success.main', mb: 1 }} />
+                  <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+                    🎉 Goal Achieved!
+                  </Typography>
+                  <Typography variant="caption" color="success.main">
+                    Congratulations on reaching your financial target
                   </Typography>
                 </Paper>
               )}
             </Stack>
-
-            {/* Asset Allocations */}
-            {goal.allocations.length > 0 && (
-              <Box sx={{ mt: 3 }}>
-                <Divider sx={{ mb: 2 }} />
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Asset Allocations
-                </Typography>
-                <Stack spacing={1}>
-                  {goal.allocations.map(allocation => (
-                    <Box key={allocation.id}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        sx={{ mb: 0.5 }}
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {allocation.asset.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {UIUtils.formatPercentage(allocation.allocationPercentage)}
-                        </Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={allocation.allocationPercentage}
-                        sx={{
-                          height: 6,
-                          borderRadius: 3,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                          '& .MuiLinearProgress-bar': {
-                            borderRadius: 3,
-                          },
-                        }}
-                      />
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-            )}
           </CardContent>
 
-          <CardActions sx={{ px: 3, pb: 2 }}>
+          <CardActions sx={{ px: 3, pb: 2, pt: 0 }}>
             <IconButton
               size="small"
               onClick={handleEdit}
