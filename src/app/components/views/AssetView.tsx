@@ -349,19 +349,35 @@ export function AssetView({
               }}
             >
               <Grid container spacing={2}>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Current Value
                   </Typography>
-                  <Typography variant="h5" fontWeight={700} color="text.primary">
+                  <Typography
+                    variant="h5"
+                    fontWeight={700}
+                    color="text.primary"
+                    sx={{
+                      wordBreak: 'break-word',
+                      fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                    }}
+                  >
                     {UIUtils.formatCurrency(currentValue, asset.currency)}
                   </Typography>
                 </Grid>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Total Gain/Loss
                   </Typography>
-                  <Typography variant="h6" fontWeight={600} sx={{ color: performanceStatus.color }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={600}
+                    sx={{
+                      color: performanceStatus.color,
+                      wordBreak: 'break-word',
+                      fontSize: { xs: '1.125rem', sm: '1.25rem' },
+                    }}
+                  >
                     {profitLoss >= 0 ? '+' : ''}
                     {UIUtils.formatCurrency(profitLoss, asset.currency)}
                   </Typography>
