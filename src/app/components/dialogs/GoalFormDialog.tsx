@@ -247,7 +247,9 @@ export function GoalFormDialog({
           value={name}
           onChange={e => setName(e.target.value)}
           required
-          helperText="Give your goal a meaningful name (e.g., 'House Down Payment', 'Child's Education')"
+          helperText={
+            "Give your goal a meaningful name (e.g., 'House Down Payment', 'Child\u2019s Education')"
+          }
         />
       </Grid>
 
@@ -317,12 +319,12 @@ export function GoalFormDialog({
                 <Typography variant="h6">Inflation Impact</Typography>
               </Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                In {progressMetrics.yearsToGoal.toFixed(1)} years, you'll need{' '}
+                In {progressMetrics.yearsToGoal.toFixed(1)} years, you&apos;ll need{' '}
                 <strong>{formatCurrency(progressMetrics.inflatedTargetAmount)}</strong> to have the
                 same purchasing power as {formatCurrency(targetAmount)} today.
               </Typography>
               <Typography variant="caption">
-                That's{' '}
+                That&apos;s{' '}
                 {((progressMetrics.inflatedTargetAmount / targetAmount - 1) * 100).toFixed(1)}% more
                 due to inflation!
               </Typography>
@@ -347,8 +349,8 @@ export function GoalFormDialog({
           <Typography variant="body2">
             <strong>Goal:</strong> Allocate specific amounts from your assets to reach{' '}
             <strong>{formatCurrency(progressMetrics.inflatedTargetAmount)}</strong>{' '}
-            (inflation-adjusted target). You don't need to allocate 100% of any asset - just enough
-            to meet your goal.
+            (inflation-adjusted target). You don&apos;t need to allocate 100% of any asset - just
+            enough to meet your goal.
           </Typography>
         </Alert>
       )}
@@ -485,7 +487,7 @@ export function GoalFormDialog({
           <Card variant="outlined">
             <CardContent>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Target Amount (Today's Value)
+                Target Amount (Today&apos;s Value)
               </Typography>
               <Typography variant="h6">{formatCurrency(targetAmount)}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

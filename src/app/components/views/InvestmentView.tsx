@@ -46,9 +46,9 @@ export function InvestmentView({
   const getTransactionTypeStyles = (type: InvestmentType) => {
     return {
       isBuy: type === InvestmentType.BUY,
-      color: type === InvestmentType.BUY ? 'success' as 'success' : 'error' as 'error',
-      bgColor: type === InvestmentType.BUY ? 'success.light' : 'error.light',
-      textColor: type === InvestmentType.BUY ? 'success.dark' : 'error.dark',
+      color: type === InvestmentType.BUY ? ('success' as const) : ('error' as const),
+      bgColor: type === InvestmentType.BUY ? ('success.light' as const) : ('error.light' as const),
+      textColor: type === InvestmentType.BUY ? ('success.dark' as const) : ('error.dark' as const),
     };
   };
 

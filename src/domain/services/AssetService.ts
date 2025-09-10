@@ -142,6 +142,13 @@ export class AssetService {
           for (const investment of pendingInvestments) {
             await this.inestmentRepository.create(investment);
           }
+
+          // Update the lastGeneratedDate to the latest payment date
+          const latestPaymentDate = pendingInvestments[pendingInvestments.length - 1].date;
+          await this.sipRepository.update({
+            ...scheduledInvestment,
+            lastGeneratedDate: latestPaymentDate,
+          });
         }
       }
     });

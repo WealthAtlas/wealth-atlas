@@ -66,7 +66,7 @@ export function SIPView({
 
   // Calculate SIP amount
   const calculateAmount = (): number => {
-    return (sip.quantity || 0) * sip.price;
+    return sip.price;
   };
 
   const nextPayment = sip.getNextOccurenceDate();
