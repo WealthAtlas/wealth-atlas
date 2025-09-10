@@ -5,21 +5,27 @@ export interface ISIP extends IScheduleBase {
   assetId: number;
   quantity?: number;
   price: number;
-  executedTill?: Date;
 }
 
 export class SIP extends AbstractSchedule<Investment> implements ISIP {
   public readonly assetId: number;
   public readonly quantity?: number;
   public readonly price: number;
-  public readonly executedTill?: Date;
 
-  constructor({ id, assetId, quantity, price, startDate, endDate, frequency, executedTill }: ISIP) {
-    super({ id, startDate, endDate, frequency, lastGeneratedDate: executedTill });
+  constructor({
+    id,
+    assetId,
+    quantity,
+    price,
+    startDate,
+    endDate,
+    frequency,
+    lastGeneratedDate,
+  }: ISIP) {
+    super({ id, startDate, endDate, frequency, lastGeneratedDate });
     this.assetId = assetId;
     this.quantity = quantity;
     this.price = price;
-    this.executedTill = executedTill;
   }
 
   protected createDataForOccurence(date: Date): Investment {

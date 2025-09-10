@@ -98,7 +98,7 @@ export class AssetService {
     });
   }
 
-  public async getSIPByAssetId(assetId: number): Promise<SIP[]> {
+  public async getSIPsByAssetId(assetId: number): Promise<SIP[]> {
     return (await this.sipRepository.getByAssetId(assetId)).map(transaction => {
       return new SIP({
         ...transaction,
@@ -136,17 +136,18 @@ export class AssetService {
   public async createSIPInvestments(): Promise<void> {
     return this.getAssets().then(async assets => {
       for (const asset of assets) {
-        const sip = await this.getSIPByAssetId(asset.id!);
-        for (const scheduledInvestment of sip) {
-          const pendingInvestments = scheduledInvestment.getPendingOccurences(new Date());
+        const sips = await this.getSIPsByAssetId(asset.id!);
+        for (const sip of sips) {
+          const pendingInvestments = sip.getPendingOccurences(new Date());
           for (const investment of pendingInvestments) {
             await this.inestmentRepository.create(investment);
           }
 
           // Update the lastGeneratedDate to the latest payment date
+          if (pendingInvestments.length === 0) continue;
           const latestPaymentDate = pendingInvestments[pendingInvestments.length - 1].date;
           await this.sipRepository.update({
-            ...scheduledInvestment,
+            ...sip,
             lastGeneratedDate: latestPaymentDate,
           });
         }
@@ -156,7 +157,7 @@ export class AssetService {
 
   private async toAsset(data: IAsset): Promise<Asset> {
     const investments = await this.getInvestmentByAssetId(data.id!);
-    const sips = await this.getSIPByAssetId(data.id!);
+    const sips = await this.getSIPsByAssetId(data.id!);
     return new Asset({
       ...data,
       investments: investments,

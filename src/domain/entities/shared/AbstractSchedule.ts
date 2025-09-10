@@ -35,7 +35,7 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
   public getNextOccurenceDate(): Date {
     return this.lastGeneratedDate != null
       ? this.getNextOccurrenceDateTime(this.lastGeneratedDate, this.frequency)
-      : this.startDate;
+      : new Date(this.startDate);
   }
 
   /**

@@ -18,7 +18,7 @@ export function SIPListContainer({ open, asset, onClose }: SIPListContainerProps
 
   const loadSIPs = useCallback(async () => {
     try {
-      const sips = await assetService.getSIPByAssetId(asset.id!);
+      const sips = await assetService.getSIPsByAssetId(asset.id!);
       setSIPs(sips);
     } catch (error) {
       Logger.error('Failed to load SIPs:', error);

@@ -18,7 +18,7 @@ export function SIPViewContainer({ asset, sipId, deleteSIP }: SIPViewContainerPr
 
   const loadSIP = useCallback(async () => {
     try {
-      const sip = (await assetService.getSIPByAssetId(asset.id!)).filter(
+      const sip = (await assetService.getSIPsByAssetId(asset.id!)).filter(
         pay => pay.id === sipId
       )[0];
       setSIP(sip);
