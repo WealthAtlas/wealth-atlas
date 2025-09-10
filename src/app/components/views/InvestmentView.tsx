@@ -1,5 +1,21 @@
-import { Delete, Edit, TrendingDown, TrendingUp } from '@mui/icons-material';
-import { Box, Chip, IconButton, TableCell, TableRow, Tooltip } from '@mui/material';
+import {
+  CalendarToday,
+  Delete,
+  Edit,
+  ShowChart,
+  TrendingDown,
+  TrendingUp,
+} from '@mui/icons-material';
+import {
+  Box,
+  Chip,
+  IconButton,
+  Stack,
+  TableCell,
+  TableRow,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { IAsset } from '../../../domain/entities/assets/Asset';
 import { Investment, InvestmentType } from '../../../domain/entities/assets/Investment';
 import { InvestmentFormContainer } from '../../containers/assets/investment/InvestmentFormContainer';
@@ -26,6 +42,40 @@ export function InvestmentView({
     return transaction.getTotalAmount();
   };
 
+  // Helper function to get transaction type styling
+  const getTransactionTypeStyles = (type: InvestmentType) => {
+    return {
+      isBuy: type === InvestmentType.BUY,
+      color: type === InvestmentType.BUY ? 'success' as 'success' : 'error' as 'error',
+      bgColor: type === InvestmentType.BUY ? 'success.light' : 'error.light',
+      textColor: type === InvestmentType.BUY ? 'success.dark' : 'error.dark',
+    };
+  };
+
+  // Helper function to format quantity display
+  const formatQuantityDisplay = (): string => {
+    if (investment.quantity === undefined || investment.quantity === 0) {
+      return 'Lump Sum';
+    }
+    return investment.quantity.toLocaleString();
+  };
+
+  // Helper function to get relative time
+  const getRelativeTimeInfo = (date: Date): string => {
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 3600 * 24));
+
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays <= 7) return `${diffInDays} days ago`;
+    if (diffInDays <= 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+    if (diffInDays <= 365) return `${Math.floor(diffInDays / 30)} months ago`;
+    return `${Math.floor(diffInDays / 365)} years ago`;
+  };
+
+  const typeStyles = getTransactionTypeStyles(investment.type);
+  const transactionDate = new Date(investment.date);
+
   return (
     <>
       {showTransactionEdit && (
@@ -39,68 +89,133 @@ export function InvestmentView({
           }}
         />
       )}
-      <TableRow key={investment.id} sx={{ '&:hover': { backgroundColor: 'grey.50' } }}>
+      <TableRow
+        key={investment.id}
+        sx={{
+          '&:hover': { backgroundColor: 'grey.50' },
+          borderLeft: `4px solid`,
+          borderLeftColor: typeStyles.isBuy ? 'success.main' : 'error.main',
+        }}
+      >
+        {/* Date & Time Context */}
         <TableCell>
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box component="span" sx={{ fontWeight: 'medium' }}>
-              {new Date(investment.date).toLocaleDateString()}
+          <Stack spacing={0.5}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
+              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                {transactionDate.toLocaleDateString()}
+              </Typography>
             </Box>
-            <Box component="span" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-              {new Date(investment.date).toLocaleDateString('en-US', {
-                weekday: 'short',
-              })}
-            </Box>
-          </Box>
+            <Typography variant="caption" color="text.secondary">
+              {transactionDate.toLocaleDateString('en-US', { weekday: 'short' })} •{' '}
+              {getRelativeTimeInfo(transactionDate)}
+            </Typography>
+          </Stack>
         </TableCell>
+
+        {/* Transaction Type with Enhanced Visual */}
         <TableCell>
-          <Chip
-            label={investment.type === InvestmentType.BUY ? 'BUY' : 'SELL'}
-            size="small"
-            color={investment.type === InvestmentType.BUY ? 'success' : 'error'}
-            variant="filled"
-            icon={investment.type === InvestmentType.BUY ? <TrendingUp /> : <TrendingDown />}
-            sx={{ fontWeight: 'bold', minWidth: '80px' }}
-          />
-        </TableCell>
-        <TableCell align="right">
-          <Box sx={{ fontWeight: 'medium' }}>
-            {investment.quantity !== undefined ? investment.quantity.toLocaleString() : 'N/A'}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Chip
+              label={investment.type.toUpperCase()}
+              size="medium"
+              color={typeStyles.color}
+              variant="filled"
+              icon={typeStyles.isBuy ? <TrendingUp /> : <TrendingDown />}
+              sx={{
+                fontWeight: 'bold',
+                minWidth: '90px',
+                fontSize: '0.875rem',
+              }}
+            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <ShowChart fontSize="small" sx={{ color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {typeStyles.isBuy ? 'Investment' : 'Divestment'}
+              </Typography>
+            </Box>
           </Box>
         </TableCell>
+
+        {/* Quantity with Context */}
         <TableCell align="right">
-          <Box sx={{ fontWeight: 'medium' }}>
-            {investment.quantity && investment.quantity > 0
-              ? UIUtils.formatCurrency(investment.getUnitPrice(), asset.currency)
-              : UIUtils.formatCurrency(investment.price, asset.currency)}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <Typography variant="body1" sx={{ fontWeight: 'medium', fontSize: '1rem' }}>
+              {formatQuantityDisplay()}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {investment.quantity !== undefined && investment.quantity > 0
+                ? 'units'
+                : 'transaction'}
+            </Typography>
           </Box>
         </TableCell>
+
+        {/* Unit Price with Better Formatting */}
         <TableCell align="right">
-          <Box
-            sx={{
-              fontWeight: 'bold',
-              color: investment.type === InvestmentType.BUY ? 'success.main' : 'error.main',
-            }}
-          >
-            {UIUtils.formatCurrency(getTotalAmount(investment), asset.currency)}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+              {investment.quantity && investment.quantity > 0
+                ? UIUtils.formatCurrency(investment.getUnitPrice(), asset.currency)
+                : UIUtils.formatCurrency(investment.price, asset.currency)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {investment.quantity && investment.quantity > 0 ? 'per unit' : 'total amount'}
+            </Typography>
           </Box>
         </TableCell>
+
+        {/* Total Amount with Emphasis */}
+        <TableCell align="right">
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 'bold',
+                color: typeStyles.textColor,
+                fontSize: '1.125rem',
+              }}
+            >
+              {typeStyles.isBuy ? '+' : '-'}
+              {UIUtils.formatCurrency(getTotalAmount(investment), asset.currency)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              total {typeStyles.isBuy ? 'invested' : 'withdrawn'}
+            </Typography>
+          </Box>
+        </TableCell>
+
+        {/* Actions with Better Accessibility */}
         <TableCell align="center">
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-            <Tooltip title="Edit Transaction">
+            <Tooltip title="Edit Investment Transaction" arrow>
               <IconButton
                 size="small"
                 onClick={() => setShowTransactionEdit(true)}
-                aria-label="edit transaction"
+                aria-label="edit investment transaction"
+                color="primary"
+                sx={{
+                  '&:hover': {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.dark',
+                  },
+                }}
               >
                 <Edit fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Delete Transaction">
+            <Tooltip title="Delete Investment Transaction" arrow>
               <IconButton
                 size="small"
                 onClick={() => deleteInvestment(investment.id!)}
-                aria-label="delete investment"
+                aria-label="delete investment transaction"
                 color="error"
+                sx={{
+                  '&:hover': {
+                    backgroundColor: 'error.light',
+                    color: 'error.dark',
+                  },
+                }}
               >
                 <Delete fontSize="small" />
               </IconButton>

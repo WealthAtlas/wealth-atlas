@@ -57,7 +57,7 @@ export function EMIListDialog({
       <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">EMI - {loan.name}</Typography>
+            <Typography variant="h6">EMI Schedules - {loan.name}</Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="contained"
@@ -77,41 +77,36 @@ export function EMIListDialog({
           {emis.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" gutterBottom>
-                No emis found
+                No EMI schedules found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Start tracking your investments by adding your first emi.
+                Start tracking your loan payments by adding your first EMI schedule.
               </Typography>
               <Button
                 variant="contained"
                 startIcon={<Add />}
                 onClick={() => setShowAddTransaction(true)}
               >
-                Add First Emi
+                Add First EMI
               </Button>
             </Box>
           ) : (
-            <Box sx={{ space: 2 }}>
+            <Box sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Recent Emis
+                Active EMI Schedules ({emis.length})
               </Typography>
 
-              {/* Transactions Table */}
+              {/* EMI Schedules Table */}
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>EMI Details</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Schedule</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                        Quantity
+                        Amount
                       </TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                        Unit Price
-                      </TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                        Total Amount
-                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 'bold' }}>
                         Actions
                       </TableCell>

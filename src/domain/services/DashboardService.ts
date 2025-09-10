@@ -196,7 +196,7 @@ export class DashboardService {
   private calculateAssetValueAtDate(assets: Asset[], date: Date): number {
     return assets.reduce((total, asset) => {
       try {
-        const value = asset.getValueOn(date);
+        const value = asset.getWeightedValueOn(date);
         return total + (value || 0);
       } catch (error) {
         Logger.error(`Failed to calculate asset value for ${asset.name} at ${date}: ${error}`);

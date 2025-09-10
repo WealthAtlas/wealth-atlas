@@ -17,6 +17,7 @@ import {
   MonthlyInvestmentData,
   TimelineData,
 } from '../../../domain/services/DashboardService';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface DashboardPageProps {
   metrics: DashboardMetrics;
@@ -37,15 +38,6 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const formatPercentage = (percentage: number): string => {
     return `${percentage >= 0 ? '+' : ''}${percentage.toFixed(2)}%`;
@@ -101,7 +93,7 @@ export function DashboardPage({
                 Total Wealth
               </Typography>
               <Typography variant="h5" sx={{ color: getColorBasedOnValue(metrics.totalWealth) }}>
-                {formatCurrency(metrics.totalWealth)}
+                {UIUtils.formatCurrency(metrics.totalWealth)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Assets - Loans
@@ -116,7 +108,9 @@ export function DashboardPage({
               <Typography color="text.secondary" gutterBottom>
                 Total Asset Value
               </Typography>
-              <Typography variant="h5">{formatCurrency(metrics.totalAssetValue)}</Typography>
+              <Typography variant="h5">
+                {UIUtils.formatCurrency(metrics.totalAssetValue)}
+              </Typography>
               <Typography variant="body2" color="text.secondary">
                 Current market value
               </Typography>
@@ -134,7 +128,7 @@ export function DashboardPage({
                 variant="h5"
                 sx={{ color: getColorBasedOnValue(metrics.totalProfitLoss) }}
               >
-                {formatCurrency(metrics.totalProfitLoss)}
+                {UIUtils.formatCurrency(metrics.totalProfitLoss)}
               </Typography>
               <Typography
                 variant="body2"
@@ -152,7 +146,9 @@ export function DashboardPage({
               <Typography color="text.secondary" gutterBottom>
                 Total Invested
               </Typography>
-              <Typography variant="h5">{formatCurrency(metrics.totalInvestedAmount)}</Typography>
+              <Typography variant="h5">
+                {UIUtils.formatCurrency(metrics.totalInvestedAmount)}
+              </Typography>
               <Typography variant="body2" color="text.secondary">
                 Capital deployed
               </Typography>
@@ -208,7 +204,7 @@ export function DashboardPage({
                         dataKey: 'amount',
                         label: 'Investment Amount',
                         color: theme.palette.primary.main,
-                        valueFormatter: value => formatCurrency(value as number),
+                        valueFormatter: value => UIUtils.formatCurrency(value as number),
                       },
                     ]}
                     width={isMobile ? 300 : 500}
@@ -251,7 +247,7 @@ export function DashboardPage({
                     series={[
                       {
                         data: assetCategoryData,
-                        valueFormatter: value => formatCurrency(value.value),
+                        valueFormatter: value => UIUtils.formatCurrency(value.value),
                       },
                     ]}
                     colors={chartColors}
@@ -309,13 +305,13 @@ export function DashboardPage({
                         dataKey: 'cumulativeInvested',
                         label: 'Cumulative Invested',
                         color: theme.palette.primary.main,
-                        valueFormatter: value => formatCurrency(value as number),
+                        valueFormatter: value => UIUtils.formatCurrency(value as number),
                       },
                       {
                         dataKey: 'cumulativeValue',
                         label: 'Asset Value',
                         color: theme.palette.success.main,
-                        valueFormatter: value => formatCurrency(value as number),
+                        valueFormatter: value => UIUtils.formatCurrency(value as number),
                       },
                     ]}
                     width={isMobile ? 300 : 800}
@@ -360,7 +356,9 @@ export function DashboardPage({
                 <Typography variant="h6" gutterBottom>
                   Outstanding Loans
                 </Typography>
-                <Typography variant="h4">{formatCurrency(metrics.totalLoanAmount)}</Typography>
+                <Typography variant="h4">
+                  {UIUtils.formatCurrency(metrics.totalLoanAmount)}
+                </Typography>
                 <Typography variant="body2" sx={{ mt: 1 }}>
                   This amount is deducted from your total wealth calculation
                 </Typography>

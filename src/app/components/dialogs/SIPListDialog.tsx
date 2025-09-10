@@ -18,7 +18,7 @@ import {
 import { IAsset } from '../../../domain/entities/assets/Asset';
 import { SIP } from '../../../domain/entities/assets/SIP';
 import { SIPFormContainer } from '../../containers/assets/sip/SIPFormContainer';
-import { SIPView } from '../views/SIPView';
+import { SIPViewContainer } from '../../containers/assets/sip/SIPViewContainer';
 
 export interface SIPListDialogProps {
   open: boolean;
@@ -57,7 +57,7 @@ export function SIPListDialog({
       <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">SIPs - {asset.name}</Typography>
+            <Typography variant="h6">SIP Schedules - {asset.name}</Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="contained"
@@ -77,10 +77,10 @@ export function SIPListDialog({
           {sips.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" gutterBottom>
-                No SIPs found
+                No SIP schedules found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Start tracking your investments by adding your first SIP.
+                Start tracking your systematic investments by adding your first SIP schedule.
               </Typography>
               <Button
                 variant="contained"
@@ -93,21 +93,20 @@ export function SIPListDialog({
           ) : (
             <Box sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Recent SIPs
+                Active SIP Schedules ({sips.length})
               </Typography>
 
-              {/* Transactions Table */}
+              {/* SIP Schedules Table */}
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Frequency</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Start Date</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>End Date</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>SIP Details</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Schedule</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                         Amount
                       </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 'bold' }}>
                         Actions
                       </TableCell>
@@ -115,14 +114,11 @@ export function SIPListDialog({
                   </TableHead>
                   <TableBody>
                     {sips.map(sip => (
-                      <SIPView
+                      <SIPViewContainer
                         key={sip.id!}
                         asset={asset}
-                        sip={sip}
-                        showTransactionEdit={false}
-                        setShowTransactionEdit={() => {}}
+                        sipId={sip.id!}
                         deleteSIP={deleteSIP}
-                        refresh={refresh}
                       />
                     ))}
                   </TableBody>

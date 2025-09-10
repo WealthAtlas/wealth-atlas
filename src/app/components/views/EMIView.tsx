@@ -1,4 +1,4 @@
-import { CalendarToday, Delete, Edit, EventRepeat, Schedule } from '@mui/icons-material';
+import { AccountBalance, CalendarToday, Delete, Edit, EventRepeat } from '@mui/icons-material';
 import {
   Box,
   Chip,
@@ -91,7 +91,7 @@ export function EMIView({
         <TableCell>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Schedule fontSize="small" color="primary" />
+              <AccountBalance fontSize="small" color="primary" />
               <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                 {emi.name}
               </Typography>

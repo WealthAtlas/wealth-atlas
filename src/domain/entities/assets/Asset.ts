@@ -70,9 +70,10 @@ export class Asset implements IAsset {
   }
 
   // Business methods to compute portfolio metrics
-  public getTotalInvestedAmount(): number {
-    return this.investments
-      .filter(t => t.assetId === this.id)
+  public getTotalInvestedAmount(till?: Date, includeFuture: boolean = false): number {
+    const investments = this.getInvestments(till ?? new Date(), includeFuture);
+    return investments
+      .filter(tx => (till ? tx.date <= till : true))
       .reduce((total, transaction) => {
         const amount = transaction.getTotalAmount();
         return total + amount;
@@ -99,6 +100,17 @@ export class Asset implements IAsset {
 
   public getValue(): number | undefined {
     return this.getValueOn(new Date());
+  }
+
+  public getWeightedValueOn(date: Date): number | undefined {
+    const totalInvested = this.getTotalInvestedAmount();
+    if (totalInvested === 0) return undefined;
+
+    const currentValue = this.getValueOn(date);
+    if (currentValue === undefined) return undefined;
+
+    const currentInvested = this.getTotalInvestedAmount(date);
+    return (currentInvested / totalInvested) * currentValue;
   }
 
   public getValueOn(date: Date): number | undefined {

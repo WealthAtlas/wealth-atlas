@@ -32,6 +32,11 @@ export function SIPView({
   deleteSIP,
   refresh,
 }: SIPViewProps) {
+  // Helper function to format frequency for display
+  const formatFrequency = (frequency: Frequency): string => {
+    return frequency.charAt(0) + frequency.slice(1).toLowerCase().replace('_', ' ');
+  };
+
   // Helper function to get frequency color
   const getFrequencyColor = (
     frequency: Frequency
@@ -99,7 +104,7 @@ export function SIPView({
               />
               <Chip
                 size="small"
-                label={sip.frequency.replace('_', ' ').toLowerCase()}
+                label={formatFrequency(sip.frequency)}
                 color={getFrequencyColor(sip.frequency)}
                 variant="outlined"
                 icon={<EventRepeat fontSize="small" />}
@@ -137,7 +142,7 @@ export function SIPView({
               {UIUtils.formatCurrency(calculateAmount(), asset.currency)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              per {sip.frequency.replace('_', ' ').toLowerCase()}
+              per {formatFrequency(sip.frequency).toLowerCase()}
             </Typography>
           </Box>
         </TableCell>

@@ -3,7 +3,7 @@ export class UIUtils {
     return month.toLocaleString('default', { month: 'long', year: 'numeric' });
   }
 
-  public static formatCurrency(amount: number | undefined, currency: string): string {
+  public static formatCurrency(amount: number | undefined, currency?: string): string {
     if (amount === undefined) return 'N/A';
 
     const currencySymbols: Record<string, string> = {
@@ -12,7 +12,7 @@ export class UIUtils {
       GBP: '£',
     };
 
-    const symbol = currencySymbols[currency] || currency;
+    const symbol = currencySymbols[currency ?? 'INR'] || currency;
 
     // Format in Indian numbering system for INR, otherwise use standard formatting
     if (currency === 'INR') {
