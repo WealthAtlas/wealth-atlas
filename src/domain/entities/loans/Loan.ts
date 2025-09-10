@@ -74,7 +74,7 @@ export class Loan implements ILoan {
 
   public getOutstandingPrincipal(): number {
     const totalInterest = IRRCalculator.getInstance().calculateFutureValueOnIRR(
-      this.payments.map(payment => ({ date: payment.date, amount: payment.amount })),
+      this.payments.map(payment => ({ date: new Date(payment.date), amount: payment.amount })),
       this.getIRR(),
       new Date()
     );

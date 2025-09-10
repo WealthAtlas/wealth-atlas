@@ -129,8 +129,8 @@ export class LoanService {
 
     return loans.map(loan => {
       const totalPaid = loan.payments.reduce((sum, payment) => sum + payment.amount, 0);
-      const remainingBalance = loan.principalAmount - totalPaid;
-      const totalInterestPaid = loan.payments.reduce((sum, payment) => sum + payment.amount, 0); // Placeholder for actual interest calculation
+      const remainingBalance = loan.getOutstandingPrincipal() - totalPaid;
+      const totalInterestPaid = loan.getOutstandingPrincipal() - loan.principalAmount;
       const nextPaymentDate = loan.emis
         .flatMap(schedule => schedule.getPendingOccurences())
         .map(occurrence => occurrence.date)
