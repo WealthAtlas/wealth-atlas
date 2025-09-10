@@ -80,6 +80,17 @@ export class Asset implements IAsset {
       }, 0);
   }
 
+  public getTotalQty(till?: Date, includeFuture: boolean = false): number {
+    const investments = this.getInvestments(till ?? new Date(), includeFuture);
+    return investments
+      .filter(tx => (till ? tx.date <= till : true))
+      .reduce((total, transaction) => {
+        const quantity = transaction.quantity;
+        if (quantity === undefined) return total;
+        return total + quantity;
+      }, 0);
+  }
+
   public getCurrentHoldings(): number | undefined {
     const holding = this.investments.reduce((total, transaction) => {
       const quantity = transaction.quantity;
@@ -103,11 +114,19 @@ export class Asset implements IAsset {
   }
 
   public getWeightedValueOn(date: Date): number | undefined {
-    const totalInvested = this.getTotalInvestedAmount();
-    if (totalInvested === 0) return undefined;
-
     const currentValue = this.getValueOn(date);
     if (currentValue === undefined) return undefined;
+
+    const totalQty = this.getTotalQty();
+    const currentQty = this.getTotalQty(date);
+
+    if (totalQty && currentQty) {
+      return (currentQty / totalQty) * currentValue;
+    }
+
+    // Fallback to invested amount based weighting
+    const totalInvested = this.getTotalInvestedAmount();
+    if (totalInvested === 0) return undefined;
 
     const currentInvested = this.getTotalInvestedAmount(date);
     return (currentInvested / totalInvested) * currentValue;
