@@ -31,12 +31,12 @@ export class WealthAtlasDB extends Dexie {
     this.version(2).stores({
       assets:
         '++id, name, description, category, currency, valueModel, interestRate, maturityDate, maturityAmount, marketValue, marketValueUpdatedAt, apiPath',
-      investments: '++id, assetId, type, quantity, price, date',
+      investments: '++id, assetId, sipId, type, quantity, price, date',
       sips: '++id, assetId, quantity, price, startDate, endDate, frequency, executedTill',
       expenses: '++id, amount, currency, date, category, isEssential, description',
       loans: '++id, name, lenderName, principalAmount, currency, startDate, description',
       emis: '++id, loanId, name, amount, frequency, startDate, endDate, lastGeneratedDate',
-      payments: '++id, loanId, date, amount, isPaid, description',
+      payments: '++id, loanId, emiId, date, amount, isPaid, description',
       goals: '++id, name, targetAmount, maturityDate, inflationRate, currency, createdAt',
       allocations: '++id, assetId, goalId, allocationPercentage, createdAt',
     });
