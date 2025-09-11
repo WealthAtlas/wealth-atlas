@@ -1,19 +1,19 @@
-import { LoanPaymentScheduleRepository } from '@/data/repositories/loan/EMIRepository';
+import { EMIRepository } from '@/data/repositories/loan/EMIRepository';
 import { LoanRepository } from '@/data/repositories/loan/LoanRepository';
-import { LoanPaymentRepository } from '@/data/repositories/loan/PaymentRepository';
+import { PaymentRepository } from '@/data/repositories/loan/PaymentRepository';
 import { EMI, IEMI } from '../entities/loans/EMI';
 import { ILoan, Loan } from '../entities/loans/Loan';
 import { IPayment, Payment } from '../entities/loans/Payment';
 
 export class LoanService {
   private readonly loanRepository: LoanRepository;
-  private readonly paymentScheduleRepository: LoanPaymentScheduleRepository;
-  private readonly loanPaymentRepository: LoanPaymentRepository;
+  private readonly emiRepository: EMIRepository;
+  private readonly loanPaymentRepository: PaymentRepository;
 
   constructor() {
     this.loanRepository = new LoanRepository();
-    this.paymentScheduleRepository = new LoanPaymentScheduleRepository();
-    this.loanPaymentRepository = new LoanPaymentRepository();
+    this.emiRepository = new EMIRepository();
+    this.loanPaymentRepository = new PaymentRepository();
   }
 
   async getLoans(): Promise<Loan[]> {
@@ -46,7 +46,7 @@ export class LoanService {
 
   async deleteLoan(id: number): Promise<void> {
     await this.loanRepository.delete(id);
-    await this.paymentScheduleRepository.deleteByLoanId(id);
+    await this.emiRepository.deleteByLoanId(id);
     await this.loanPaymentRepository.deleteByLoanId(id);
   }
 
@@ -62,18 +62,19 @@ export class LoanService {
     await this.loanPaymentRepository.delete(id);
   }
 
-  async createPaymentSchedule(schedule: IEMI): Promise<EMI> {
-    const createdSchedule = await this.paymentScheduleRepository.create(schedule);
+  async createEMI(emi: IEMI): Promise<EMI> {
+    const createdSchedule = await this.emiRepository.create(emi);
     return new EMI(createdSchedule);
   }
 
-  async updatePaymentSchedule(schedule: IEMI): Promise<EMI> {
-    const updatedSchedule = await this.paymentScheduleRepository.update(schedule);
+  async updateEMI(emi: IEMI): Promise<EMI> {
+    await this.loanPaymentRepository.deleteByEMIId(emi.id!);
+    const updatedSchedule = await this.emiRepository.update(emi);
     return new EMI(updatedSchedule);
   }
 
   async getPaymentSchedulesByLoan(loanId: number): Promise<EMI[]> {
-    const schedules = await this.paymentScheduleRepository.findByLoanId(loanId);
+    const schedules = await this.emiRepository.findByLoanId(loanId);
     return schedules.map(schedule => new EMI(schedule));
   }
 
@@ -82,11 +83,12 @@ export class LoanService {
   }
 
   async deletePaymentSchedule(id: number): Promise<void> {
-    await this.paymentScheduleRepository.delete(id);
+    await this.loanPaymentRepository.deleteByEMIId(id);
+    await this.emiRepository.delete(id);
   }
 
-  async createScheduledLoanPayments(): Promise<void> {
-    await this.paymentScheduleRepository.getAll().then(async schedules => {
+  async createEMIPayments(): Promise<void> {
+    await this.emiRepository.getAll().then(async schedules => {
       for (const schedule of schedules) {
         const sch = new EMI(schedule);
         const pendingOccurrences = sch.getPendingOccurences(new Date());
@@ -105,7 +107,7 @@ export class LoanService {
 
           // Update the lastGeneratedDate to the latest payment date
           const latestPaymentDate = pendingOccurrences[pendingOccurrences.length - 1].date;
-          await this.paymentScheduleRepository.update({
+          await this.emiRepository.update({
             ...schedule,
             lastGeneratedDate: latestPaymentDate,
           });
@@ -116,7 +118,7 @@ export class LoanService {
 
   private async toLoan(data: ILoan): Promise<Loan> {
     const payments = await this.loanPaymentRepository.getByLoanId(data.id!);
-    const emis = (await this.paymentScheduleRepository.findByLoanId(data.id!)).map(
+    const emis = (await this.emiRepository.findByLoanId(data.id!)).map(
       schedule => new EMI(schedule)
     );
     return new Loan({

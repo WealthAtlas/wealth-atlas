@@ -1,13 +1,13 @@
 import { IEMI } from '../../../domain/entities/loans/EMI';
 import { db } from '../../database';
 
-export class LoanPaymentScheduleRepository {
-  public async create(schedule: IEMI): Promise<IEMI> {
-    return db.emis.add(schedule).then(id => ({ ...schedule, id }));
+export class EMIRepository {
+  public async create(emi: IEMI): Promise<IEMI> {
+    return db.emis.add(emi).then(id => ({ ...emi, id }));
   }
 
-  public async update(schedule: IEMI): Promise<IEMI> {
-    return db.emis.update(schedule.id, schedule).then(() => schedule);
+  public async update(emi: IEMI): Promise<IEMI> {
+    return db.emis.update(emi.id, emi).then(() => emi);
   }
 
   public async findByLoanId(loanId: number): Promise<IEMI[]> {

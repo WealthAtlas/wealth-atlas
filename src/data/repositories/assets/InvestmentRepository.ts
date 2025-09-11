@@ -23,4 +23,8 @@ export class InvestmentRepository {
   async deleteByAssetId(assetId: number): Promise<void> {
     await db.investments.where('assetId').equals(assetId).delete();
   }
+
+  async deleteBySipId(sipId: number): Promise<void> {
+    await db.investments.where('sipId').equals(sipId).delete();
+  }
 }

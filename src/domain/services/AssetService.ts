@@ -92,6 +92,7 @@ export class AssetService {
   }
 
   public async updateSIP(sip: ISIP): Promise<SIP> {
+    await this.inestmentRepository.deleteBySipId(sip.id!);
     const updatedTransaction = await this.sipRepository.update(sip);
     return new SIP({
       ...updatedTransaction,
@@ -107,6 +108,7 @@ export class AssetService {
   }
 
   public async deleteSIP(id: number): Promise<void> {
+    await this.inestmentRepository.deleteBySipId(id);
     await this.sipRepository.delete(id);
   }
 

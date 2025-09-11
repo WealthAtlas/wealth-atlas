@@ -6,6 +6,7 @@ export enum InvestmentType {
 export interface IInvestment {
   id: number | undefined;
   assetId: number;
+  sipId?: number;
   type: InvestmentType;
   quantity: number | undefined;
   price: number; // Unit price (includes fees)
@@ -15,6 +16,7 @@ export interface IInvestment {
 export class Investment implements IInvestment {
   public readonly id: number | undefined;
   public readonly assetId: number;
+  public readonly sipId?: number;
   public readonly type: InvestmentType;
   public readonly price: number;
   public readonly date: Date;
@@ -27,6 +29,7 @@ export class Investment implements IInvestment {
     this.assetId = investment.assetId;
     this.quantity = investment.quantity;
     this.type = investment.type;
+    this.sipId = investment.sipId;
   }
 
   getTotalAmount(): number {

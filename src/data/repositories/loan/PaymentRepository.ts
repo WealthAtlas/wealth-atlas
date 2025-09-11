@@ -1,7 +1,7 @@
 import { IPayment } from '../../../domain/entities/loans/Payment';
 import { db } from '../../database';
 
-export class LoanPaymentRepository {
+export class PaymentRepository {
   async create(loanPayment: IPayment): Promise<IPayment> {
     const id = await db.payments.add(loanPayment);
     return { ...loanPayment, id };
@@ -30,5 +30,9 @@ export class LoanPaymentRepository {
 
   async deleteByLoanId(loanId: number): Promise<void> {
     await db.payments.where({ loanId }).delete();
+  }
+
+  async deleteByEMIId(emiId: number): Promise<void> {
+    await db.payments.where({ emiId }).delete();
   }
 }

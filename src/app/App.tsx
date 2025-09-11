@@ -19,7 +19,7 @@ export default function App() {
         await investmentService.updateValues();
 
         const loanService = new LoanService();
-        await loanService.createScheduledLoanPayments();
+        await loanService.createEMIPayments();
 
         // Auto-sync if enabled
         const syncResult = await SyncService.autoSync();

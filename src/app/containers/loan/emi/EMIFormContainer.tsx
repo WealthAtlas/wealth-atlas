@@ -53,9 +53,9 @@ export function EMIFormContainer({ open, loan, emiToEdit, onClose }: EMIFormCont
       });
 
       if (emiToEdit) {
-        await loanService.updatePaymentSchedule(emiEntity);
+        await loanService.updateEMI(emiEntity);
       } else {
-        await loanService.createPaymentSchedule(emiEntity);
+        await loanService.createEMI(emiEntity);
       }
     } catch (error) {
       Logger.error('Failed to save transaction:', error);
