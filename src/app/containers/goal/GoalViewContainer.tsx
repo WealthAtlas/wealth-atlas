@@ -35,7 +35,7 @@ export function GoalViewContainer({ goalId, deleteGoal, refresh }: GoalViewConta
 
   // Calculate goal-specific metrics
   const currentValue = goal.allocations.reduce((sum, allocation) => {
-    const assetValue = allocation.asset.getValue() || 0;
+    const assetValue = allocation.asset.getValueOn(goal.maturityDate) || 0;
     return sum + (assetValue * allocation.allocationPercentage) / 100;
   }, 0);
 

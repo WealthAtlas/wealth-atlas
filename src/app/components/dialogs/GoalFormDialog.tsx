@@ -108,7 +108,7 @@ export function GoalFormDialog({
       const asset = availableAssets.find(a => a.id === allocation.assetId);
       if (!asset) return sum;
 
-      const assetValue = asset.getValue() || 0;
+      const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
       return sum + (assetValue * allocation.percentage) / 100;
     }, 0);
 
@@ -210,7 +210,7 @@ export function GoalFormDialog({
   const totalAllocatedAmount = assetAllocations.reduce((sum, allocation) => {
     const asset = availableAssets.find(a => a.id === allocation.assetId);
     if (!asset) return sum;
-    const assetValue = asset.getValue() || 0;
+    const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
     return sum + (assetValue * allocation.percentage) / 100;
   }, 0);
 
@@ -583,7 +583,7 @@ export function GoalFormDialog({
         const asset = availableAssets.find(a => a.id === allocation.assetId);
         if (!asset) return null;
 
-        const assetValue = asset.getValue() || 0;
+        const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
         const allocatedValue = (assetValue * allocation.percentage) / 100;
 
         return (

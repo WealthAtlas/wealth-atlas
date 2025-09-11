@@ -132,22 +132,35 @@ export class Asset implements IAsset {
     return (currentInvested / totalInvested) * currentValue;
   }
 
-  public getValueOn(date: Date): number | undefined {
+  public getValueOn(date: Date, includeFutureInvestments: boolean = false): number | undefined {
     switch (this.valueModel) {
-      case ValueModel.MARKET_BASED:
-        return this.marketValue;
+      case ValueModel.MARKET_BASED: {
+        const irr = this.getIRR();
+        if (irr === undefined || this.marketValue === undefined) return undefined;
+        return IRRCalculator.getInstance().calculateFutureValueOnIRR(
+          this.getInvestments(date, includeFutureInvestments).map(tx => ({
+            date: tx.date,
+            amount: tx.getTotalAmount(),
+          })),
+          irr,
+          date
+        );
+      }
       case ValueModel.FIXED_INCOME: {
         const fixedIncomeEffectiveDate =
           this.maturityDate && date > this.maturityDate ? this.maturityDate : date;
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
-          this.investments.map(tx => ({ date: tx.date, amount: tx.getTotalAmount() })),
+          this.getInvestments(fixedIncomeEffectiveDate, includeFutureInvestments).map(tx => ({
+            date: tx.date,
+            amount: tx.getTotalAmount(),
+          })),
           this.interestRate!,
           fixedIncomeEffectiveDate
         );
       }
       case ValueModel.MATURITY_BASED: {
         const maturityIRR = IRRCalculator.getInstance().calculateIRR({
-          transactions: this.investments.map(tx => ({
+          transactions: this.getInvestments(date, includeFutureInvestments).map(tx => ({
             date: tx.date,
             amount: tx.getTotalAmount(),
           })),
@@ -157,7 +170,10 @@ export class Asset implements IAsset {
         const maturityBasedEffectiveDate =
           this.maturityDate && date > this.maturityDate ? this.maturityDate : date;
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
-          this.investments.map(tx => ({ date: tx.date, amount: tx.getTotalAmount() })),
+          this.getInvestments(date, includeFutureInvestments).map(tx => ({
+            date: tx.date,
+            amount: tx.getTotalAmount(),
+          })),
           maturityIRR,
           maturityBasedEffectiveDate
         );
@@ -176,15 +192,38 @@ export class Asset implements IAsset {
     return allTransactions;
   }
 
-  public getIRR(till: Date): number | undefined {
-    return IRRCalculator.getInstance().calculateIRR({
-      transactions: this.getInvestments(till, true).map(tx => ({
-        date: tx.date,
-        amount: tx.getTotalAmount(),
-      })),
-      value: this.getValueOn(till)!,
-      valueUpdatedOn: till,
-    });
+  public getIRR(): number | undefined {
+    switch (this.valueModel) {
+      case ValueModel.MARKET_BASED:
+        if (this.marketValue === undefined || this.marketValueUpdatedAt === undefined)
+          return undefined;
+        return IRRCalculator.getInstance().calculateIRR({
+          transactions: this.getInvestments(new Date(), false).map(tx => ({
+            date: tx.date,
+            amount: tx.getTotalAmount(),
+          })),
+          value: this.marketValue ?? 0,
+          valueUpdatedOn: this.marketValueUpdatedAt ?? new Date(),
+        });
+        break;
+      case ValueModel.MATURITY_BASED:
+        if (this.maturityAmount === undefined || this.maturityDate === undefined) return undefined;
+        return IRRCalculator.getInstance().calculateIRR({
+          transactions: this.getInvestments(new Date(), false).map(tx => ({
+            date: tx.date,
+            amount: tx.getTotalAmount(),
+          })),
+          value: this.maturityAmount ?? 0,
+          valueUpdatedOn: this.maturityDate ?? new Date(),
+        });
+        break;
+      case ValueModel.FIXED_INCOME:
+        if (this.interestRate === undefined) return undefined;
+        return this.interestRate;
+        break;
+      default:
+        return undefined;
+    }
   }
 
   public needsScriptExecution(): boolean {

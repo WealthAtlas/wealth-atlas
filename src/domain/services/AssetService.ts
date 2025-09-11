@@ -9,12 +9,12 @@ import { executeValueScript } from '../utils/ScriptExecutor';
 
 export class AssetService {
   private readonly assetRepository: AssetRepository;
-  private readonly inestmentRepository: InvestmentRepository;
+  private readonly investmentRepository: InvestmentRepository;
   private readonly sipRepository: SIPRepository;
 
   constructor() {
     this.assetRepository = new AssetRepository();
-    this.inestmentRepository = new InvestmentRepository();
+    this.investmentRepository = new InvestmentRepository();
     this.sipRepository = new SIPRepository();
   }
 
@@ -31,7 +31,7 @@ export class AssetService {
   public async deleteAsset(id: number): Promise<void> {
     await this.assetRepository
       .delete(id)
-      .then(() => this.inestmentRepository.deleteByAssetId(id))
+      .then(() => this.investmentRepository.deleteByAssetId(id))
       .then(() => this.sipRepository.deleteByAssetId(id));
   }
 
@@ -57,21 +57,21 @@ export class AssetService {
   }
 
   public async addInvestment(investment: IInvestment): Promise<Investment> {
-    const createdTransaction = await this.inestmentRepository.create(investment);
+    const createdTransaction = await this.investmentRepository.create(investment);
     return new Investment({
       ...createdTransaction,
     });
   }
 
   public async updateInvestment(investment: IInvestment): Promise<Investment> {
-    const updatedTransaction = await this.inestmentRepository.update(investment);
+    const updatedTransaction = await this.investmentRepository.update(investment);
     return new Investment({
       ...updatedTransaction,
     });
   }
 
   public async getInvestmentByAssetId(assetId: number): Promise<Investment[]> {
-    return (await this.inestmentRepository.getByAssetId(assetId))
+    return (await this.investmentRepository.getByAssetId(assetId))
       .map(transaction => {
         return new Investment({
           ...transaction,
@@ -81,7 +81,7 @@ export class AssetService {
   }
 
   public async deleteInvestment(id: number): Promise<void> {
-    await this.inestmentRepository.delete(id);
+    await this.investmentRepository.delete(id);
   }
 
   public async addSIP(sip: ISIP): Promise<SIP> {
@@ -92,7 +92,7 @@ export class AssetService {
   }
 
   public async updateSIP(sip: ISIP): Promise<SIP> {
-    await this.inestmentRepository.deleteBySipId(sip.id!);
+    await this.investmentRepository.deleteBySipId(sip.id!);
     const updatedTransaction = await this.sipRepository.update(sip);
     return new SIP({
       ...updatedTransaction,
@@ -108,7 +108,7 @@ export class AssetService {
   }
 
   public async deleteSIP(id: number): Promise<void> {
-    await this.inestmentRepository.deleteBySipId(id);
+    await this.investmentRepository.deleteBySipId(id);
     await this.sipRepository.delete(id);
   }
 
@@ -142,7 +142,7 @@ export class AssetService {
         for (const sip of sips) {
           const pendingInvestments = sip.getPendingOccurences(new Date());
           for (const investment of pendingInvestments) {
-            await this.inestmentRepository.create(investment);
+            await this.investmentRepository.create(investment);
           }
 
           // Update the lastGeneratedDate to the latest payment date
