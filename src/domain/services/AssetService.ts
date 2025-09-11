@@ -115,9 +115,9 @@ export class AssetService {
   public async updateValues(): Promise<void> {
     return await this.getAssets().then(async assets => {
       for (const asset of assets) {
-        if (asset.script) {
+        if (asset.needsScriptExecution()) {
           try {
-            const newValue = await executeValueScript(asset.script);
+            const newValue = await executeValueScript(asset.script!);
             if (newValue === undefined) continue;
             Logger.info(`Updating market value for ${asset.name} to ${newValue}`);
             const qty = asset.getCurrentHoldings() ?? 1;

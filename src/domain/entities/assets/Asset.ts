@@ -186,4 +186,17 @@ export class Asset implements IAsset {
       valueUpdatedOn: till,
     });
   }
+
+  public needsScriptExecution(): boolean {
+    if (this.valueModel === ValueModel.MARKET_BASED && !!this.script) {
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      if (
+        !this.marketValueUpdatedAt ||
+        new Date().getTime() - this.marketValueUpdatedAt.getTime() > oneDayMs
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
