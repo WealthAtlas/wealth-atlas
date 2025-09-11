@@ -189,7 +189,7 @@ export class Asset implements IAsset {
       const futureTransactions = this.sips.map(sip => sip.getPendingOccurences(till)).flat();
       allTransactions = allTransactions.concat(futureTransactions);
     }
-    return allTransactions;
+    return allTransactions.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 
   public getIRR(): number | undefined {

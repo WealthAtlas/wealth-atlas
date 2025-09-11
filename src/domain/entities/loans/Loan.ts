@@ -1,6 +1,6 @@
 import { IRRCalculator, Transaction } from '../shared/IRRCalculator';
-import { EMI } from './EMI';
-import { Payment } from './Payment';
+import { EMI, IEMI } from './EMI';
+import { IPayment, Payment } from './Payment';
 
 export interface ILoan {
   id: number | undefined;
@@ -30,15 +30,15 @@ export class Loan implements ILoan {
     description,
     payments,
     emis,
-  }: ILoan & { payments: Payment[]; emis: EMI[] }) {
+  }: ILoan & { payments: IPayment[]; emis: IEMI[] }) {
     this.id = id;
     this.name = name;
     this.description = description;
     this.principalAmount = principalAmount;
     this.currency = currency;
     this.startDate = new Date(startDate);
-    this.payments = payments;
-    this.emis = emis;
+    this.payments = payments.map(payment => new Payment(payment));
+    this.emis = emis.map(emi => new EMI(emi));
   }
 
   public getIRR(): number {
@@ -100,7 +100,9 @@ export class Loan implements ILoan {
 
   private getPayments(till?: Date, considerFutureTransactions: boolean = false): Payment[] {
     if (till) {
-      return this.payments.filter(payment => payment.date <= till);
+      return this.payments
+        .filter(payment => payment.date <= till)
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
     }
     if (considerFutureTransactions) {
       const futureTransactions = this.emis
@@ -110,7 +112,7 @@ export class Loan implements ILoan {
           occurrence =>
             new Payment({
               id: undefined,
-              date: occurrence.date,
+              date: new Date(occurrence.date),
               amount: occurrence.amount,
               description: occurrence.description,
               loanId: occurrence.loanId,
@@ -118,6 +120,6 @@ export class Loan implements ILoan {
         );
       return this.payments.concat(futureTransactions);
     }
-    return this.payments;
+    return this.payments.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 }

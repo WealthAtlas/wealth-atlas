@@ -45,7 +45,9 @@ export class ExpenseService {
       monthlyExpensesMap.get(key)?.expenses.push(expense);
     });
 
-    return Array.from(monthlyExpensesMap.values());
+    return Array.from(monthlyExpensesMap.values()).sort(
+      (a, b) => b.month.getTime() - a.month.getTime()
+    );
   }
 
   private generateMonthlyExpenseKey(expense: Expense): string {
