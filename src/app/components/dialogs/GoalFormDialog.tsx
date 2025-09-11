@@ -144,7 +144,7 @@ export function GoalFormDialog({
       yearsToGoal,
       monthlyRequiredSIP,
     };
-  }, [targetAmount, maturityDate, inflationRate, assetAllocations, availableAssets]);
+  }, [targetAmount, maturityDate, inflationRate, assetAllocations, availableAssets, goal]);
 
   const resetForm = () => {
     setActiveStep(0);

@@ -77,7 +77,7 @@ export function AssetView({
   const currentHoldings = asset.getCurrentHoldings();
   const profitLoss = asset.getProfitLoss() || 0;
   const profitLossPercentage = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
-  const irr = asset.getIRR(new Date());
+  const irr = asset.getIRR();
 
   // Determine if this asset has tradeable units/holdings
   const hasHoldings = currentHoldings !== undefined && currentHoldings > 0;
