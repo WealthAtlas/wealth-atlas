@@ -15,11 +15,7 @@ export class UIUtils {
     const symbol = currencySymbols[currency ?? 'INR'] || currency;
 
     // Format in Indian numbering system for INR, otherwise use standard formatting
-    if (currency === 'INR') {
-      return `${symbol}${amount.toLocaleString('en-IN')}`;
-    } else {
-      return `${symbol}${amount.toLocaleString()}`;
-    }
+    return `${symbol}${amount.toLocaleString('en-IN')}`;
   }
 
   public static formatPercentage(percentage: number | undefined): string {
@@ -57,5 +53,10 @@ export class UIUtils {
       month: 'short',
       day: 'numeric',
     });
+  }
+
+  public static formatDateForInput(date: Date | undefined): string {
+    if (!date) return '';
+    return date.toISOString().split('T')[0];
   }
 }

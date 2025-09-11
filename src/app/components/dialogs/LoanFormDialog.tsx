@@ -44,11 +44,6 @@ export function LoanFormDialog({
     });
   };
 
-  const formatDateForInput = (date: Date | undefined): string => {
-    if (!date) return new Date().toISOString().split('T')[0];
-    return date.toISOString().split('T')[0];
-  };
-
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>{title}</DialogTitle>
@@ -112,7 +107,7 @@ export function LoanFormDialog({
             <TextField
               label="Start Date"
               type="date"
-              value={formatDateForInput(loan.startDate)}
+              value={UIUtils.formatDateForInput(loan.startDate)}
               onChange={e =>
                 onLoanChange({
                   ...loan,

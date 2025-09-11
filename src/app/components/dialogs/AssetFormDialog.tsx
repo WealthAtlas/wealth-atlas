@@ -34,6 +34,7 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import { IAsset } from '../../../domain/entities/assets/Asset';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface AssetFormDialogProps {
   open: boolean;
@@ -68,11 +69,6 @@ export function AssetFormDialog({
   const [isTestingScript, setIsTestingScript] = useState(false);
   const [scriptTestResult, setScriptTestResult] = useState<ScriptTestResult | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState('');
-
-  const formatDateForInput = (date: Date | undefined): string => {
-    if (!date) return '';
-    return date.toISOString().split('T')[0];
-  };
 
   // Script testing functionality
   const handleTestScript = async () => {
@@ -306,7 +302,7 @@ export function AssetFormDialog({
                   <Box sx={{ display: 'flex', gap: 2, flexDirection: isMobile ? 'column' : 'row' }}>
                     <TextField
                       label="Maturity Date"
-                      value={formatDateForInput(asset.maturityDate)}
+                      value={UIUtils.formatDateForInput(asset.maturityDate)}
                       onChange={e =>
                         onAssetChange({
                           ...asset,
