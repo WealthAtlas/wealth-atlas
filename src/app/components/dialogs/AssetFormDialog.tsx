@@ -359,6 +359,7 @@ export function AssetFormDialog({
                       onAssetChange({
                         ...asset,
                         marketValue: parseFloat(e.target.value) || undefined,
+                        marketValueUpdatedAt: new Date(),
                       })
                     }
                     type="number"
