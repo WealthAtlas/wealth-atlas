@@ -204,7 +204,8 @@ export class Asset implements IAsset {
     if (this.valueModel !== ValueModel.MARKET_BASED) return undefined;
     if (this.scriptValue && this.scriptValueUpdatedAt) {
       if (this.manualValueUpdatedAt === undefined) return this.scriptValue;
-      if (this.scriptValueUpdatedAt > this.manualValueUpdatedAt) return this.scriptValue;
+      if (this.scriptValueUpdatedAt > this.manualValueUpdatedAt)
+        return this.scriptValue * (this.getCurrentHoldings() ?? 1);
     }
     return this.manualValue;
   }
@@ -251,6 +252,10 @@ export class Asset implements IAsset {
 
   public needsScriptExecution(): boolean {
     if (this.valueModel === ValueModel.MARKET_BASED && !!this.script) {
+      if (!this.scriptValue) {
+        return true;
+      }
+      // Re-execute script if last execution was more than a day ago
       const oneDayMs = 24 * 60 * 60 * 1000;
       if (
         !this.scriptValueUpdatedAt ||

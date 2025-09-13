@@ -1,3 +1,5 @@
+import { Logger } from '../../utils/Logger';
+
 export interface Transaction {
   date: Date;
   amount: number;
@@ -49,6 +51,7 @@ export class IRRCalculator {
     }
 
     if (isNaN(irrGuess)) {
+      Logger.warn(`Failed to calculate IRR: ${irrGuess}`);
       return 0.0;
     } else if (!isFinite(irrGuess)) {
       return 0.0;

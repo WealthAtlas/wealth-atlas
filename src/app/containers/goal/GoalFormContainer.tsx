@@ -42,11 +42,11 @@ export function GoalFormContainer({ goalToEdit, open, onClose }: GoalFormContain
       } else {
         await goalService.createGoal(goalData, assetAllocations);
       }
-
-      onClose();
     } catch (error) {
       Logger.error('Failed to save goal:', error);
       throw error;
+    } finally {
+      onClose();
     }
   };
 

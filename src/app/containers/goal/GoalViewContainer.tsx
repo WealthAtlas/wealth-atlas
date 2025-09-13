@@ -53,7 +53,10 @@ export function GoalViewContainer({ goalId, deleteGoal, refresh }: GoalViewConta
       shortfall={shortfall}
       showEditGoal={showEditGoal}
       deleteGoal={deleteGoal}
-      refresh={refresh}
+      refresh={() => {
+        loadGoal();
+        refresh();
+      }}
       setShowEditGoal={setShowEditGoal}
     />
   );

@@ -19,6 +19,7 @@ import {
 import { useEffect, useState } from 'react';
 import { ILoan } from '../../../domain/entities/loans/Loan';
 import { IPayment } from '../../../domain/entities/loans/Payment';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface PaymentFormDialogProps {
   open: boolean;
@@ -93,11 +94,6 @@ export function PaymentFormDialog({
     return symbols[currency] || currency;
   };
 
-  const formatDateForInput = (date: Date | undefined): string => {
-    if (!date) return new Date().toISOString().split('T')[0];
-    return date.toISOString().split('T')[0];
-  };
-
   const isFormValid = payment.amount > 0 && payment.date;
 
   return (
@@ -126,7 +122,7 @@ export function PaymentFormDialog({
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
               label="Transaction Date"
-              value={formatDateForInput(payment.date)}
+              value={UIUtils.formatDateForInput(payment.date)}
               onChange={e =>
                 onPaymentChange({
                   ...payment,

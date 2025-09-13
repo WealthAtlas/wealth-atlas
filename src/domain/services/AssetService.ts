@@ -19,13 +19,15 @@ export class AssetService {
   }
 
   public async createAsset(asset: IAsset): Promise<Asset> {
-    const createdAsset = await this.assetRepository.create(asset);
-    return this.toAsset(createdAsset);
+    const createdAsset = await this.assetRepository.create(asset).then(a => this.toAsset(a));
+    await this.updateValue(createdAsset);
+    return createdAsset;
   }
 
   public async updateAsset(asset: IAsset): Promise<Asset> {
-    const updatedAsset = await this.assetRepository.update(asset);
-    return this.toAsset(updatedAsset);
+    const updatedAsset = await this.assetRepository.update(asset).then(a => this.toAsset(a));
+    await this.updateValue(updatedAsset);
+    return updatedAsset;
   }
 
   public async deleteAsset(id: number): Promise<void> {
@@ -72,9 +74,9 @@ export class AssetService {
 
   public async getInvestmentByAssetId(assetId: number): Promise<Investment[]> {
     return (await this.investmentRepository.getByAssetId(assetId))
-      .map(transaction => {
+      .map(investment => {
         return new Investment({
-          ...transaction,
+          ...investment,
         });
       })
       .sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -100,9 +102,9 @@ export class AssetService {
   }
 
   public async getSIPsByAssetId(assetId: number): Promise<SIP[]> {
-    return (await this.sipRepository.getByAssetId(assetId)).map(transaction => {
+    return (await this.sipRepository.getByAssetId(assetId)).map(sip => {
       return new SIP({
-        ...transaction,
+        ...sip,
       });
     });
   }
@@ -112,24 +114,28 @@ export class AssetService {
     await this.sipRepository.delete(id);
   }
 
+  private async updateValue(asset: Asset): Promise<void> {
+    if (asset.needsScriptExecution()) {
+      try {
+        const newValue = await executeValueScript(asset.script!);
+        if (newValue === undefined) return;
+        Logger.info(`Updating script value for ${asset.name} to ${newValue}`);
+        const updatedAsset = {
+          ...asset,
+          scriptValue: newValue,
+          scriptValueUpdatedAt: new Date(),
+        };
+        await this.assetRepository.update(updatedAsset);
+      } catch (error) {
+        Logger.warn(`Failed to update script value for ${asset.name}:`, error);
+      }
+    }
+  }
+
   public async updateValues(): Promise<void> {
     return await this.getAssets().then(async assets => {
       for (const asset of assets) {
-        if (asset.needsScriptExecution()) {
-          try {
-            const newValue = await executeValueScript(asset.script!);
-            if (newValue === undefined) continue;
-            Logger.info(`Updating script value for ${asset.name} to ${newValue}`);
-            const updatedAsset = {
-              ...asset,
-              scriptValue: newValue,
-              scriptValueUpdatedAt: new Date(),
-            };
-            await this.assetRepository.update(updatedAsset);
-          } catch (error) {
-            Logger.warn(`Failed to update script value for ${asset.name}:`, error);
-          }
-        }
+        await this.updateValue(asset);
       }
     });
   }
@@ -157,8 +163,10 @@ export class AssetService {
   }
 
   private async toAsset(data: IAsset): Promise<Asset> {
-    const investments = await this.getInvestmentByAssetId(data.id!);
-    const sips = await this.getSIPsByAssetId(data.id!);
+    const investments = (await this.getInvestmentByAssetId(data.id!)).map(
+      inv => new Investment(inv)
+    );
+    const sips = (await this.getSIPsByAssetId(data.id!)).map(sip => new SIP(sip));
     return new Asset({
       ...data,
       investments: investments,

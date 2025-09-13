@@ -8,12 +8,12 @@ import { IPayment, Payment } from '../entities/loans/Payment';
 export class LoanService {
   private readonly loanRepository: LoanRepository;
   private readonly emiRepository: EMIRepository;
-  private readonly loanPaymentRepository: PaymentRepository;
+  private readonly paymentRepository: PaymentRepository;
 
   constructor() {
     this.loanRepository = new LoanRepository();
     this.emiRepository = new EMIRepository();
-    this.loanPaymentRepository = new PaymentRepository();
+    this.paymentRepository = new PaymentRepository();
   }
 
   async getLoans(): Promise<Loan[]> {
@@ -47,19 +47,19 @@ export class LoanService {
   async deleteLoan(id: number): Promise<void> {
     await this.loanRepository.delete(id);
     await this.emiRepository.deleteByLoanId(id);
-    await this.loanPaymentRepository.deleteByLoanId(id);
+    await this.paymentRepository.deleteByLoanId(id);
   }
 
   async createPayment(payment: IPayment): Promise<Payment> {
-    return this.loanPaymentRepository.create(payment);
+    return this.paymentRepository.create(payment);
   }
 
   async updatePayment(payment: IPayment): Promise<Payment> {
-    return this.loanPaymentRepository.update(payment);
+    return this.paymentRepository.update(payment);
   }
 
   async deletePayment(id: number): Promise<void> {
-    await this.loanPaymentRepository.delete(id);
+    await this.paymentRepository.delete(id);
   }
 
   async createEMI(emi: IEMI): Promise<EMI> {
@@ -68,7 +68,7 @@ export class LoanService {
   }
 
   async updateEMI(emi: IEMI): Promise<EMI> {
-    await this.loanPaymentRepository.deleteByEMIId(emi.id!);
+    await this.paymentRepository.deleteByEMIId(emi.id!);
     const updatedSchedule = await this.emiRepository.update(emi);
     return new EMI(updatedSchedule);
   }
@@ -79,11 +79,11 @@ export class LoanService {
   }
 
   async getPaymentsByLoan(loanId: number): Promise<Payment[]> {
-    return this.loanPaymentRepository.getByLoanId(loanId);
+    return (await this.paymentRepository.getByLoanId(loanId)).map(payment => new Payment(payment));
   }
 
   async deletePaymentSchedule(id: number): Promise<void> {
-    await this.loanPaymentRepository.deleteByEMIId(id);
+    await this.paymentRepository.deleteByEMIId(id);
     await this.emiRepository.delete(id);
   }
 
@@ -96,7 +96,7 @@ export class LoanService {
         if (pendingOccurrences.length > 0) {
           // Create all payments for this schedule
           for (const occurrence of pendingOccurrences) {
-            await this.loanPaymentRepository.create({
+            await this.paymentRepository.create({
               id: undefined,
               loanId: occurrence.loanId,
               description: `Scheduled payment for loan ${occurrence.loanId}`,
@@ -117,7 +117,9 @@ export class LoanService {
   }
 
   private async toLoan(data: ILoan): Promise<Loan> {
-    const payments = await this.loanPaymentRepository.getByLoanId(data.id!);
+    const payments = (await this.paymentRepository.getByLoanId(data.id!)).map(
+      payment => new Payment(payment)
+    );
     const emis = (await this.emiRepository.findByLoanId(data.id!)).map(
       schedule => new EMI(schedule)
     );
