@@ -14,8 +14,14 @@ import {
 } from '@mui/icons-material';
 import {
   Box,
+  Button,
   Card,
   CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Grid,
   IconButton,
   LinearProgress,
@@ -26,6 +32,7 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
+import { useState } from 'react';
 import { LoanFormContainer } from '../../containers/loan/LoanFormContainer';
 
 export interface LoanViewProps {
@@ -50,6 +57,7 @@ export function LoanView({
   refresh,
 }: LoanViewProps) {
   const theme = useTheme();
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // Enhanced status and color logic
   const getStatusConfig = () => {
@@ -124,6 +132,19 @@ export function LoanView({
   };
 
   const nextPaymentUrgency = getNextPaymentUrgency();
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteLoan(loan.id!);
+    setShowDeleteConfirmation(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirmation(false);
+  };
 
   return (
     <>
@@ -243,7 +264,7 @@ export function LoanView({
                   <Tooltip title="Delete Loan">
                     <IconButton
                       size="small"
-                      onClick={() => deleteLoan(loan.id!)}
+                      onClick={handleDeleteClick}
                       sx={{
                         bgcolor: 'action.hover',
                         '&:hover': { bgcolor: 'error.light', color: 'error.contrastText' },
@@ -469,6 +490,30 @@ export function LoanView({
           </CardContent>
         </Card>
       </Grid>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirmation}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-loan-dialog-title"
+        aria-describedby="delete-loan-dialog-description"
+      >
+        <DialogTitle id="delete-loan-dialog-title">Delete Loan</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-loan-dialog-description">
+            Are you sure you want to delete "{loan.name}"? This action cannot be undone and will
+            also delete all associated EMI schedules and payment records.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

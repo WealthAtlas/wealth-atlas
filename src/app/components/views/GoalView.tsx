@@ -12,11 +12,17 @@ import {
 } from '@mui/icons-material';
 import {
   Box,
+  Button,
   Card,
   CardActions,
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -27,6 +33,7 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
+import { useState } from 'react';
 import { GoalFormContainer } from '../../containers/goal/GoalFormContainer';
 import { UIUtils } from '../../utils/UIUtils';
 
@@ -54,15 +61,23 @@ export function GoalView({
   setShowEditGoal,
 }: GoalViewProps) {
   const theme = useTheme();
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   const handleEdit = () => {
     setShowEditGoal(true);
   };
 
   const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete "${goal.name}"?`)) {
-      deleteGoal(goal.id!);
-    }
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteGoal(goal.id!);
+    setShowDeleteConfirmation(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirmation(false);
   };
 
   const yearsToMaturity = goal.getYearsToMaturity();
@@ -465,6 +480,30 @@ export function GoalView({
           </CardActions>
         </Card>
       </Grid>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirmation}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-goal-dialog-title"
+        aria-describedby="delete-goal-dialog-description"
+      >
+        <DialogTitle id="delete-goal-dialog-title">Delete Goal</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-goal-dialog-description">
+            Are you sure you want to delete "{goal.name}"? This action cannot be undone and will
+            also delete all associated asset allocations and progress tracking.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

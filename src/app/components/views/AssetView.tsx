@@ -21,6 +21,11 @@ import {
   Card,
   CardContent,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Grid,
   IconButton,
   LinearProgress,
@@ -61,6 +66,7 @@ export function AssetView({
 }: AssetViewProps) {
   const theme = useTheme();
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const menuOpen = Boolean(menuAnchorEl);
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -69,6 +75,20 @@ export function AssetView({
 
   const handleMenuClose = () => {
     setMenuAnchorEl(null);
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirmation(true);
+    handleMenuClose();
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteAsset(asset.id!);
+    setShowDeleteConfirmation(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirmation(false);
   };
 
   // Calculate financial metrics
@@ -316,13 +336,7 @@ export function AssetView({
                       <Edit fontSize="small" sx={{ mr: 1 }} />
                       Edit Asset
                     </MenuItem>
-                    <MenuItem
-                      onClick={() => {
-                        deleteAsset(asset.id!);
-                        handleMenuClose();
-                      }}
-                      sx={{ color: 'error.main' }}
-                    >
+                    <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
                       <Delete fontSize="small" sx={{ mr: 1 }} />
                       Delete Asset
                     </MenuItem>
@@ -539,6 +553,30 @@ export function AssetView({
           </CardContent>
         </Card>
       </Grid>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirmation}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">Delete Asset</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Are you sure you want to delete "{asset.name}"? This action cannot be undone and will
+            also delete all associated investments and SIPs.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
