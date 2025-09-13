@@ -144,7 +144,7 @@ export class Asset implements IAsset {
     switch (this.valueModel) {
       case ValueModel.MARKET_BASED: {
         const irr = this.getIRR();
-        if (irr === undefined || this.manualValue === undefined) return undefined;
+        if (irr === undefined) return undefined;
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
           this.getInvestments(date, includeFutureInvestments).map(tx => ({
             date: tx.date,
@@ -201,12 +201,20 @@ export class Asset implements IAsset {
   }
 
   public getMarketValue(): number | undefined {
-    if (this.valueModel !== ValueModel.MARKET_BASED) return undefined;
-    if (this.scriptValue && this.scriptValueUpdatedAt) {
-      if (this.manualValueUpdatedAt === undefined) return this.scriptValue;
-      if (this.scriptValueUpdatedAt > this.manualValueUpdatedAt)
-        return this.scriptValue * (this.getCurrentHoldings() ?? 1);
+    if (this.valueModel !== ValueModel.MARKET_BASED) {
+      return undefined;
     }
+
+    const currentHoldings = this.getCurrentHoldings() ?? 1;
+
+    if (this.scriptValue && this.scriptValueUpdatedAt) {
+      const isScriptValueRecent =
+        !this.manualValueUpdatedAt || this.scriptValueUpdatedAt >= this.manualValueUpdatedAt;
+      if (isScriptValueRecent) {
+        return this.scriptValue * currentHoldings;
+      }
+    }
+
     return this.manualValue;
   }
 
@@ -214,7 +222,7 @@ export class Asset implements IAsset {
     if (this.valueModel !== ValueModel.MARKET_BASED) return undefined;
     if (this.scriptValue && this.scriptValueUpdatedAt) {
       if (this.manualValueUpdatedAt === undefined) return this.scriptValueUpdatedAt;
-      if (this.scriptValueUpdatedAt > this.manualValueUpdatedAt) return this.scriptValueUpdatedAt;
+      if (this.scriptValueUpdatedAt >= this.manualValueUpdatedAt) return this.scriptValueUpdatedAt;
     }
     return this.manualValueUpdatedAt;
   }
@@ -252,15 +260,12 @@ export class Asset implements IAsset {
 
   public needsScriptExecution(): boolean {
     if (this.valueModel === ValueModel.MARKET_BASED && !!this.script) {
-      if (!this.scriptValue) {
+      if (this.scriptValue === undefined || this.scriptValueUpdatedAt === undefined) {
         return true;
       }
       // Re-execute script if last execution was more than a day ago
       const oneDayMs = 24 * 60 * 60 * 1000;
-      if (
-        !this.scriptValueUpdatedAt ||
-        new Date().getTime() - this.scriptValueUpdatedAt.getTime() > oneDayMs
-      ) {
+      if (new Date().getTime() - this.scriptValueUpdatedAt.getTime() > oneDayMs) {
         return true;
       }
     }

@@ -118,7 +118,10 @@ export class AssetService {
     if (asset.needsScriptExecution()) {
       try {
         const newValue = await executeValueScript(asset.script!);
-        if (newValue === undefined) return;
+        if (newValue === undefined) {
+          Logger.warn(`Script for ${asset.name} returned undefined value, skipping update.`);
+          return;
+        }
         Logger.info(`Updating script value for ${asset.name} to ${newValue}`);
         const updatedAsset = {
           ...asset,
