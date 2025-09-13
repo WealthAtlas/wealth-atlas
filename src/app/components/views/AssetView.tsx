@@ -564,8 +564,8 @@ export function AssetView({
         <DialogTitle id="delete-dialog-title">Delete Asset</DialogTitle>
         <DialogContent>
           <DialogContentText id="delete-dialog-description">
-            Are you sure you want to delete "{asset.name}"? This action cannot be undone and will
-            also delete all associated investments and SIPs.
+            Are you sure you want to delete &quot;{asset.name}&quot;? This action cannot be undone
+            and will also delete all associated investments and SIPs.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

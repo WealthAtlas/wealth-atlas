@@ -491,8 +491,8 @@ export function GoalView({
         <DialogTitle id="delete-goal-dialog-title">Delete Goal</DialogTitle>
         <DialogContent>
           <DialogContentText id="delete-goal-dialog-description">
-            Are you sure you want to delete "{goal.name}"? This action cannot be undone and will
-            also delete all associated asset allocations and progress tracking.
+            Are you sure you want to delete &quot;{goal.name}&quot;? This action cannot be undone
+            and will also delete all associated asset allocations and progress tracking.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

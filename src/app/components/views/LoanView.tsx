@@ -501,8 +501,8 @@ export function LoanView({
         <DialogTitle id="delete-loan-dialog-title">Delete Loan</DialogTitle>
         <DialogContent>
           <DialogContentText id="delete-loan-dialog-description">
-            Are you sure you want to delete "{loan.name}"? This action cannot be undone and will
-            also delete all associated EMI schedules and payment records.
+            Are you sure you want to delete &quot;{loan.name}&quot;? This action cannot be undone
+            and will also delete all associated EMI schedules and payment records.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
