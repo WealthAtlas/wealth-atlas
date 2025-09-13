@@ -4,11 +4,14 @@ import {
   CloudDownload,
   CloudUpload,
   ContentCopy,
+  Download,
   Key,
   Link,
   LinkOff,
+  Storage,
   Sync,
   SyncProblem,
+  Upload,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -51,6 +54,8 @@ export interface SettingsPageProps {
   onUnlink: () => void;
   onToggleAutoSync?: (enabled: boolean) => void;
   onForceSync?: () => void;
+  onExportData: () => void;
+  onImportData: (file: File) => void;
   onBack: () => void;
 }
 
@@ -73,6 +78,15 @@ export function SettingsPage(props: SettingsPageProps) {
         // Fallback for browsers that don't support clipboard API
         Logger.error('Failed to copy: ', err);
       }
+    }
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      props.onImportData(file);
+      // Reset the input value to allow selecting the same file again
+      event.target.value = '';
     }
   };
 
@@ -336,6 +350,57 @@ export function SettingsPage(props: SettingsPageProps) {
                 )}
               </>
             )}
+          </Stack>
+        </Paper>
+
+        {/* Local Backup Section */}
+        <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
+          <Stack spacing={2}>
+            <Typography variant="h6">
+              <Storage sx={{ mr: 1, verticalAlign: 'middle' }} /> Local Backup
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary">
+              Export your data as a JSON file for local backup, or import data from a backup file.
+              Importing will replace all existing data.
+            </Typography>
+
+            <Stack spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={props.onExportData}
+                fullWidth
+              >
+                Export Data
+              </Button>
+
+              <Box>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileImport}
+                  style={{ display: 'none' }}
+                  id="import-file-input"
+                />
+                <label htmlFor="import-file-input">
+                  <Button
+                    variant="outlined"
+                    startIcon={<Upload />}
+                    component="span"
+                    fullWidth
+                    color="warning"
+                  >
+                    Import Data
+                  </Button>
+                </label>
+              </Box>
+
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                <strong>Warning:</strong> Importing data will completely replace your existing data.
+                Make sure to export your current data first as a backup.
+              </Alert>
+            </Stack>
           </Stack>
         </Paper>
       </Box>

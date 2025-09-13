@@ -1,6 +1,8 @@
 import { SettingsPage } from '@/app/components/pages/SettingsPage';
 import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { SyncService } from '@/data/sync/Syncer';
+import { BackupService } from '@/domain/services/BackupService';
+import { Logger } from '@/domain/utils/Logger';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -46,6 +48,39 @@ export function SettingsContainer() {
     navigate('/dashboard');
   }, [navigate]);
 
+  const onExportData = useCallback(async () => {
+    try {
+      await BackupService.downloadBackup();
+      Logger.info('Data exported successfully');
+    } catch (error) {
+      Logger.error('Export failed:', error);
+      alert(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, []);
+
+  const onImportData = useCallback(async (file: File) => {
+    try {
+      const confirmed = confirm(
+        'This will replace all your existing data with the data from the backup file. ' +
+          'Are you sure you want to continue? This action cannot be undone.'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await BackupService.uploadAndImport(file);
+      Logger.info('Data imported successfully');
+      alert('Data imported successfully! The app will refresh.');
+
+      // Refresh the page to reload all data
+      window.location.reload();
+    } catch (error) {
+      Logger.error('Import failed:', error);
+      alert(`Import failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, []);
+
   return (
     <SettingsPage
       keyId={status.keyId}
@@ -62,6 +97,8 @@ export function SettingsContainer() {
       onUnlink={onUnlink}
       onToggleAutoSync={onToggleAutoSync}
       onForceSync={onForceSync}
+      onExportData={onExportData}
+      onImportData={onImportData}
       onBack={onBack}
     />
   );
