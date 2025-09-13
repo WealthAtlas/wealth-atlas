@@ -16,9 +16,11 @@ export interface IAsset {
   maturityDate: Date | undefined; // Optional maturity date
   maturityAmount: number | undefined; // Fixed amount at maturity
   //Market value model
-  marketValue: number | undefined;
-  marketValueUpdatedAt: Date | undefined;
+  manualValue: number | undefined;
+  manualValueUpdatedAt: Date | undefined;
   script: string | undefined;
+  scriptValue: number | undefined; // Value calculated from script execution
+  scriptValueUpdatedAt: Date | undefined;
 }
 
 export class Asset implements IAsset {
@@ -31,9 +33,11 @@ export class Asset implements IAsset {
   public readonly interestRate: number | undefined;
   public readonly maturityDate: Date | undefined;
   public readonly maturityAmount: number | undefined;
-  public readonly marketValue: number | undefined;
-  public readonly marketValueUpdatedAt: Date | undefined;
+  public readonly manualValue: number | undefined;
+  public readonly manualValueUpdatedAt: Date | undefined;
   public readonly script: string | undefined;
+  public readonly scriptValue: number | undefined;
+  public readonly scriptValueUpdatedAt: Date | undefined;
   private readonly investments: Investment[];
   private readonly sips: SIP[];
 
@@ -47,9 +51,11 @@ export class Asset implements IAsset {
     interestRate,
     maturityDate,
     maturityAmount,
-    marketValue,
-    marketValueUpdatedAt,
+    manualValue,
+    manualValueUpdatedAt,
     script,
+    scriptValue,
+    scriptValueUpdatedAt,
     investments: investments = [],
     sips = [],
   }: IAsset & { investments: Investment[]; sips: SIP[] }) {
@@ -62,9 +68,11 @@ export class Asset implements IAsset {
     this.interestRate = interestRate;
     this.maturityDate = maturityDate ? new Date(maturityDate) : undefined;
     this.maturityAmount = maturityAmount;
-    this.marketValue = marketValue;
-    this.marketValueUpdatedAt = marketValueUpdatedAt ? new Date(marketValueUpdatedAt) : undefined;
+    this.manualValue = manualValue;
+    this.manualValueUpdatedAt = manualValueUpdatedAt ? new Date(manualValueUpdatedAt) : undefined;
     this.script = script;
+    this.scriptValue = scriptValue;
+    this.scriptValueUpdatedAt = scriptValueUpdatedAt ? new Date(scriptValueUpdatedAt) : undefined;
     this.investments = investments;
     this.sips = sips;
   }
@@ -136,7 +144,7 @@ export class Asset implements IAsset {
     switch (this.valueModel) {
       case ValueModel.MARKET_BASED: {
         const irr = this.getIRR();
-        if (irr === undefined || this.marketValue === undefined) return undefined;
+        if (irr === undefined || this.manualValue === undefined) return undefined;
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
           this.getInvestments(date, includeFutureInvestments).map(tx => ({
             date: tx.date,
@@ -192,20 +200,35 @@ export class Asset implements IAsset {
     return allTransactions.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 
+  public getMarketValue(): number | undefined {
+    if (this.valueModel !== ValueModel.MARKET_BASED) return undefined;
+    if (this.scriptValue && this.scriptValueUpdatedAt) {
+      if (this.manualValueUpdatedAt === undefined) return this.scriptValue;
+      if (this.scriptValueUpdatedAt > this.manualValueUpdatedAt) return this.scriptValue;
+    }
+    return this.manualValue;
+  }
+
+  public getMarketValueDate(): Date | undefined {
+    if (this.valueModel !== ValueModel.MARKET_BASED) return undefined;
+    if (this.scriptValue && this.scriptValueUpdatedAt) {
+      if (this.manualValueUpdatedAt === undefined) return this.scriptValueUpdatedAt;
+      if (this.scriptValueUpdatedAt > this.manualValueUpdatedAt) return this.scriptValueUpdatedAt;
+    }
+    return this.manualValueUpdatedAt;
+  }
+
   public getIRR(): number | undefined {
     switch (this.valueModel) {
       case ValueModel.MARKET_BASED:
-        if (this.marketValue === undefined || this.marketValueUpdatedAt === undefined)
-          return undefined;
         return IRRCalculator.getInstance().calculateIRR({
           transactions: this.getInvestments(new Date(), false).map(tx => ({
             date: tx.date,
             amount: tx.getTotalAmount(),
           })),
-          value: this.marketValue ?? 0,
-          valueUpdatedOn: this.marketValueUpdatedAt ?? new Date(),
+          value: this.getMarketValue() ?? 0,
+          valueUpdatedOn: this.getMarketValueDate() ?? new Date(),
         });
-        break;
       case ValueModel.MATURITY_BASED:
         if (this.maturityAmount === undefined || this.maturityDate === undefined) return undefined;
         return IRRCalculator.getInstance().calculateIRR({
@@ -230,8 +253,8 @@ export class Asset implements IAsset {
     if (this.valueModel === ValueModel.MARKET_BASED && !!this.script) {
       const oneDayMs = 24 * 60 * 60 * 1000;
       if (
-        !this.marketValueUpdatedAt ||
-        new Date().getTime() - this.marketValueUpdatedAt.getTime() > oneDayMs
+        !this.scriptValueUpdatedAt ||
+        new Date().getTime() - this.scriptValueUpdatedAt.getTime() > oneDayMs
       ) {
         return true;
       }

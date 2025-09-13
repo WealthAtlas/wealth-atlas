@@ -350,12 +350,12 @@ export function AssetFormDialog({
                   </Typography>
                   <TextField
                     label="Current Market Value (Optional)"
-                    value={asset.marketValue || ''}
+                    value={asset.manualValue || ''}
                     onChange={e =>
                       onAssetChange({
                         ...asset,
-                        marketValue: parseFloat(e.target.value) || undefined,
-                        marketValueUpdatedAt: new Date(),
+                        manualValue: parseFloat(e.target.value) || undefined,
+                        manualValueUpdatedAt: new Date(),
                       })
                     }
                     type="number"

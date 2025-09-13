@@ -43,8 +43,8 @@ export class AssetService {
 
   public async getAssets(): Promise<Asset[]> {
     const assets = (await this.assetRepository.getAll()).sort((a, b) => {
-      if (a.marketValue !== undefined && b.marketValue !== undefined) {
-        return b.marketValue - a.marketValue;
+      if (a.manualValue !== undefined && b.manualValue !== undefined) {
+        return b.manualValue - a.manualValue;
       } else {
         return a.name.localeCompare(b.name);
       }
@@ -119,16 +119,15 @@ export class AssetService {
           try {
             const newValue = await executeValueScript(asset.script!);
             if (newValue === undefined) continue;
-            Logger.info(`Updating market value for ${asset.name} to ${newValue}`);
-            const qty = asset.getCurrentHoldings() ?? 1;
+            Logger.info(`Updating script value for ${asset.name} to ${newValue}`);
             const updatedAsset = {
               ...asset,
-              marketValue: newValue * qty,
-              marketValueUpdatedAt: new Date(),
+              scriptValue: newValue,
+              scriptValueUpdatedAt: new Date(),
             };
             await this.assetRepository.update(updatedAsset);
           } catch (error) {
-            Logger.error(`Failed to update market value for ${asset.name}:`, error);
+            Logger.warn(`Failed to update script value for ${asset.name}:`, error);
           }
         }
       }

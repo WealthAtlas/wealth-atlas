@@ -522,14 +522,14 @@ export function AssetView({
             </Stack>
 
             {/* Market Value Update Info */}
-            {asset.valueModel === ValueModel.MARKET_BASED && asset.marketValueUpdatedAt && (
+            {asset.valueModel === ValueModel.MARKET_BASED && asset.getMarketValueDate() && (
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ display: 'block', textAlign: 'center', mt: 2 }}
               >
                 Market value updated on{' '}
-                {asset.marketValueUpdatedAt.toLocaleDateString('en-US', {
+                {asset.getMarketValueDate()!.toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'short',
                   day: 'numeric',
