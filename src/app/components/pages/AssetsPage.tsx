@@ -1,5 +1,5 @@
 import { Asset } from '@/domain/entities/assets/Asset';
-import { Add } from '@mui/icons-material';
+import { Add, FileDownload } from '@mui/icons-material';
 import { Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
 import { AssetFormContainer } from '../../containers/assets/AssetFormContainer';
 import { AssetViewContainer } from '../../containers/assets/AssetViewContainer';
@@ -8,6 +8,7 @@ import { UIUtils } from '../../utils/UIUtils';
 export interface AssetsPageProps {
   assets: Asset[];
   showAddAsset: boolean;
+  showExportDialog: boolean;
   portfolioMetrics: {
     totalValue: number;
     totalInvested: number;
@@ -17,15 +18,18 @@ export interface AssetsPageProps {
   refresh: () => void;
   deleteAsset: (id: number) => void;
   setShowAddAsset: (show: boolean) => void;
+  setShowExportDialog: (show: boolean) => void;
 }
 
 export function AssetsPage({
   assets,
   showAddAsset,
+  showExportDialog,
   portfolioMetrics,
   refresh,
   deleteAsset,
   setShowAddAsset,
+  setShowExportDialog,
 }: AssetsPageProps) {
   return (
     <>
@@ -74,6 +78,14 @@ export function AssetsPage({
               </Box>
             </Box>
           </Box>
+          <Button
+            variant="outlined"
+            startIcon={<FileDownload />}
+            onClick={() => setShowExportDialog(true)}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Export for Analysis
+          </Button>
         </Box>
 
         <Grid container spacing={3}>

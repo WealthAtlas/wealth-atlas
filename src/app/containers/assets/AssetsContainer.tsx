@@ -3,10 +3,12 @@ import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetService } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ExportPortfolioContainer } from './ExportPortfolioContainer';
 
 export function AssetsContainer() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [showAddAsset, setShowAddAsset] = React.useState(false);
+  const [showExportDialog, setShowExportDialog] = React.useState(false);
   const assetService = React.useMemo(() => new AssetService(), []);
 
   const loadAssets = useCallback(async () => {
@@ -54,10 +56,17 @@ export function AssetsContainer() {
         assets={assets}
         portfolioMetrics={portfolioMetrics}
         showAddAsset={showAddAsset}
+        showExportDialog={showExportDialog}
         refresh={loadAssets}
         deleteAsset={deleteAsset}
         setShowAddAsset={setShowAddAsset}
+        setShowExportDialog={setShowExportDialog}
+      />
+      <ExportPortfolioContainer
+        open={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
       />
     </>
   );
 }
+
