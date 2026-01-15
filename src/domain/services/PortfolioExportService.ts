@@ -190,9 +190,7 @@ export class PortfolioExportService {
       lines.push('|-------|--------|-----------|');
       for (const asset of assetsWithSIPs) {
         for (const sip of asset.activeSIPs) {
-          lines.push(
-            `| ${asset.name} | ${this.formatCurrency(sip.amount)} | ${sip.frequency} |`
-          );
+          lines.push(`| ${asset.name} | ${this.formatCurrency(sip.amount)} | ${sip.frequency} |`);
         }
       }
       lines.push('');
@@ -200,7 +198,9 @@ export class PortfolioExportService {
 
     // Footer
     lines.push('---');
-    lines.push('*Use this data with an LLM (like Perplexity or ChatGPT) to get personalized investment insights based on current market conditions.*');
+    lines.push(
+      `*Use this data with an LLM (like Perplexity or ChatGPT) to get personalized investment insights based on current market conditions.*`
+    );
 
     return lines.join('\n');
   }
@@ -219,9 +219,7 @@ export class PortfolioExportService {
 
     // Data rows
     for (const asset of data.assets) {
-      const sipInfo = asset.activeSIPs
-        .map(sip => `${sip.amount} ${sip.frequency}`)
-        .join('; ');
+      const sipInfo = asset.activeSIPs.map(sip => `${sip.amount} ${sip.frequency}`).join('; ');
 
       const row = [
         this.escapeCSV(asset.name),

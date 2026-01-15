@@ -114,7 +114,7 @@ export class IRRCalculator {
     if (!transactions.length) return 0;
     const firstDate = transactions[0].date;
     const diffMs = valueUpdatedOn.getTime() - firstDate.getTime();
-    return diffMs / (1000 * 60 * 60 * 24 * 365);
+    return diffMs / (1000 * 60 * 60 * 24 * 365.25);
   }
 
   private calculateScale(diff: number): number {

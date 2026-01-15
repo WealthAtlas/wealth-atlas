@@ -56,7 +56,6 @@ export function AssetsContainer() {
         assets={assets}
         portfolioMetrics={portfolioMetrics}
         showAddAsset={showAddAsset}
-        showExportDialog={showExportDialog}
         refresh={loadAssets}
         deleteAsset={deleteAsset}
         setShowAddAsset={setShowAddAsset}
@@ -69,4 +68,3 @@ export function AssetsContainer() {
     </>
   );
 }
-

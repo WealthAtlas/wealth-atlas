@@ -8,7 +8,6 @@ import { UIUtils } from '../../utils/UIUtils';
 export interface AssetsPageProps {
   assets: Asset[];
   showAddAsset: boolean;
-  showExportDialog: boolean;
   portfolioMetrics: {
     totalValue: number;
     totalInvested: number;
@@ -24,7 +23,6 @@ export interface AssetsPageProps {
 export function AssetsPage({
   assets,
   showAddAsset,
-  showExportDialog,
   portfolioMetrics,
   refresh,
   deleteAsset,

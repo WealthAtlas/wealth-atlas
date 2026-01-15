@@ -1,27 +1,22 @@
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
+import { ContentCopy, DataObject, Description, TableChart } from '@mui/icons-material';
 import {
-    ContentCopy,
-    DataObject,
-    Description,
-    TableChart,
-} from '@mui/icons-material';
-import {
-    Alert,
-    Box,
-    Button,
-    Checkbox,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    FormControlLabel,
-    FormGroup,
-    Snackbar,
-    Stack,
-    Typography,
-    useMediaQuery,
-    useTheme,
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControlLabel,
+  FormGroup,
+  Snackbar,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { useState } from 'react';
 
