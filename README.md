@@ -2,6 +2,8 @@
 
 A local-first personal wealth tracking PWA. Track your investments, expenses, loans, and financial goals — all in your browser, with optional cloud sync.
 
+**Live app: [wealthatlas.github.io](https://wealthatlas.github.io/)**
+
 ## What it does
 
 Wealth Atlas gives you a unified view of your financial life across six domains:
