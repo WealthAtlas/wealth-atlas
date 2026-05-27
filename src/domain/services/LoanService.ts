@@ -4,6 +4,7 @@ import { PaymentRepository } from '@/data/repositories/loan/PaymentRepository';
 import { EMI, IEMI } from '../entities/loans/EMI';
 import { ILoan, Loan } from '../entities/loans/Loan';
 import { IPayment, Payment } from '../entities/loans/Payment';
+import { processSchedules } from '../utils/ScheduleProcessor';
 
 export class LoanService {
   private readonly loanRepository: LoanRepository;
@@ -88,32 +89,16 @@ export class LoanService {
   }
 
   async createEMIPayments(): Promise<void> {
-    await this.emiRepository.getAll().then(async schedules => {
-      for (const schedule of schedules) {
-        const sch = new EMI(schedule);
-        const pendingOccurrences = sch.getPendingOccurences(new Date());
-
-        if (pendingOccurrences.length > 0) {
-          // Create all payments for this schedule
-          for (const occurrence of pendingOccurrences) {
-            await this.paymentRepository.create({
-              id: undefined,
-              loanId: occurrence.loanId,
-              description: `Scheduled payment for loan ${occurrence.loanId}`,
-              amount: occurrence.amount,
-              date: occurrence.date,
-            });
-          }
-
-          // Update the lastGeneratedDate to the latest payment date
-          const latestPaymentDate = pendingOccurrences[pendingOccurrences.length - 1].date;
-          await this.emiRepository.update({
-            ...schedule,
-            lastGeneratedDate: latestPaymentDate,
-          });
-        }
-      }
-    });
+    const schedules = (await this.emiRepository.getAll()).map(s => new EMI(s));
+    const entries = schedules.map(emi => ({
+      schedule: emi,
+      occurrences: emi.getPendingOccurrences(new Date()),
+    }));
+    await processSchedules(
+      entries,
+      payment => this.paymentRepository.create(payment),
+      (emi, lastGeneratedDate) => this.emiRepository.update({ ...emi, lastGeneratedDate })
+    );
   }
 
   private async toLoan(data: ILoan): Promise<Loan> {

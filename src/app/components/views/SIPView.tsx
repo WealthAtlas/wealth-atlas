@@ -69,7 +69,7 @@ export function SIPView({
     return sip.price;
   };
 
-  const nextPayment = sip.getNextOccurenceDate();
+  const nextPayment = sip.getNextOccurrenceDate();
   const active = isActive();
 
   return (

@@ -28,7 +28,7 @@ export class SIP extends AbstractSchedule<Investment> implements ISIP {
     this.price = price;
   }
 
-  protected createDataForOccurence(date: Date): Investment {
+  protected createDataForOccurrence(date: Date): Investment {
     return new Investment({
       id: undefined,
       assetId: this.assetId,

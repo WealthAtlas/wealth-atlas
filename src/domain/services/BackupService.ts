@@ -1,4 +1,4 @@
-import { database } from '@/data/database';
+import { db as database } from '@/data/database';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment } from '@/domain/entities/assets/Investment';
 import { ISIP } from '@/domain/entities/assets/SIP';

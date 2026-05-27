@@ -1,6 +1,7 @@
 import { Asset } from '../entities/assets/Asset';
 import { Investment } from '../entities/assets/Investment';
 import { Logger } from '../utils/Logger';
+import { monthKey } from '../utils/DateUtils';
 import { AssetService } from './AssetService';
 import { LoanService } from './LoanService';
 
@@ -98,15 +99,15 @@ export class DashboardService {
     const monthlyMap = new Map<string, number>();
 
     allInvestments.forEach(investment => {
-      const monthKey = `${investment.date.getFullYear()}-${String(investment.date.getMonth() + 1).padStart(2, '0')}`;
-      const currentAmount = monthlyMap.get(monthKey) || 0;
-      monthlyMap.set(monthKey, currentAmount + investment.getTotalAmount());
+      const key = monthKey(investment.date);
+      const currentAmount = monthlyMap.get(key) || 0;
+      monthlyMap.set(key, currentAmount + investment.getTotalAmount());
     });
 
     // Convert to array and sort by date
     return Array.from(monthlyMap.entries())
-      .map(([monthKey, amount]) => {
-        const [year, month] = monthKey.split('-');
+      .map(([key, amount]) => {
+        const [year, month] = key.split('-');
         const date = new Date(parseInt(year), parseInt(month) - 1, 1);
         const monthName = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
         return {

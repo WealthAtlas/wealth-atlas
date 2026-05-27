@@ -28,7 +28,7 @@ export class EMI extends AbstractSchedule<Payment> implements IEMI {
     this.amount = amount;
   }
 
-  protected createDataForOccurence(date: Date): Payment {
+  protected createDataForOccurrence(date: Date): Payment {
     return new Payment({
       id: undefined,
       date: date,

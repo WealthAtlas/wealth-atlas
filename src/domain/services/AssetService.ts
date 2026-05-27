@@ -5,6 +5,7 @@ import { Asset, IAsset } from '../entities/assets/Asset';
 import { IInvestment, Investment } from '../entities/assets/Investment';
 import { ISIP, SIP } from '../entities/assets/SIP';
 import { Logger } from '../utils/Logger';
+import { processSchedules } from '../utils/ScheduleProcessor';
 import { executeValueScript } from '../utils/ScriptExecutor';
 
 export class AssetService {
@@ -144,25 +145,17 @@ export class AssetService {
   }
 
   public async createSIPInvestments(): Promise<void> {
-    return this.getAssets().then(async assets => {
-      for (const asset of assets) {
-        const sips = await this.getSIPsByAssetId(asset.id!);
-        for (const sip of sips) {
-          const pendingInvestments = sip.getPendingOccurences(new Date());
-          for (const investment of pendingInvestments) {
-            await this.investmentRepository.create(investment);
-          }
-
-          // Update the lastGeneratedDate to the latest payment date
-          if (pendingInvestments.length === 0) continue;
-          const latestPaymentDate = pendingInvestments[pendingInvestments.length - 1].date;
-          await this.sipRepository.update({
-            ...sip,
-            lastGeneratedDate: latestPaymentDate,
-          });
-        }
-      }
-    });
+    const assets = await this.getAssets();
+    const allSips = (await Promise.all(assets.map(a => this.getSIPsByAssetId(a.id!)))).flat();
+    const entries = allSips.map(sip => ({
+      schedule: sip,
+      occurrences: sip.getPendingOccurrences(new Date()),
+    }));
+    await processSchedules(
+      entries,
+      investment => this.investmentRepository.create(investment),
+      (sip, lastGeneratedDate) => this.sipRepository.update({ ...sip, lastGeneratedDate })
+    );
   }
 
   private async toAsset(data: IAsset): Promise<Asset> {

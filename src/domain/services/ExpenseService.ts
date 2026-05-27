@@ -1,6 +1,7 @@
 import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
 import { Expense, IExpense } from '../entities/expenses/Expense';
 import { MonthlyExpense } from '../entities/expenses/MonthlyExpense';
+import { monthKey } from '../utils/DateUtils';
 
 export class ExpenseService {
   private readonly expenseRepository: ExpenseRepository;
@@ -51,7 +52,7 @@ export class ExpenseService {
   }
 
   private generateMonthlyExpenseKey(expense: Expense): string {
-    return `${expense.date.getFullYear()}-${String(expense.date.getMonth() + 1).padStart(2, '0')}`;
+    return monthKey(expense.date);
   }
 
   public async updateExpense(expense: IExpense): Promise<Expense> {

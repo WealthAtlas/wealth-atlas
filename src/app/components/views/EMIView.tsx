@@ -58,7 +58,7 @@ export function EMIView({
 
   // Calculate next payment date
   const getNextPaymentDate = (): Date => {
-    return emi.getNextOccurenceDate();
+    return emi.getNextOccurrenceDate();
   };
 
   // Check if EMI is active

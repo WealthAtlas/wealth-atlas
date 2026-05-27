@@ -80,7 +80,7 @@ export class Loan implements ILoan {
 
   public getNextPaymentDate(): Date | undefined {
     const pendingPayments = this.emis
-      .flatMap(schedule => schedule.getPendingOccurences())
+      .flatMap(schedule => schedule.getPendingOccurrences())
       .map(occurrence => occurrence.date)
       .filter(date => date >= new Date())
       .sort((a, b) => a.getTime() - b.getTime());
@@ -89,7 +89,7 @@ export class Loan implements ILoan {
 
   public getPendingPaymentsCount(): number {
     return this.emis
-      .flatMap(schedule => schedule.getPendingOccurences())
+      .flatMap(schedule => schedule.getPendingOccurrences())
       .map(occurrence => occurrence.date)
       .filter(date => date >= new Date()).length;
   }
@@ -106,7 +106,7 @@ export class Loan implements ILoan {
     }
     if (considerFutureTransactions) {
       const futureTransactions = this.emis
-        .map(emi => emi.getPendingOccurences(till))
+        .map(emi => emi.getPendingOccurrences(till))
         .flat()
         .map(
           occurrence =>

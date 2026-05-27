@@ -32,7 +32,7 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
   /**
    * Returns the next occurrence date after lastGeneratedDate (or startDate if never generated).
    */
-  public getNextOccurenceDate(): Date {
+  public getNextOccurrenceDate(): Date {
     return this.lastGeneratedDate != null
       ? this.getNextOccurrenceDateTime(this.lastGeneratedDate, this.frequency)
       : new Date(this.startDate);
@@ -88,23 +88,23 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
     }
   }
 
-  public getNextOccurenceData(): T | undefined {
-    const nextOccurenceDate = this.getNextOccurenceDate();
-    if (this.shouldAdd(nextOccurenceDate)) {
-      return this.createDataForOccurence(nextOccurenceDate);
+  public getNextOccurrenceData(): T | undefined {
+    const nextOccurrenceDate = this.getNextOccurrenceDate();
+    if (this.shouldAdd(nextOccurrenceDate)) {
+      return this.createDataForOccurrence(nextOccurrenceDate);
     }
     return undefined;
   }
 
-  public getPendingOccurences(till?: Date): T[] {
-    const pendingOccurences: T[] = [];
-    let nextOccurenceDate = this.getNextOccurenceDate();
-    while (this.shouldAdd(nextOccurenceDate, till)) {
-      pendingOccurences.push(this.createDataForOccurence(nextOccurenceDate));
-      nextOccurenceDate = this.getNextOccurrenceDateTime(nextOccurenceDate, this.frequency);
+  public getPendingOccurrences(till?: Date): T[] {
+    const pendingOccurrences: T[] = [];
+    let nextOccurrenceDate = this.getNextOccurrenceDate();
+    while (this.shouldAdd(nextOccurrenceDate, till)) {
+      pendingOccurrences.push(this.createDataForOccurrence(nextOccurrenceDate));
+      nextOccurrenceDate = this.getNextOccurrenceDateTime(nextOccurrenceDate, this.frequency);
     }
-    return pendingOccurences;
+    return pendingOccurrences;
   }
 
-  protected abstract createDataForOccurence(date: Date): T;
+  protected abstract createDataForOccurrence(date: Date): T;
 }

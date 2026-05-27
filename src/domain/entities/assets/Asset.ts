@@ -194,7 +194,7 @@ export class Asset implements IAsset {
   public getInvestments(till: Date, considerFutureTransactions: boolean): Investment[] {
     let allTransactions = this.investments.filter(t => t.date <= till);
     if (considerFutureTransactions) {
-      const futureTransactions = this.sips.map(sip => sip.getPendingOccurences(till)).flat();
+      const futureTransactions = this.sips.map(sip => sip.getPendingOccurrences(till)).flat();
       allTransactions = allTransactions.concat(futureTransactions);
     }
     return allTransactions.sort((a, b) => a.date.getTime() - b.date.getTime());

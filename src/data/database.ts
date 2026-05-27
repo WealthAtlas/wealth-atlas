@@ -75,4 +75,3 @@ export class WealthAtlasDB extends Dexie {
 }
 
 export const db = new WealthAtlasDB();
-export const database = db;
