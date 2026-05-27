@@ -1,71 +1,69 @@
 # Wealth Atlas
 
-A minimal React PWA built with Vite, TypeScript, and Material-UI.
+A local-first personal wealth tracking PWA. Track your investments, expenses, loans, and financial goals — all in your browser, with optional cloud sync.
 
-## Quick Start
+## What it does
 
-1. **Install dependencies**
+Wealth Atlas gives you a unified view of your financial life across six domains:
 
-   ```bash
-   pnpm install
-   ```
+**Assets & Investments**  
+Track stocks, mutual funds, fixed deposits, real estate, and gold. Each asset type uses the right valuation strategy — market-based pricing for equities, fixed-income for FDs, and maturity-based for structured products. Buy/sell transactions are recorded with quantity and unit price; portfolio value is computed at runtime, never stored.
 
-2. **Start development server**
+**SIPs (Systematic Investment Plans)**  
+Define recurring investments once. On startup, pending SIPs are automatically converted into transactions so your portfolio stays current without manual entry.
 
-   ```bash
-   pnpm dev
-   ```
+**Expenses**  
+Log spending with categories and an essential/non-essential flag. Scheduled (recurring) expenses are auto-generated on startup from a separate recurring-expense schedule.
 
-   Opens [http://localhost:3000](http://localhost:3000)
+**Loans**  
+Track loan payment schedules, detect overdue EMIs, and compute IRR using Newton-Raphson — useful for comparing actual loan cost against the stated rate.
 
-3. **Build for production**
-   ```bash
-   pnpm build
-   ```
+**Goals**  
+Map assets to named financial goals with percentage-based allocations. Targets are inflation-adjusted so you're planning in real terms.
 
-## Configuration
+**Dashboard**  
+An aggregated view across all domains — portfolio value, allocation breakdown, recent activity, and goal progress.
 
-### Sync API Configuration
+## Tech stack
 
-The app supports configurable sync API endpoints via environment variables.
+- **React 18** + **TypeScript 5** — UI and type safety
+- **Vite** — fast dev server and build
+- **Material-UI** — component library (no custom CSS)
+- **Dexie (IndexedDB)** — local-first storage
+- **PWA** — installable, offline-capable
+- **AWS API (optional)** — sync layer behind `VITE_SYNC_API_URL`
 
-1. **Copy environment template**
+## Architecture
 
-   ```bash
-   cp .env.example .env.local
-   ```
+Strict DDD with three layers — domain → data → app. Domain logic is pure TypeScript with no framework dependencies; the repository layer sits over Dexie with an optional sync adapter; React containers consume domain services only, never repositories directly.
 
-2. **Configure sync API (optional)**
+## Quick start
 
-   ```bash
-   # In .env.local
-   VITE_SYNC_API_URL=https://your-api-endpoint.com
-   ```
-
-   If not set, defaults to: `https://qjtqi1soth.execute-api.us-east-1.amazonaws.com/dev`
-
-## Tech Stack
-
-- **React 18** - UI framework
-- **TypeScript 5** - Type safety
-- **Vite** - Fast build tool
-- **Material-UI** - Component library
-- **PWA** - Progressive Web App support
+```bash
+pnpm install
+pnpm dev          # http://localhost:3000
+```
 
 ## Scripts
 
-- `pnpm dev` - Start development server
-- `pnpm build` - Build for production
-- `pnpm preview` - Preview production build
-- `pnpm test` - Run tests
-- `pnpm test:run` - Run tests once
-- `pnpm quality` - Run type check, linting, and formatting
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Dev server |
+| `pnpm build` | Production build |
+| `pnpm build:check` | TypeScript check + build |
+| `pnpm test:run` | Single test run |
+| `pnpm test` | Watch mode |
+| `pnpm lint` | ESLint (0 warnings allowed) |
+| `pnpm lint:fix` | Auto-fix ESLint issues |
+| `pnpm type-check` | TypeScript validation |
+| `pnpm quality` | type-check → lint → format:check |
 
-## Features
+## Sync configuration (optional)
 
-- ⚡ Lightning fast development with Vite
-- 📱 PWA ready
-- 🎨 Material-UI components
-- 🔒 TypeScript support
-- 📦 Zero configuration
-- 🔄 Configurable sync API endpoints
+```bash
+cp .env.example .env.local
+# Then set in .env.local:
+VITE_SYNC_API_URL=https://your-api-endpoint.com
+```
+
+If unset, defaults to the bundled dev endpoint.
