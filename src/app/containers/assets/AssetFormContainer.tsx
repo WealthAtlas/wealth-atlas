@@ -1,6 +1,7 @@
 import { AssetFormDialog } from '@/app/components/dialogs/AssetFormDialog';
 import { Asset, IAsset } from '@/domain/entities/assets/Asset';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
+import { Currency } from '@/domain/entities/shared/Currency';
 import { AssetService } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useEffect, useState } from 'react';
@@ -18,7 +19,7 @@ export function AssetFormContainer({ open, assetToEdit, onClose }: AssetFormCont
       name: assetToEdit?.name || '',
       description: assetToEdit?.description || '',
       category: assetToEdit?.category || '',
-      currency: assetToEdit?.currency || 'INR',
+      currency: assetToEdit?.currency || Currency.INR,
       manualValue: assetToEdit?.manualValue || undefined,
       manualValueUpdatedAt: assetToEdit?.manualValueUpdatedAt || undefined,
       script: assetToEdit?.script || undefined,

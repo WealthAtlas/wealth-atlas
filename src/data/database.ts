@@ -8,6 +8,11 @@ import { IGoal } from '../domain/entities/goals/Goal';
 import { IEMI } from '../domain/entities/loans/EMI';
 import { ILoan } from '../domain/entities/loans/Loan';
 import { IPayment } from '../domain/entities/loans/Payment';
+import {
+  upgradeCurrencyBearingRowToV4,
+  upgradeExpenseRowToV4,
+  upgradeInvestmentRowToV4,
+} from './migrations/v4';
 import { AutoSyncService } from './sync/AutoSyncService';
 
 export class WealthAtlasDB extends Dexie {
@@ -64,6 +69,30 @@ export class WealthAtlasDB extends Dexie {
           await trans.table('assets').put(asset);
         }
       });
+
+    // Migration: v4 - Rename investments.price to totalAmount and store sell amounts
+    // positive (direction now lives in `type`); normalise expense currency from
+    // symbol to ISO code. Also drops indexes on fields that no longer exist.
+    this.version(4)
+      .stores({
+        assets:
+          '++id, name, description, category, currency, valueModel, interestRate, maturityDate, maturityAmount, manualValue, manualValueUpdatedAt, scriptValue, scriptValueUpdatedAt',
+        investments: '++id, assetId, sipId, type, quantity, totalAmount, date',
+        sips: '++id, assetId, quantity, price, startDate, endDate, frequency, lastGeneratedDate',
+        expenses: '++id, amount, currency, date, category, isEssential, description',
+        loans: '++id, name, principalAmount, currency, startDate, description',
+        emis: '++id, loanId, name, amount, frequency, startDate, endDate, lastGeneratedDate',
+        payments: '++id, loanId, emiId, date, amount, description',
+        goals: '++id, name, targetAmount, maturityDate, inflationRate, currency, createdAt',
+        allocations: '++id, assetId, goalId, allocationPercentage',
+      })
+      .upgrade(async trans => {
+        await trans.table('investments').toCollection().modify(upgradeInvestmentRowToV4);
+        await trans.table('expenses').toCollection().modify(upgradeExpenseRowToV4);
+        await trans.table('assets').toCollection().modify(upgradeCurrencyBearingRowToV4);
+        await trans.table('loans').toCollection().modify(upgradeCurrencyBearingRowToV4);
+        await trans.table('goals').toCollection().modify(upgradeCurrencyBearingRowToV4);
+      });
   }
 
   private setupAutoSync(): void {
@@ -75,3 +104,24 @@ export class WealthAtlasDB extends Dexie {
 }
 
 export const db = new WealthAtlasDB();
+
+/** Every table, in dependency order. Used for whole-database transactions. */
+export const ALL_TABLES = [
+  db.assets,
+  db.investments,
+  db.sips,
+  db.expenses,
+  db.loans,
+  db.emis,
+  db.payments,
+  db.goals,
+  db.allocations,
+];
+
+/**
+ * Runs `fn` inside a single read-write transaction spanning every table, so a
+ * multi-entity write (such as applying an import plan) is all-or-nothing.
+ */
+export function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  return db.transaction('rw', ALL_TABLES, fn);
+}

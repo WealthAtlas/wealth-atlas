@@ -1,4 +1,5 @@
 import { SettingsPage } from '@/app/components/pages/SettingsPage';
+import { useNotification } from '@/app/components/providers/NotificationContext';
 import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { SyncService } from '@/data/sync/Syncer';
 import { BackupService } from '@/domain/services/BackupService';
@@ -8,31 +9,35 @@ import { useNavigate } from 'react-router-dom';
 
 export function SettingsContainer() {
   const navigate = useNavigate();
+  const { notify } = useNotification();
   const [, setStatusVersion] = useState(0); // trigger re-render only
   const status = SyncService.getStatus();
   const autoSyncStatus = AutoSyncService.getStatus();
 
-  const wrap = (fn: () => Promise<unknown>) =>
-    fn()
-      .then(() => setStatusVersion(v => v + 1))
-      .catch(err => alert(err.message || String(err)));
+  const wrap = useCallback(
+    (fn: () => Promise<unknown>) =>
+      fn()
+        .then(() => setStatusVersion(v => v + 1))
+        .catch(err => notify(err.message || String(err), 'error')),
+    [notify]
+  );
 
   const onSetup = useCallback(
     (pass: string) => wrap(() => SyncService.setupSync(pass, true)), // Auto-sync is always enabled
-    []
+    [wrap]
   );
   const onLink = useCallback(
     (keyId: string, pass: string) => wrap(() => SyncService.linkSync(keyId, pass, true)), // Auto-sync is always enabled
-    []
+    [wrap]
   );
-  const onPush = useCallback(() => wrap(() => SyncService.push()), []);
-  const onPull = useCallback(() => wrap(() => SyncService.pull().then(() => {})), []);
+  const onPush = useCallback(() => wrap(() => SyncService.push()), [wrap]);
+  const onPull = useCallback(() => wrap(() => SyncService.pull().then(() => {})), [wrap]);
   const onChangePassphrase = useCallback(
     (oldPass: string, newPass: string) =>
       wrap(() => SyncService.changePassphrase(oldPass, newPass)),
-    []
+    [wrap]
   );
-  const onUnlink = useCallback(() => wrap(() => SyncService.unlink()), []);
+  const onUnlink = useCallback(() => wrap(() => SyncService.unlink()), [wrap]);
 
   const onToggleAutoSync = useCallback((enabled: boolean) => {
     SyncService.setAutoSyncEnabled(enabled);
@@ -41,7 +46,7 @@ export function SettingsContainer() {
 
   const onForceSync = useCallback(
     () => wrap(() => AutoSyncService.forceSyncNow().then(() => {})),
-    []
+    [wrap]
   );
 
   const onBack = useCallback(() => {
@@ -52,34 +57,40 @@ export function SettingsContainer() {
     try {
       await BackupService.downloadBackup();
       Logger.info('Data exported successfully');
+      notify('Backup downloaded', 'success');
     } catch (error) {
       Logger.error('Export failed:', error);
-      alert(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
+      notify(`Export failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
     }
-  }, []);
+  }, [notify]);
 
-  const onImportData = useCallback(async (file: File) => {
-    try {
-      const confirmed = confirm(
-        'This will replace all your existing data with the data from the backup file. ' +
-          'Are you sure you want to continue? This action cannot be undone.'
-      );
+  const onImportData = useCallback(
+    async (file: File) => {
+      try {
+        // Restoring a backup wipes the database, so this one keeps a blocking
+        // confirm rather than a toast.
+        const confirmed = confirm(
+          'This will replace all your existing data with the data from the backup file. ' +
+            'Are you sure you want to continue? This action cannot be undone.'
+        );
 
-      if (!confirmed) {
-        return;
+        if (!confirmed) {
+          return;
+        }
+
+        await BackupService.uploadAndImport(file);
+        Logger.info('Data imported successfully');
+        notify('Data restored. Reloading…', 'success');
+
+        // Refresh the page to reload all data
+        window.location.reload();
+      } catch (error) {
+        Logger.error('Import failed:', error);
+        notify(`Import failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
       }
-
-      await BackupService.uploadAndImport(file);
-      Logger.info('Data imported successfully');
-      alert('Data imported successfully! The app will refresh.');
-
-      // Refresh the page to reload all data
-      window.location.reload();
-    } catch (error) {
-      Logger.error('Import failed:', error);
-      alert(`Import failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }, []);
+    },
+    [notify]
+  );
 
   return (
     <SettingsPage

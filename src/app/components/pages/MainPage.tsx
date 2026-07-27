@@ -75,6 +75,11 @@ export function MainPage() {
     navigate('/settings');
   };
 
+  const handleImportClick = () => {
+    handleMenuClose();
+    navigate('/import');
+  };
+
   // Render appropriate page content based on current tab
   const renderPageContent = () => {
     switch (currentTab) {
@@ -101,6 +106,7 @@ export function MainPage() {
       onMenuOpen={handleMenuOpen}
       onMenuClose={handleMenuClose}
       onSettingsClick={handleSettingsClick}
+      onImportClick={handleImportClick}
     >
       {renderPageContent()}
     </MainLayout>

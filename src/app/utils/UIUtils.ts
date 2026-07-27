@@ -1,3 +1,5 @@
+import { getCurrencySymbol } from '@/domain/entities/shared/Currency';
+
 export class UIUtils {
   static formatMonth(month: Date): string {
     return month.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -6,16 +8,8 @@ export class UIUtils {
   public static formatCurrency(amount: number | undefined, currency?: string): string {
     if (amount === undefined) return 'N/A';
 
-    const currencySymbols: Record<string, string> = {
-      USD: '$',
-      INR: '₹',
-      GBP: '£',
-    };
-
-    const symbol = currencySymbols[currency ?? 'INR'] || currency;
-
     // Format in Indian numbering system for INR, otherwise use standard formatting
-    return `${symbol}${amount.toLocaleString('en-IN')}`;
+    return `${getCurrencySymbol(currency)}${amount.toLocaleString('en-IN')}`;
   }
 
   public static formatPercentage(percentage: number | undefined): string {

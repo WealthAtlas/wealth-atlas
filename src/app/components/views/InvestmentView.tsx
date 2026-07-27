@@ -157,7 +157,7 @@ export function InvestmentView({
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
               {investment.quantity && investment.quantity > 0
                 ? UIUtils.formatCurrency(investment.getUnitPrice(), asset.currency)
-                : UIUtils.formatCurrency(investment.price, asset.currency)}
+                : UIUtils.formatCurrency(investment.totalAmount, asset.currency)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {investment.quantity && investment.quantity > 0 ? 'per unit' : 'total amount'}

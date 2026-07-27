@@ -1,3 +1,6 @@
+import { validateEMI } from '@/domain/validation/EntityValidators';
+import { isValid } from '@/domain/validation/ValidationIssue';
+import { getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import { Schedule } from '@mui/icons-material';
 import {
   Alert,
@@ -82,15 +85,6 @@ export function EMIFormDialog({
     }
   };
 
-  const getCurrencySymbol = (currency: string): string => {
-    const symbols: Record<string, string> = {
-      USD: '$',
-      INR: '₹',
-      GBP: '£',
-    };
-    return symbols[currency] || currency;
-  };
-
   const formatDateForInput = (date: Date | undefined): string => {
     if (!date) return new Date().toISOString().split('T')[0];
     return date.toISOString().split('T')[0];
@@ -117,7 +111,7 @@ export function EMIFormDialog({
     });
   };
 
-  const isFormValid = emi.amount > 0 && emi.name.trim() !== '' && emi.startDate && emi.frequency;
+  const isFormValid = isValid(validateEMI(emi));
 
   return (
     <Dialog

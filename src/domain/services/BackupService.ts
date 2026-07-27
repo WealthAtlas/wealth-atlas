@@ -1,4 +1,6 @@
 import { db as database } from '@/data/database';
+import { rehydrateSnapshotDates } from '@/data/migrations/rehydrateDates';
+import { upgradeSnapshotDataToV4 } from '@/data/migrations/v4';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment } from '@/domain/entities/assets/Investment';
 import { ISIP } from '@/domain/entities/assets/SIP';
@@ -27,7 +29,11 @@ export interface BackupData {
 }
 
 export class BackupService {
-  private static readonly BACKUP_VERSION = '1.0.0';
+  /**
+   * v2.0.0: investments.price -> totalAmount (sells stored positive) and expense
+   * currency stored as an ISO code. v1.0.0 files are migrated on restore.
+   */
+  private static readonly BACKUP_VERSION = '2.0.0';
 
   /**
    * Export all data from the database as a JSON string
@@ -85,6 +91,10 @@ export class BackupService {
 
       // Parse and validate the JSON
       const backupData = this.validateBackupData(jsonString);
+
+      // Bring older files up to the current row shape, then turn the ISO date
+      // strings JSON gave us back into real Dates before they hit IndexedDB.
+      this.upgradeBackupData(backupData);
 
       // Clear all existing data
       await this.clearAllData();
@@ -188,6 +198,34 @@ export class BackupService {
     }
 
     return backupData as BackupData;
+  }
+
+  /**
+   * Migrate an older backup file to the current row shape and rehydrate dates.
+   * Mutates `backupData` in place.
+   */
+  private static upgradeBackupData(backupData: BackupData): void {
+    const data = backupData.data as unknown as Record<string, Record<string, unknown>[]>;
+    const majorVersion = Number.parseInt(backupData.version.split('.')[0], 10);
+
+    if (Number.isNaN(majorVersion)) {
+      throw new Error(`Unrecognised backup version "${backupData.version}"`);
+    }
+
+    if (majorVersion > 2) {
+      throw new Error(
+        `Backup was created by a newer version of Wealth Atlas (${backupData.version}). ` +
+          'Update this device before restoring.'
+      );
+    }
+
+    if (majorVersion < 2) {
+      Logger.info(`Migrating backup from v${backupData.version} to v${this.BACKUP_VERSION}`);
+      upgradeSnapshotDataToV4(data);
+      backupData.version = this.BACKUP_VERSION;
+    }
+
+    rehydrateSnapshotDates(data);
   }
 
   /**

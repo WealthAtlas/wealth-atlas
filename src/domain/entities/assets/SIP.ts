@@ -35,7 +35,7 @@ export class SIP extends AbstractSchedule<Investment> implements ISIP {
       date: date,
       type: InvestmentType.BUY,
       quantity: this.quantity,
-      price: this.price,
+      totalAmount: this.price,
     });
   }
 }

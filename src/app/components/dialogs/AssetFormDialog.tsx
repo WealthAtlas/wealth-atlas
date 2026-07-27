@@ -1,6 +1,8 @@
+import { validateAsset } from '@/domain/validation/EntityValidators';
+import { isValid } from '@/domain/validation/ValidationIssue';
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
-import { Currency } from '@/domain/entities/shared/Currency';
+import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
 import { executeValueScript } from '@/domain/utils/ScriptExecutor';
 import { scriptTemplates } from '@/domain/utils/ScriptTemplate';
 import {
@@ -61,6 +63,8 @@ export function AssetFormDialog({
   onSubmit,
   onAssetChange,
 }: AssetFormDialogProps) {
+  const isFormValid = isValid(validateAsset(asset));
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -192,11 +196,13 @@ export function AssetFormDialog({
                   <Select
                     value={asset.currency}
                     label="Currency"
-                    onChange={e => onAssetChange({ ...asset, currency: e.target.value })}
+                    onChange={e =>
+                      onAssetChange({ ...asset, currency: e.target.value as Currency })
+                    }
                   >
-                    {Object.entries(Currency).map(([key, value]) => (
-                      <MenuItem key={key} value={key}>
-                        {key} - {value}
+                    {Object.values(Currency).map(code => (
+                      <MenuItem key={code} value={code}>
+                        {code} - {CURRENCY_SYMBOLS[code]}
                       </MenuItem>
                     ))}
                   </Select>
@@ -536,17 +542,7 @@ export function AssetFormDialog({
 
         <Button
           onClick={onSubmit}
-          disabled={
-            isSubmitting ||
-            asset.name.trim() === '' ||
-            !asset.category ||
-            !asset.currency ||
-            !asset.valueModel ||
-            (asset.valueModel === ValueModel.FIXED_INCOME &&
-              (!asset.interestRate || asset.interestRate <= 0)) ||
-            (asset.valueModel === ValueModel.MATURITY_BASED &&
-              (!asset.maturityDate || !asset.maturityAmount || asset.maturityAmount <= 0))
-          }
+          disabled={isSubmitting || !isFormValid}
           variant="contained"
           color="primary"
           sx={{ minWidth: 120 }}

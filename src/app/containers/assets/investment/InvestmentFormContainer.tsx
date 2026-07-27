@@ -24,7 +24,7 @@ export function InvestmentFormContainer({
       assetId: transactionToEdit?.assetId || asset?.id || 0,
       type: transactionToEdit?.type || InvestmentType.BUY,
       quantity: transactionToEdit?.quantity ?? 0,
-      price: transactionToEdit?.price || 0,
+      totalAmount: transactionToEdit?.totalAmount || 0,
       date: transactionToEdit?.date || new Date(),
     }),
     [transactionToEdit, asset]
@@ -49,7 +49,7 @@ export function InvestmentFormContainer({
         id: investment.id,
         assetId: asset.id!,
         quantity: investment.quantity ?? 0,
-        price: investment.price,
+        totalAmount: investment.totalAmount,
         date: investment.date,
         type: investment.type,
       });

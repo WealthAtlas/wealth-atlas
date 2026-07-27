@@ -30,6 +30,7 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material';
+import { AiProviderSettingsContainer } from '@/app/containers/settings/AiProviderSettingsContainer';
 import { useState } from 'react';
 import { Logger } from '../../../domain/utils/Logger';
 
@@ -352,6 +353,9 @@ export function SettingsPage(props: SettingsPageProps) {
             )}
           </Stack>
         </Paper>
+
+        {/* AI Import provider configuration */}
+        <AiProviderSettingsContainer />
 
         {/* Local Backup Section */}
         <Paper elevation={2} sx={{ p: 2, mb: 2 }}>

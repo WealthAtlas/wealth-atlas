@@ -9,6 +9,8 @@ import type { ILoan } from '@/domain/entities/loans/Loan';
 import type { IPayment } from '@/domain/entities/loans/Payment';
 import { Logger } from '@/domain/utils/Logger';
 import { db } from '../database';
+import { rehydrateSnapshotDates } from '../migrations/rehydrateDates';
+import { upgradeSnapshotDataToV4 } from '../migrations/v4';
 import { buildSyncApiUrl } from './config';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
@@ -39,9 +41,54 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * Sync snapshot version. This is its own counter and does NOT track the Dexie
+ * version — v8 snapshots predate this comment. Bump it whenever the shape of a
+ * persisted row changes and add an upgrade step to `upgradeSnapshot` below.
+ *
+ * v9: investments.price -> totalAmount (sells positive), expense currency
+ *     stored as ISO code rather than symbol.
+ */
+const SNAPSHOT_VERSION = 9;
+const OLDEST_SUPPORTED_SNAPSHOT_VERSION = 8;
+
 function getSchemaVersion(): number {
-  // Keep in sync with Dexie latest version (currently 8)
-  return 8;
+  return SNAPSHOT_VERSION;
+}
+
+/**
+ * Brings an older snapshot up to SNAPSHOT_VERSION in place. Older builds wrote
+ * v8; rejecting those outright would make a pull silently unusable, so migrate
+ * instead.
+ */
+function upgradeSnapshot(snapshot: Snapshot): Snapshot {
+  if (snapshot.schemaVersion === SNAPSHOT_VERSION) return snapshot;
+
+  if (snapshot.schemaVersion < OLDEST_SUPPORTED_SNAPSHOT_VERSION) {
+    throw new Error(
+      `Remote snapshot is too old to migrate (remote=${snapshot.schemaVersion}, ` +
+        `oldest supported=${OLDEST_SUPPORTED_SNAPSHOT_VERSION}).`
+    );
+  }
+
+  if (snapshot.schemaVersion > SNAPSHOT_VERSION) {
+    throw new Error(
+      `Remote snapshot is newer than this app (remote=${snapshot.schemaVersion}, ` +
+        `local=${SNAPSHOT_VERSION}). Update this device before syncing.`
+    );
+  }
+
+  upgradeSnapshotDataToV4(snapshot.data as unknown as Record<string, Record<string, unknown>[]>);
+  Logger.info(`Upgraded sync snapshot from v${snapshot.schemaVersion} to v${SNAPSHOT_VERSION}`);
+  return { ...snapshot, schemaVersion: SNAPSHOT_VERSION };
+}
+
+/**
+ * Snapshots travel as JSON, so every Date column arrives as a string. Convert
+ * them back before writing or the store ends up with mixed types.
+ */
+function rehydrateSnapshot(snapshot: Snapshot): void {
+  rehydrateSnapshotDates(snapshot.data as unknown as Record<string, Record<string, unknown>[]>);
 }
 
 async function exportSnapshot(): Promise<Snapshot> {
@@ -73,12 +120,9 @@ async function exportSnapshot(): Promise<Snapshot> {
   };
 }
 
-async function importSnapshot(snapshot: Snapshot): Promise<void> {
-  if (snapshot.schemaVersion !== getSchemaVersion()) {
-    throw new Error(
-      `Schema mismatch. Remote=${snapshot.schemaVersion}, Local=${getSchemaVersion()}`
-    );
-  }
+async function importSnapshot(incoming: Snapshot): Promise<void> {
+  const snapshot = upgradeSnapshot(incoming);
+  rehydrateSnapshot(snapshot);
   await db.transaction(
     'rw',
     [

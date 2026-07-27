@@ -1,3 +1,4 @@
+import { Currency } from '../shared/Currency';
 import { Allocation } from './Allocation';
 
 /**
@@ -12,7 +13,7 @@ export interface IGoal {
   targetAmount: number;
   maturityDate: Date;
   inflationRate: number;
-  currency: string;
+  currency: Currency;
   createdAt: Date; // Added createdAt property
 }
 
@@ -22,7 +23,7 @@ export class Goal implements IGoal {
   targetAmount: number;
   maturityDate: Date;
   inflationRate: number;
-  currency: string;
+  currency: Currency;
   allocations: Allocation[];
   createdAt: Date;
 

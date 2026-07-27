@@ -3,6 +3,7 @@ import { AssetService } from '@/domain/services/AssetService';
 import { LoanService } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useRef } from 'react';
+import { NotificationProvider } from './components/providers/NotificationProvider';
 import { AppRouter } from './router/AppRouter';
 import { AppThemeProvider } from './theme/AppThemeProvider';
 
@@ -68,7 +69,9 @@ export default function App() {
 
   return (
     <AppThemeProvider>
-      <AppRouter />
+      <NotificationProvider>
+        <AppRouter />
+      </NotificationProvider>
     </AppThemeProvider>
   );
 }

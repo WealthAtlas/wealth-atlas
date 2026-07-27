@@ -1,5 +1,7 @@
+import { validateExpense } from '@/domain/validation/EntityValidators';
+import { isValid } from '@/domain/validation/ValidationIssue';
 import { ExpenseCategory } from '@/domain/entities/expenses/ExpenseCategory';
-import { Currency } from '@/domain/entities/shared/Currency';
+import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import {
   CalendarToday as CalendarIcon,
   Category as CategoryIcon,
@@ -59,8 +61,7 @@ export function ExpenseFormDialog({
     }
   }, [formData.amount]);
 
-  const isFormValid =
-    formData.amount && parseFloat(String(formData.amount)) > 0 && formData.currency;
+  const isFormValid = isValid(validateExpense(formData));
 
   // Format amount for display with proper decimal places
   const formatDisplayAmount = (value: number): string => {
@@ -130,15 +131,6 @@ export function ExpenseFormDialog({
   const formatDateForInput = (date: Date | undefined): string => {
     if (!date) return new Date().toISOString().split('T')[0];
     return date.toISOString().split('T')[0];
-  };
-
-  const getCurrencySymbol = (currency: Currency): string => {
-    const symbols: Record<Currency, string> = {
-      [Currency.USD]: '$',
-      [Currency.GBP]: '£',
-      [Currency.INR]: '₹',
-    };
-    return symbols[currency] || currency;
   };
 
   const getEssentialColor = (isEssential: boolean) => (isEssential ? 'success' : 'default');
@@ -220,11 +212,11 @@ export function ExpenseFormDialog({
                 label="Currency"
                 required
               >
-                {Object.entries(Currency).map(([key, value]) => (
-                  <MenuItem key={key} value={value}>
+                {Object.values(Currency).map(code => (
+                  <MenuItem key={code} value={code}>
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <Typography fontWeight="bold">{getCurrencySymbol(value)}</Typography>
-                      <Typography>{key}</Typography>
+                      <Typography fontWeight="bold">{getCurrencySymbol(code)}</Typography>
+                      <Typography>{code}</Typography>
                     </Stack>
                   </MenuItem>
                 ))}

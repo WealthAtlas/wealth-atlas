@@ -1,5 +1,8 @@
+import { validateInvestment } from '@/domain/validation/EntityValidators';
+import { isValid } from '@/domain/validation/ValidationIssue';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment, InvestmentType } from '@/domain/entities/assets/Investment';
+import { getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import {
   TrendingUp as BuyIcon,
   Calculate as CalculateIcon,
@@ -58,8 +61,8 @@ export function InvestmentFormDialog({
 
   // Sync formatted values with investment data
   useEffect(() => {
-    if (investment.price > 0) {
-      setFormattedAmount(formatDisplayAmount(investment.price));
+    if (investment.totalAmount > 0) {
+      setFormattedAmount(formatDisplayAmount(investment.totalAmount));
     } else {
       setFormattedAmount('');
     }
@@ -69,7 +72,7 @@ export function InvestmentFormDialog({
     } else {
       setFormattedQuantity('');
     }
-  }, [investment.price, investment.quantity]);
+  }, [investment.totalAmount, investment.quantity]);
 
   // Format amount for display with proper decimal places
   const formatDisplayAmount = (value: number): string => {
@@ -91,15 +94,15 @@ export function InvestmentFormDialog({
       const numericValue = parseDisplayAmount(value);
       onTransactionChange({
         ...investment,
-        price: numericValue,
+        totalAmount: numericValue,
       });
     }
   };
 
   const handleAmountBlur = () => {
     // Format on blur for consistent display
-    if (formattedAmount && investment.price > 0) {
-      setFormattedAmount(formatDisplayAmount(investment.price));
+    if (formattedAmount && investment.totalAmount > 0) {
+      setFormattedAmount(formatDisplayAmount(investment.totalAmount));
     }
   };
 
@@ -113,15 +116,6 @@ export function InvestmentFormDialog({
         quantity: numericValue,
       });
     }
-  };
-
-  const getCurrencySymbol = (currency: string): string => {
-    const symbols: Record<string, string> = {
-      USD: '$',
-      INR: '₹',
-      GBP: '£',
-    };
-    return symbols[currency] || currency;
   };
 
   const formatDateForInput = (date: Date | undefined): string => {
@@ -142,13 +136,13 @@ export function InvestmentFormDialog({
   };
 
   const calculateUnitPrice = (): number => {
-    if (investment.price > 0 && investment.quantity && investment.quantity > 0) {
-      return investment.price / investment.quantity;
+    if (investment.totalAmount > 0 && investment.quantity && investment.quantity > 0) {
+      return investment.totalAmount / investment.quantity;
     }
     return 0;
   };
 
-  const isFormValid = investment.price > 0 && investment.date;
+  const isFormValid = isValid(validateInvestment(investment));
 
   return (
     <Dialog
@@ -269,14 +263,14 @@ export function InvestmentFormDialog({
                 fullWidth
                 helperText="Total amount invested (including fees)"
               />
-              {formattedAmount && investment.price > 0 && (
+              {formattedAmount && investment.totalAmount > 0 && (
                 <Typography
                   variant="caption"
                   color="text.secondary"
                   sx={{ ml: 1, mt: 0.5, display: 'block' }}
                 >
                   Formatted: {getCurrencySymbol(asset.currency)}{' '}
-                  {formatDisplayAmount(investment.price)}
+                  {formatDisplayAmount(investment.totalAmount)}
                 </Typography>
               )}
             </Box>
@@ -307,7 +301,7 @@ export function InvestmentFormDialog({
           </Box>
 
           {/* Calculations Card */}
-          {investment.price > 0 && investment.quantity && investment.quantity > 0 && (
+          {investment.totalAmount > 0 && investment.quantity && investment.quantity > 0 && (
             <Card variant="outlined" sx={{ bgcolor: 'grey.50' }}>
               <CardContent>
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
@@ -323,7 +317,8 @@ export function InvestmentFormDialog({
                       Total Amount:
                     </Typography>
                     <Typography variant="body1" fontWeight="bold">
-                      {getCurrencySymbol(asset.currency)} {formatDisplayAmount(investment.price)}
+                      {getCurrencySymbol(asset.currency)}{' '}
+                      {formatDisplayAmount(investment.totalAmount)}
                     </Typography>
                   </Box>
 

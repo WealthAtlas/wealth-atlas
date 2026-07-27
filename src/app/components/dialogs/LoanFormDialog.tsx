@@ -1,3 +1,6 @@
+import { validateLoan } from '@/domain/validation/EntityValidators';
+import { isValid } from '@/domain/validation/ValidationIssue';
+import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
 import { ILoan } from '@/domain/entities/loans/Loan';
 import { Save } from '@mui/icons-material';
 import {
@@ -34,7 +37,7 @@ export function LoanFormDialog({
   onSubmit,
   onLoanChange,
 }: LoanFormDialogProps) {
-  const currencies = ['INR', 'USD', 'GBP'];
+  const isFormValid = isValid(validateLoan(loan));
 
   const handlePrincipalAmountChange = (value: string) => {
     const numericValue = UIUtils.parseFormattedNumber(value);
@@ -92,11 +95,11 @@ export function LoanFormDialog({
               <Select
                 value={loan.currency}
                 label="Currency"
-                onChange={e => onLoanChange({ ...loan, currency: e.target.value })}
+                onChange={e => onLoanChange({ ...loan, currency: e.target.value as Currency })}
               >
-                {currencies.map(currency => (
-                  <MenuItem key={currency} value={currency}>
-                    {currency}
+                {Object.values(Currency).map(code => (
+                  <MenuItem key={code} value={code}>
+                    {code} - {CURRENCY_SYMBOLS[code]}
                   </MenuItem>
                 ))}
               </Select>
@@ -133,13 +136,7 @@ export function LoanFormDialog({
           onClick={onSubmit}
           variant="contained"
           startIcon={<Save />}
-          disabled={
-            isSubmitting ||
-            !loan.name ||
-            loan.principalAmount <= 0 ||
-            !loan.currency ||
-            !loan.startDate
-          }
+          disabled={isSubmitting || !isFormValid}
         >
           {isSubmitting ? 'Saving...' : 'Save'}
         </Button>

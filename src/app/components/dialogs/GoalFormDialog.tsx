@@ -1,3 +1,4 @@
+import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { Goal, IGoal } from '@/domain/entities/goals/Goal';
 import { AccountBalance, Add, Delete, TrendingUp } from '@mui/icons-material';
@@ -66,7 +67,7 @@ export function GoalFormDialog({
   const [targetAmount, setTargetAmount] = useState<number>(0);
   const [maturityDate, setMaturityDate] = useState('');
   const [inflationRate, setInflationRate] = useState<number>(6); // Default 6%
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState<Currency>(Currency.INR);
   const [assetAllocations, setAssetAllocations] = useState<AssetAllocation[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -152,7 +153,7 @@ export function GoalFormDialog({
     setTargetAmount(0);
     setMaturityDate('');
     setInflationRate(6);
-    setCurrency('INR');
+    setCurrency(Currency.INR);
     setAssetAllocations([]);
   };
 
@@ -270,9 +271,16 @@ export function GoalFormDialog({
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth variant="outlined" margin="dense">
           <InputLabel>Currency</InputLabel>
-          <Select value={currency} onChange={e => setCurrency(e.target.value)} label="Currency">
-            <MenuItem value="INR">INR</MenuItem>
-            <MenuItem value="USD">USD</MenuItem>
+          <Select
+            value={currency}
+            onChange={e => setCurrency(e.target.value as Currency)}
+            label="Currency"
+          >
+            {Object.values(Currency).map(code => (
+              <MenuItem key={code} value={code}>
+                {code} - {CURRENCY_SYMBOLS[code]}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
       </Grid>

@@ -1,3 +1,4 @@
+import { Currency } from '../shared/Currency';
 import { IRRCalculator } from '../shared/IRRCalculator';
 import { Investment } from './Investment';
 import { SIP } from './SIP';
@@ -8,7 +9,7 @@ export interface IAsset {
   name: string;
   description: string;
   category: string;
-  currency: string;
+  currency: Currency;
   valueModel: ValueModel;
   //Interest rate model
   interestRate: number | undefined; // Annual interest rate as percentage (e.g., 7.5 for 7.5%)
@@ -28,7 +29,7 @@ export class Asset implements IAsset {
   public readonly name: string;
   public readonly description: string;
   public readonly category: string;
-  public readonly currency: string;
+  public readonly currency: Currency;
   public readonly valueModel: ValueModel;
   public readonly interestRate: number | undefined;
   public readonly maturityDate: Date | undefined;
@@ -77,34 +78,28 @@ export class Asset implements IAsset {
     this.sips = sips;
   }
 
-  // Business methods to compute portfolio metrics
+  // Business methods to compute portfolio metrics.
+  // Sells are subtracted: amounts and quantities are stored positive and the
+  // direction comes from InvestmentType (see Investment.getSignedAmount).
   public getTotalInvestedAmount(till?: Date, includeFuture: boolean = false): number {
     const investments = this.getInvestments(till ?? new Date(), includeFuture);
     return investments
       .filter(tx => (till ? tx.date <= till : true))
-      .reduce((total, transaction) => {
-        const amount = transaction.getTotalAmount();
-        return total + amount;
-      }, 0);
+      .reduce((total, transaction) => total + transaction.getSignedAmount(), 0);
   }
 
   public getTotalQty(till?: Date, includeFuture: boolean = false): number {
     const investments = this.getInvestments(till ?? new Date(), includeFuture);
     return investments
       .filter(tx => (till ? tx.date <= till : true))
-      .reduce((total, transaction) => {
-        const quantity = transaction.quantity;
-        if (quantity === undefined) return total;
-        return total + quantity;
-      }, 0);
+      .reduce((total, transaction) => total + transaction.getSignedQuantity(), 0);
   }
 
   public getCurrentHoldings(): number | undefined {
-    const holding = this.investments.reduce((total, transaction) => {
-      const quantity = transaction.quantity;
-      if (quantity === undefined) return total;
-      return total + quantity;
-    }, 0);
+    const holding = this.investments.reduce(
+      (total, transaction) => total + transaction.getSignedQuantity(),
+      0
+    );
     return holding < 1 ? undefined : holding;
   }
 
@@ -148,7 +143,7 @@ export class Asset implements IAsset {
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
           this.getInvestments(date, includeFutureInvestments).map(tx => ({
             date: tx.date,
-            amount: tx.getTotalAmount(),
+            amount: tx.getSignedAmount(),
           })),
           irr,
           date
@@ -160,7 +155,7 @@ export class Asset implements IAsset {
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
           this.getInvestments(fixedIncomeEffectiveDate, includeFutureInvestments).map(tx => ({
             date: tx.date,
-            amount: tx.getTotalAmount(),
+            amount: tx.getSignedAmount(),
           })),
           this.interestRate!,
           fixedIncomeEffectiveDate
@@ -170,7 +165,7 @@ export class Asset implements IAsset {
         const maturityIRR = IRRCalculator.getInstance().calculateIRR({
           transactions: this.getInvestments(date, includeFutureInvestments).map(tx => ({
             date: tx.date,
-            amount: tx.getTotalAmount(),
+            amount: tx.getSignedAmount(),
           })),
           value: this.maturityAmount!,
           valueUpdatedOn: this.maturityDate!,
@@ -180,7 +175,7 @@ export class Asset implements IAsset {
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
           this.getInvestments(date, includeFutureInvestments).map(tx => ({
             date: tx.date,
-            amount: tx.getTotalAmount(),
+            amount: tx.getSignedAmount(),
           })),
           maturityIRR,
           maturityBasedEffectiveDate
@@ -233,7 +228,7 @@ export class Asset implements IAsset {
         return IRRCalculator.getInstance().calculateIRR({
           transactions: this.getInvestments(new Date(), false).map(tx => ({
             date: tx.date,
-            amount: tx.getTotalAmount(),
+            amount: tx.getSignedAmount(),
           })),
           value: this.getMarketValue() ?? 0,
           valueUpdatedOn: this.getMarketValueDate() ?? new Date(),
@@ -243,7 +238,7 @@ export class Asset implements IAsset {
         return IRRCalculator.getInstance().calculateIRR({
           transactions: this.getInvestments(new Date(), false).map(tx => ({
             date: tx.date,
-            amount: tx.getTotalAmount(),
+            amount: tx.getSignedAmount(),
           })),
           value: this.maturityAmount ?? 0,
           valueUpdatedOn: this.maturityDate ?? new Date(),

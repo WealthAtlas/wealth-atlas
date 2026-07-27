@@ -33,13 +33,15 @@ export class LoanService {
     });
   }
 
-  async createLoan(loan: Loan): Promise<Loan> {
+  // Takes ILoan rather than Loan so non-UI callers (the AI importer) can pass
+  // plain data; a Loan instance still satisfies it.
+  async createLoan(loan: ILoan): Promise<Loan> {
     return this.loanRepository.create(loan).then(createdLoan => {
       return this.toLoan(createdLoan);
     });
   }
 
-  async updateLoan(loan: Loan): Promise<Loan> {
+  async updateLoan(loan: ILoan): Promise<Loan> {
     return this.loanRepository.update(loan).then(async updatedLoan => {
       return this.toLoan(updatedLoan);
     });

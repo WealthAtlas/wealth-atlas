@@ -1,3 +1,4 @@
+import { Currency } from '../shared/Currency';
 import { IRRCalculator, Transaction } from '../shared/IRRCalculator';
 import { EMI, IEMI } from './EMI';
 import { IPayment, Payment } from './Payment';
@@ -7,7 +8,7 @@ export interface ILoan {
   name: string;
   description: string;
   principalAmount: number;
-  currency: string;
+  currency: Currency;
   startDate: Date;
 }
 
@@ -16,7 +17,7 @@ export class Loan implements ILoan {
   public readonly name: string;
   public readonly description: string;
   public readonly principalAmount: number;
-  public readonly currency: string;
+  public readonly currency: Currency;
   public readonly startDate: Date;
   public readonly payments: Payment[];
   public readonly emis: EMI[];

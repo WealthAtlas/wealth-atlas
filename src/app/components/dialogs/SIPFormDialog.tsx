@@ -1,3 +1,6 @@
+import { validateSIP } from '@/domain/validation/EntityValidators';
+import { isValid } from '@/domain/validation/ValidationIssue';
+import { getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import { TrendingUp } from '@mui/icons-material';
 import {
   Alert,
@@ -122,15 +125,6 @@ export function SIPFormDialog({
     }
   };
 
-  const getCurrencySymbol = (currency: string): string => {
-    const symbols: Record<string, string> = {
-      USD: '$',
-      INR: '₹',
-      GBP: '£',
-    };
-    return symbols[currency] || currency;
-  };
-
   const formatDateForInput = (date: Date | undefined): string => {
     if (!date) return new Date().toISOString().split('T')[0];
     return date.toISOString().split('T')[0];
@@ -150,7 +144,7 @@ export function SIPFormDialog({
     });
   };
 
-  const isFormValid = sip.price > 0 && sip.startDate && sip.frequency;
+  const isFormValid = isValid(validateSIP(sip));
 
   return (
     <Dialog

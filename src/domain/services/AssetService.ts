@@ -19,9 +19,19 @@ export class AssetService {
     this.sipRepository = new SIPRepository();
   }
 
-  public async createAsset(asset: IAsset): Promise<Asset> {
+  /**
+   * `skipValueUpdate` suppresses the per-asset value-script execution, which
+   * otherwise fires a network call for every asset. Bulk callers (the AI
+   * importer) pass it and run `updateValues()` once at the end instead.
+   */
+  public async createAsset(
+    asset: IAsset,
+    options: { skipValueUpdate?: boolean } = {}
+  ): Promise<Asset> {
     const createdAsset = await this.assetRepository.create(asset).then(a => this.toAsset(a));
-    await this.updateValue(createdAsset);
+    if (!options.skipValueUpdate) {
+      await this.updateValue(createdAsset);
+    }
     return createdAsset;
   }
 

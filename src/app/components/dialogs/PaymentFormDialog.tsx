@@ -1,3 +1,6 @@
+import { validatePayment } from '@/domain/validation/EntityValidators';
+import { isValid } from '@/domain/validation/ValidationIssue';
+import { getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import {
   CalendarToday as CalendarIcon,
   AccountBalance as InvestmentIcon,
@@ -85,16 +88,7 @@ export function PaymentFormDialog({
     }
   };
 
-  const getCurrencySymbol = (currency: string): string => {
-    const symbols: Record<string, string> = {
-      USD: '$',
-      INR: '₹',
-      GBP: '£',
-    };
-    return symbols[currency] || currency;
-  };
-
-  const isFormValid = payment.amount > 0 && payment.date;
+  const isFormValid = isValid(validatePayment(payment));
 
   return (
     <Dialog

@@ -30,6 +30,7 @@ interface MainLayoutProps {
   onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
   onMenuClose: () => void;
   onSettingsClick: () => void;
+  onImportClick: () => void;
 }
 
 export function MainLayout({
@@ -40,6 +41,7 @@ export function MainLayout({
   onMenuOpen,
   onMenuClose,
   onSettingsClick,
+  onImportClick,
 }: MainLayoutProps) {
   const theme = useTheme();
   const isTablet = useMediaQuery(theme.breakpoints.up('md'));
@@ -86,6 +88,7 @@ export function MainLayout({
               horizontal: 'right',
             }}
           >
+            <MenuItem onClick={onImportClick}>Import Statement</MenuItem>
             <MenuItem onClick={onSettingsClick}>Settings</MenuItem>
           </Menu>
         </Toolbar>
