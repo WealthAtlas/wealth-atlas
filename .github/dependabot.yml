@@ -1,0 +1,23 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # pnpm 11 re-applies its minimumReleaseAge policy (~24h) to every lockfile
+    # entry on install, and Dependabot regenerates lockfiles without applying it.
+    # A bump that lands a package published hours ago therefore produces a
+    # lockfile that `pnpm install --frozen-lockfile` rejects in CI. Holding
+    # version updates back past that window keeps the two in step.
+    #
+    # This does NOT cover Dependabot *security* updates — those bypass cooldown
+    # by design, so a security bump can still drag in a too-fresh transitive
+    # entry. electron-to-chromium and baseline-browser-mapping are the usual
+    # culprits: they publish near-daily, so any regenerated lockfile picks up a
+    # version younger than the policy allows. The fix when it happens is to
+    # re-resolve locally rather than to weaken the policy:
+    #
+    #   pnpm clean --lockfile && pnpm install
+    cooldown:
+      default-days: 3
