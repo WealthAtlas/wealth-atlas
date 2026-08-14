@@ -1,15 +1,14 @@
+import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { SyncService } from '@/data/sync/Syncer';
 import { AssetService } from '@/domain/services/AssetService';
 import { LoanService } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { NotificationProvider } from './components/providers/NotificationProvider';
 import { AppRouter } from './router/AppRouter';
 import { AppThemeProvider } from './theme/AppThemeProvider';
 
 export default function App() {
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
     // Auto-convert scheduled transactions and auto-sync on app startup
     const initializeApp = async () => {
@@ -32,38 +31,16 @@ export default function App() {
       }
     };
 
-    // Setup periodic sync every 30 seconds
-    const setupPeriodicSync = () => {
-      const SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
-
-      syncIntervalRef.current = setInterval(async () => {
-        try {
-          Logger.info('Performing periodic sync...');
-          const syncResult = await SyncService.autoSync();
-          if (syncResult.version) {
-            Logger.info(`Periodic sync completed, updated to version ${syncResult.version}`);
-          } else {
-            Logger.log('Periodic sync completed, no updates');
-          }
-        } catch (error) {
-          Logger.warn('Periodic sync failed:', error);
-          // Don't throw - periodic sync should be non-intrusive
-        }
-      }, SYNC_INTERVAL_MS);
-
-      Logger.info('Periodic sync enabled - syncing every 5 minutes');
-    };
-
     initializeApp();
-    setupPeriodicSync();
+
+    // Registering the change hooks here (rather than only when the setting is
+    // toggled) is what makes push-on-change survive a reload.
+    AutoSyncService.startListening();
+    AutoSyncService.startPeriodicPull();
 
     // Cleanup on unmount
     return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-        Logger.info('Periodic sync disabled');
-      }
+      AutoSyncService.stopPeriodicPull();
     };
   }, []);
 

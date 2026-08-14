@@ -27,18 +27,57 @@ import {
 } from './state';
 import { RemoteDataResponse, Snapshot, SyncStatus } from './types';
 
+export class SyncApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = 'SyncApiError';
+  }
+}
+
 // Simple fetch wrapper with configurable API base URL
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const url = buildSyncApiUrl(path);
+  // Content-Type only goes on requests that carry a body. On a GET it makes an
+  // otherwise "simple" request preflighted, which doubles the calls billed
+  // against the API for every poll.
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: init?.body ? { 'Content-Type': 'application/json', ...init?.headers } : init?.headers,
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
+    throw new SyncApiError(res.status, `API ${res.status}: ${text}`);
   }
   return res.json() as Promise<T>;
+}
+
+/**
+ * Backends predating the /version route answer 403 ("Missing Authentication
+ * Token" — API Gateway's response to an unmatched path). Remembered per session
+ * so we probe once rather than on every poll.
+ */
+let versionEndpointSupported = true;
+
+/**
+ * Asks only for the version, which is all a poll needs. Returns undefined when
+ * the answer isn't trustworthy, which means "check the slow way" — never
+ * "nothing changed", or a real update would be skipped.
+ */
+async function fetchRemoteVersion(keyId: string): Promise<number | undefined> {
+  if (!versionEndpointSupported) return undefined;
+  try {
+    const resp = await api<{ version: number }>(`/data/${encodeURIComponent(keyId)}/version`);
+    return resp.version;
+  } catch (error) {
+    if (error instanceof SyncApiError && error.status === 403) {
+      versionEndpointSupported = false;
+      Logger.info('Sync backend has no /version endpoint; falling back to full pulls');
+    }
+    return undefined;
+  }
 }
 
 /**
@@ -228,8 +267,16 @@ export class SyncService {
     const actualPassphrase = passphrase || getPassphrase();
     if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
 
-    const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
     const last = getLastRemoteVersion() ?? 0;
+
+    // The overwhelmingly common outcome of a poll is "nothing changed", so settle
+    // that against a few bytes instead of downloading the whole snapshot.
+    const remoteVersion = await fetchRemoteVersion(keyId);
+    if (remoteVersion !== undefined && remoteVersion <= last) return { version: null };
+
+    const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+    // Re-checked against the payload's own version: the pointer can sit one
+    // ahead of the blob after an interrupted push.
     if (resp.version <= last) return { version: null };
     const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
     await importSnapshot(snapshot);

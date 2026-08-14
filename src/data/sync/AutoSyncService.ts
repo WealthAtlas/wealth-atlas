@@ -8,6 +8,10 @@ export class AutoSyncService {
   private static isListening = false;
   private static readonly SYNC_DELAY_MS = 2000; // 2 seconds delay to batch changes
 
+  private static pollTimer: NodeJS.Timeout | null = null;
+  private static pollInFlight = false;
+  private static readonly POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
   /**
    * Start listening for database changes and auto-sync when enabled
    */
@@ -94,6 +98,59 @@ export class AutoSyncService {
         AutoSyncService.syncTimeout = null;
       }
     }, AutoSyncService.SYNC_DELAY_MS);
+  }
+
+  /**
+   * Begin polling the remote for changes made on other devices.
+   *
+   * A backgrounded tab has nobody reading it, so ticks there are skipped
+   * entirely and the catch-up happens when the tab is looked at again. Between
+   * that and the interval itself, an idle tab costs nothing instead of billing a
+   * request every 30 seconds all day.
+   */
+  static startPeriodicPull(): void {
+    if (AutoSyncService.pollTimer) return;
+
+    AutoSyncService.pollTimer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void AutoSyncService.pollNow();
+    }, AutoSyncService.POLL_INTERVAL_MS);
+
+    document.addEventListener('visibilitychange', AutoSyncService.handleVisibilityChange);
+    window.addEventListener('online', AutoSyncService.handleOnline);
+    Logger.info('AutoSyncService: Periodic pull enabled (5 minutes, foreground only)');
+  }
+
+  static stopPeriodicPull(): void {
+    if (AutoSyncService.pollTimer) {
+      clearInterval(AutoSyncService.pollTimer);
+      AutoSyncService.pollTimer = null;
+    }
+    document.removeEventListener('visibilitychange', AutoSyncService.handleVisibilityChange);
+    window.removeEventListener('online', AutoSyncService.handleOnline);
+    Logger.info('AutoSyncService: Periodic pull disabled');
+  }
+
+  private static readonly handleVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible') void AutoSyncService.pollNow();
+  };
+
+  private static readonly handleOnline = (): void => {
+    void AutoSyncService.pollNow();
+  };
+
+  /** Pulls unless one is already in flight. Errors are swallowed by autoSync. */
+  private static async pollNow(): Promise<void> {
+    if (AutoSyncService.pollInFlight) return;
+    AutoSyncService.pollInFlight = true;
+    try {
+      const result = await SyncService.autoSync();
+      if (result.version) {
+        Logger.info(`AutoSyncService: Pulled version ${result.version}`);
+      }
+    } finally {
+      AutoSyncService.pollInFlight = false;
+    }
   }
 
   /**

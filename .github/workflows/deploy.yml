@@ -26,7 +26,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -40,6 +40,10 @@ jobs:
           # ensure base is '/'
           VITE_BASE_OVERRIDE: /
           GITHUB_REPOSITORY: ${{ github.repository }}
+          # Vite inlines this at build time, so it ends up in public client JS —
+          # a repository variable rather than a secret. Unset means the build
+          # ships without sync rather than pointing at someone else's backend.
+          VITE_SYNC_API_URL: ${{ vars.VITE_SYNC_API_URL }}
         run: pnpm run build && cp dist/index.html dist/404.html && touch dist/.nojekyll
       - name: Deploy to GitHub Pages repo
         uses: peaceiris/actions-gh-pages@v3
