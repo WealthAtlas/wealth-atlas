@@ -26,15 +26,27 @@ export function setPresetId(presetId: string): void {
   localStorage.setItem(PRESET, presetId);
 }
 
+/**
+ * Stored verbatim so the settings field stays editable. Normalising here would
+ * strip the trailing slash on every keystroke, and because the field is
+ * controlled from this value the user could never type a path segment —
+ * "https://host.com/" would become "https://host.com" the moment the slash was
+ * typed, and the next character would land as "https://host.comv1".
+ */
 export function getBaseUrl(): string {
   const stored = localStorage.getItem(BASE_URL);
-  if (stored) return stored.replace(/\/$/, '');
+  if (stored !== null) return stored;
   return findPreset(getPresetId())?.baseUrl ?? '';
 }
 
 export function setBaseUrl(baseUrl: string | undefined): void {
-  if (baseUrl) localStorage.setItem(BASE_URL, baseUrl.trim().replace(/\/$/, ''));
+  if (baseUrl) localStorage.setItem(BASE_URL, baseUrl);
   else localStorage.removeItem(BASE_URL);
+}
+
+/** The form actually used to build a request URL. */
+export function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.trim().replace(/\/+$/, '');
 }
 
 export function getApiKey(): string | undefined {
@@ -68,12 +80,12 @@ export function getLlmSettings(): LlmSettings {
 
 /** Ollama and other local endpoints do not need a key; everything else does. */
 export function isLocalEndpoint(baseUrl: string): boolean {
-  return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(baseUrl);
+  return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(normalizeBaseUrl(baseUrl));
 }
 
 export function isLlmConfigured(): boolean {
   const { baseUrl, apiKey, model } = getLlmSettings();
-  if (!baseUrl || !model) return false;
+  if (!normalizeBaseUrl(baseUrl) || !model.trim()) return false;
   return Boolean(apiKey) || isLocalEndpoint(baseUrl);
 }
 
@@ -86,7 +98,7 @@ export function clearLlmSettings(): void {
 
 /** Host shown to the user before any of their data is sent. */
 export function getProviderHost(): string {
-  const baseUrl = getBaseUrl();
+  const baseUrl = normalizeBaseUrl(getBaseUrl());
   if (!baseUrl) return 'not configured';
   try {
     return new URL(baseUrl).host;

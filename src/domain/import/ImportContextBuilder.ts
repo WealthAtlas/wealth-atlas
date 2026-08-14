@@ -37,6 +37,18 @@ export interface ExistingExpense {
   description: string;
 }
 
+/**
+ * An asset an earlier chunk of the same file already asked to create. The model
+ * gets these alongside the real assets so it links to the pending one by ref
+ * instead of emitting a second `createAsset` for the same instrument.
+ */
+export interface PendingAsset {
+  ref: string;
+  name: string;
+  category: string;
+  currency: string;
+}
+
 export interface ImportContext {
   assets: AssetContext[];
   loans: LoanContext[];
@@ -107,13 +119,17 @@ export function buildImportContext(
 }
 
 /** The subset actually sent to the provider — keeps the payload small. */
-export function toPromptContext(context: ImportContext): string {
+export function toPromptContext(
+  context: ImportContext,
+  pendingAssets: PendingAsset[] = []
+): string {
   return JSON.stringify(
     {
       assets: context.assets,
       loans: context.loans,
       expenseCategoriesInUse: context.expenseCategories,
       expenseDateRange: context.expenseDateRange,
+      ...(pendingAssets.length > 0 ? { assetsBeingCreatedByThisImport: pendingAssets } : {}),
     },
     null,
     2

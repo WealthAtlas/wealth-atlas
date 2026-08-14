@@ -4,21 +4,19 @@ import { ImportPlanReviewView } from '@/app/components/views/ImportPlanReviewVie
 import { ImportResultView } from '@/app/components/views/ImportResultView';
 import { ImportSourceView } from '@/app/components/views/ImportSourceView';
 import { LlmError } from '@/data/llm/LlmClient';
-import { ImportPlan, ValidatedOperation } from '@/domain/import/ImportOperation';
+import { ImportPlan } from '@/domain/import/ImportOperation';
 import { ImportOperationError } from '@/domain/import/ImportPlanExecutor';
+import {
+  defaultSelection,
+  selectAll,
+  selectNone,
+  toggleSelection,
+  withoutOrphans,
+} from '@/domain/import/ImportSelection';
 import { DataImportService } from '@/domain/services/DataImportService';
 import { Logger } from '@/domain/utils/Logger';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-/**
- * An operation is ticked by default only when it is clean — anything the
- * validator flagged as unverified, duplicate or destructive starts unticked so
- * including it is a deliberate act.
- */
-function defaultSelection(operations: ValidatedOperation[]): boolean[] {
-  return operations.map(operation => operation.flags.length === 0);
-}
 
 export function ImportContainer() {
   const navigate = useNavigate();
@@ -89,17 +87,23 @@ export function ImportContainer() {
     setStep('source');
   }, []);
 
-  const handleToggle = useCallback((index: number) => {
-    setSelected(current => current.map((value, i) => (i === index ? !value : value)));
-  }, []);
+  const handleToggle = useCallback(
+    (index: number) => {
+      if (!plan) return;
+      setSelected(current => toggleSelection(plan.operations, current, index));
+    },
+    [plan]
+  );
 
   const handleSelectAll = useCallback(() => {
-    setSelected(current => current.map(() => true));
-  }, []);
+    if (!plan) return;
+    setSelected(selectAll(plan.operations));
+  }, [plan]);
 
   const handleSelectNone = useCallback(() => {
-    setSelected(current => current.map(() => false));
-  }, []);
+    if (!plan) return;
+    setSelected(selectNone(plan.operations));
+  }, [plan]);
 
   const handleSelectVerified = useCallback(() => {
     if (!plan) return;
@@ -109,8 +113,11 @@ export function ImportContainer() {
   const handleApply = useCallback(async () => {
     if (!plan) return;
 
+    // Backstop for the create-before-child invariant the toggles maintain: an
+    // orphan would abort the whole transaction at apply time.
+    const approvable = withoutOrphans(plan.operations, selected);
     const approved = plan.operations
-      .filter((_, index) => selected[index])
+      .filter((_, index) => approvable[index])
       .map(item => item.operation);
 
     setIsApplying(true);

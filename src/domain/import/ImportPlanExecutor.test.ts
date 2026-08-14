@@ -319,13 +319,17 @@ describe('applyImportPlan — failure handling', () => {
   it('reports how many operations were applied on success', async () => {
     const harness = makeServices();
 
-    const result = await applyImportPlan(
-      [
-        { op: 'deleteExpense', expenseId: 1 },
-        { op: 'deleteExpense', expenseId: 2 },
-      ],
-      harness.services
-    );
+    const expense = {
+      op: 'addExpense' as const,
+      amount: 450,
+      currency: 'INR' as never,
+      date: '2024-02-01',
+      category: 'Groceries',
+      isEssential: true,
+      description: 'Shop',
+    };
+
+    const result = await applyImportPlan([expense, { ...expense, amount: 600 }], harness.services);
 
     expect(result).toEqual({ applied: 2, skipped: 0 });
   });

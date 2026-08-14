@@ -64,7 +64,13 @@ export function canonicaliseValue(value: number): string {
   return String(Math.abs(value));
 }
 
-const NUMBER_PATTERN = /[-+]?[\d][\d,.' ]*\d|\d/g;
+/**
+ * Two alternatives, in order: a space-grouped number ("1 234 567,89"), then the
+ * ordinary form. The space only counts as a group separator when exactly three
+ * digits follow it, so "Qty 10 Price 20" yields 10 and 20 rather than a phantom
+ * "1020" — a false token would weaken provenance in the dangerous direction.
+ */
+const NUMBER_PATTERN = /\d{1,3}(?:[ ]\d{3})+(?:[.,]\d{1,2})?|[-+]?[\d][\d,.']*\d|\d/g;
 
 function collectNumbers(text: string, into: Set<string>): void {
   const matches = text.match(NUMBER_PATTERN);
@@ -127,4 +133,20 @@ export function isNumberInSource(value: number, numericTokens: Set<string>): boo
   ];
 
   return candidates.some(candidate => numericTokens.has(candidate));
+}
+
+/**
+ * A tradebook that lists a unit price and a quantity has no total column, so the
+ * total is arithmetic and will never appear in the file. Accept it when the
+ * factors do: `total / quantity` recovers the unit price for any source that
+ * quotes it to the cent, which is what a statement does.
+ */
+export function isTotalDerivedFromSource(
+  total: number,
+  quantity: number | undefined,
+  numericTokens: Set<string>
+): boolean {
+  if (quantity === undefined || !Number.isFinite(quantity) || quantity === 0) return false;
+  if (!isNumberInSource(quantity, numericTokens)) return false;
+  return isNumberInSource(total / quantity, numericTokens);
 }

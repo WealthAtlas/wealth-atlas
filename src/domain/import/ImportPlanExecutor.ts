@@ -7,7 +7,7 @@ import { AssetService } from '../services/AssetService';
 import { ExpenseService } from '../services/ExpenseService';
 import { LoanService } from '../services/LoanService';
 import { Logger } from '../utils/Logger';
-import { ImportOperation, ImportResult } from './ImportOperation';
+import { ImportOperation, ImportResult, isCreate } from './ImportOperation';
 
 /**
  * Applies an approved plan through the domain services — never repositories.
@@ -38,10 +38,6 @@ export class ImportOperationError extends Error {
 
 function toDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
-}
-
-function isCreate(operation: ImportOperation): boolean {
-  return operation.op === 'createAsset' || operation.op === 'createLoan';
 }
 
 export async function applyImportPlan(
@@ -133,10 +129,6 @@ export async function applyImportPlan(
           break;
         }
 
-        case 'deleteTransaction':
-          await assetService.deleteInvestment(operation.investmentId);
-          break;
-
         case 'addExpense': {
           const expense: IExpense = {
             id: undefined,
@@ -150,25 +142,6 @@ export async function applyImportPlan(
           await expenseService.createExpense(expense);
           break;
         }
-
-        case 'updateExpense': {
-          const existing = await expenseService.getExpenseById(operation.expenseId);
-          const { changes } = operation;
-          await expenseService.updateExpense({
-            id: existing.id,
-            amount: changes.amount ?? existing.amount,
-            currency: changes.currency ?? existing.currency,
-            date: changes.date ? toDate(changes.date) : existing.date,
-            category: changes.category ?? existing.category,
-            isEssential: changes.isEssential ?? existing.isEssential,
-            description: changes.description ?? existing.description,
-          });
-          break;
-        }
-
-        case 'deleteExpense':
-          await expenseService.deleteExpense(operation.expenseId);
-          break;
 
         case 'createLoan': {
           const loan: ILoan = {
@@ -201,10 +174,6 @@ export async function applyImportPlan(
           await loanService.createPayment(payment);
           break;
         }
-
-        case 'deleteLoanPayment':
-          await loanService.deletePayment(operation.paymentId);
-          break;
 
         default: {
           // Exhaustiveness guard — a new op type must be handled here.

@@ -7,6 +7,7 @@ import { validateAsset, validateExpense, validateLoan } from '../validation/Enti
 import { summariseIssues } from '../validation/ValidationIssue';
 import { ImportContext } from './ImportContextBuilder';
 import {
+  CREATE_OPERATION_KINDS,
   ImportOperation,
   ImportOperationKind,
   ImportPlan,
@@ -15,7 +16,7 @@ import {
   OperationFlag,
   ValidatedOperation,
 } from './ImportOperation';
-import { isNumberInSource } from './SourceNormalizer';
+import { isNumberInSource, isTotalDerivedFromSource } from './SourceNormalizer';
 
 /**
  * Everything the model returns passes through here before a human sees it.
@@ -30,6 +31,18 @@ import { isNumberInSource } from './SourceNormalizer';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_FUTURE_DAYS = 2;
+
+/**
+ * Operations the prompt no longer offers. The model may still emit one from
+ * memory of an older schema, so name the reason rather than reporting it as an
+ * unrecognised type.
+ */
+const RETIRED_OPERATION_KINDS = new Set([
+  'deleteTransaction',
+  'updateExpense',
+  'deleteExpense',
+  'deleteLoanPayment',
+]);
 
 interface Bag {
   [key: string]: unknown;
@@ -98,9 +111,28 @@ export interface ValidationInput {
   raw: unknown;
   context: ImportContext;
   numericTokens: Set<string>;
+  /**
+   * Namespaces the placeholder refs this response defines. A large file is
+   * analysed in several independent requests, and each one numbers its refs from
+   * scratch — without a per-request prefix, two parts both naming a ref "a1"
+   * would collapse onto one asset in the executor's ref map and silently attach
+   * the first part's trades to the second part's asset.
+   */
+  refPrefix?: string;
+  /** Namespaced ref → name, for assets an earlier part already asked to create. */
+  pendingAssets?: ReadonlyMap<string, string>;
+  /** Namespaced ref → name, for loans an earlier part already asked to create. */
+  pendingLoans?: ReadonlyMap<string, string>;
 }
 
-export function validateImportPlan({ raw, context, numericTokens }: ValidationInput): ImportPlan {
+export function validateImportPlan({
+  raw,
+  context,
+  numericTokens,
+  refPrefix = '',
+  pendingAssets,
+  pendingLoans,
+}: ValidationInput): ImportPlan {
   const planWarnings: string[] = [];
   const payload = asRecord(raw);
 
@@ -123,91 +155,111 @@ export function validateImportPlan({ raw, context, numericTokens }: ValidationIn
 
   const assetIds = new Set(context.assets.map(asset => asset.id));
   const loanIds = new Set(context.loans.map(loan => loan.id));
-  const createdAssetRefs = new Set<string>();
-  const createdLoanRefs = new Set<string>();
 
-  // First pass: collect the refs the plan defines, so a transaction can point
-  // at an asset created later in the same list.
-  for (const candidate of rawOperations) {
-    const record = asRecord(candidate);
-    if (!record) continue;
-    const ref = asString(record.ref);
-    if (!ref) continue;
-    if (record.op === 'createAsset') createdAssetRefs.add(ref);
-    if (record.op === 'createLoan') createdLoanRefs.add(ref);
-  }
+  // Refs an operation may attach to: those an earlier part of the file defined,
+  // plus the ones this response defines and that survive validation. Populated
+  // by the create pass below — registering a ref before its create is known to
+  // be valid would leave orphaned children that only fail at apply time, after
+  // the user has already approved them.
+  const assetRefNames = new Map<string, string>(pendingAssets ?? []);
+  const loanRefNames = new Map<string, string>(pendingLoans ?? []);
 
-  const operations: ValidatedOperation[] = [];
+  const creates: ValidatedOperation[] = [];
+  const others: ValidatedOperation[] = [];
 
-  rawOperations.forEach((candidate, index) => {
-    const record = asRecord(candidate);
-    if (!record) {
-      planWarnings.push(`Operation ${index + 1} was not an object and was dropped.`);
-      return;
-    }
-
-    const kind = asString(record.op) as ImportOperationKind | undefined;
-    if (!kind || !IMPORT_OPERATION_KINDS.includes(kind)) {
-      planWarnings.push(
-        `Operation ${index + 1} had unknown type "${String(record.op)}" and was dropped.`
-      );
-      return;
-    }
-
-    const warnings: string[] = [];
-    const flags: OperationFlag[] = [];
-    const unverifiedNumbers: string[] = [];
-
-    /** Records a number and flags it if it cannot be traced to the source. */
-    const checkProvenance = (value: number | undefined, label: string) => {
-      if (value === undefined) return;
-      if (!isNumberInSource(value, numericTokens)) {
-        unverifiedNumbers.push(`${label} ${value}`);
+  const runPass = (wantCreates: boolean) => {
+    rawOperations.forEach((candidate, index) => {
+      const record = asRecord(candidate);
+      if (!record) {
+        if (wantCreates)
+          planWarnings.push(`Operation ${index + 1} was not an object and was dropped.`);
+        return;
       }
-    };
 
-    const built = buildOperation({
-      kind,
-      record,
-      assetIds,
-      loanIds,
-      createdAssetRefs,
-      createdLoanRefs,
-      warnings,
-      checkProvenance,
+      const rawKind = asString(record.op);
+      const kind = rawKind as ImportOperationKind | undefined;
+      if (!kind || !IMPORT_OPERATION_KINDS.includes(kind)) {
+        if (wantCreates) {
+          planWarnings.push(
+            RETIRED_OPERATION_KINDS.has(rawKind ?? '')
+              ? `Operation ${index + 1} ("${rawKind}") was dropped: editing or deleting an individual transaction, expense or payment is not supported, because the model is never shown their ids.`
+              : `Operation ${index + 1} had unknown type "${String(record.op)}" and was dropped.`
+          );
+        }
+        return;
+      }
+
+      if (CREATE_OPERATION_KINDS.includes(kind) !== wantCreates) return;
+
+      const warnings: string[] = [];
+      const flags: OperationFlag[] = [];
+      const unverifiedNumbers: string[] = [];
+
+      /** Records a number and flags it if it cannot be traced to the source. */
+      const checkProvenance = (value: number | undefined, label: string) => {
+        if (value === undefined) return;
+        if (!isNumberInSource(value, numericTokens)) {
+          unverifiedNumbers.push(`${label} ${value}`);
+        }
+      };
+
+      const built = buildOperation({
+        kind,
+        record,
+        assetIds,
+        loanIds,
+        assetRefNames,
+        loanRefNames,
+        refPrefix,
+        numericTokens,
+        warnings,
+        checkProvenance,
+      });
+
+      if (!built) {
+        planWarnings.push(
+          `Operation ${index + 1} (${kind}) was dropped: ${warnings.join(' ') || 'could not be interpreted.'}`
+        );
+        return;
+      }
+
+      if (unverifiedNumbers.length > 0) {
+        flags.push('unverified');
+        warnings.push(`Not found in the source file: ${unverifiedNumbers.join(', ')}.`);
+      }
+
+      if (isDestructive(kind)) {
+        flags.push('destructive');
+      }
+
+      if (isDuplicate(built.operation, context)) {
+        flags.push('duplicate');
+        warnings.push('A matching record already exists.');
+      }
+
+      const validated: ValidatedOperation = {
+        operation: built.operation,
+        flags,
+        warnings,
+        summary: built.summary,
+      };
+
+      if (wantCreates) {
+        const operation = built.operation;
+        if (operation.op === 'createAsset') assetRefNames.set(operation.ref, operation.name);
+        if (operation.op === 'createLoan') loanRefNames.set(operation.ref, operation.name);
+        creates.push(validated);
+      } else {
+        others.push(validated);
+      }
     });
+  };
 
-    if (!built) {
-      planWarnings.push(
-        `Operation ${index + 1} (${kind}) was dropped: ${warnings.join(' ') || 'could not be interpreted.'}`
-      );
-      return;
-    }
-
-    if (unverifiedNumbers.length > 0) {
-      flags.push('unverified');
-      warnings.push(`Not found in the source file: ${unverifiedNumbers.join(', ')}.`);
-    }
-
-    if (isDestructive(kind)) {
-      flags.push('destructive');
-    }
-
-    if (isDuplicate(built.operation, context)) {
-      flags.push('duplicate');
-      warnings.push('A matching record already exists.');
-    }
-
-    operations.push({
-      operation: built.operation,
-      flags,
-      warnings,
-      summary: built.summary,
-    });
-  });
+  runPass(true);
+  runPass(false);
 
   return {
-    operations,
+    operations: [...creates, ...others],
     warnings: planWarnings,
     sourceSummary: asString(payload.sourceSummary) ?? '',
   };
@@ -218,16 +270,34 @@ interface BuildArgs {
   record: Bag;
   assetIds: Set<number>;
   loanIds: Set<number>;
-  createdAssetRefs: Set<string>;
-  createdLoanRefs: Set<string>;
+  /** Namespaced ref → name, for every asset this plan can attach to. */
+  assetRefNames: ReadonlyMap<string, string>;
+  loanRefNames: ReadonlyMap<string, string>;
+  refPrefix: string;
+  numericTokens: Set<string>;
   warnings: string[];
   checkProvenance: (value: number | undefined, label: string) => void;
+}
+
+/**
+ * A ref the model wrote is either one it just invented (namespace it) or one we
+ * showed it from an earlier part of the file (already namespaced).
+ */
+function resolveRef(
+  raw: string | undefined,
+  known: ReadonlyMap<string, string>,
+  refPrefix: string
+): string | undefined {
+  if (!raw) return undefined;
+  if (known.has(raw)) return raw;
+  const namespaced = `${refPrefix}${raw}`;
+  return known.has(namespaced) ? namespaced : undefined;
 }
 
 function buildOperation(
   args: BuildArgs
 ): { operation: ImportOperation; summary: string } | undefined {
-  const { kind, record, warnings, checkProvenance } = args;
+  const { kind, record, warnings } = args;
 
   switch (kind) {
     case 'createAsset':
@@ -244,70 +314,12 @@ function buildOperation(
     }
     case 'addTransaction':
       return buildAddTransaction(args);
-    case 'deleteTransaction': {
-      const investmentId = asNumber(record.investmentId);
-      if (investmentId === undefined) {
-        warnings.push('No investmentId given.');
-        return undefined;
-      }
-      return {
-        operation: { op: 'deleteTransaction', investmentId },
-        summary: `Delete transaction #${investmentId}`,
-      };
-    }
     case 'addExpense':
       return buildAddExpense(args);
-    case 'updateExpense': {
-      const expenseId = asNumber(record.expenseId);
-      const changes = asRecord(record.changes);
-      if (expenseId === undefined || !changes) {
-        warnings.push('Needs an expenseId and a changes object.');
-        return undefined;
-      }
-      const amount = asNumber(changes.amount);
-      checkProvenance(amount, 'amount');
-      return {
-        operation: {
-          op: 'updateExpense',
-          expenseId,
-          changes: {
-            amount,
-            currency: changes.currency ? coerceCurrency(changes.currency, warnings) : undefined,
-            date: asString(changes.date),
-            category: asString(changes.category),
-            isEssential: typeof changes.isEssential === 'boolean' ? changes.isEssential : undefined,
-            description: asString(changes.description),
-          },
-        },
-        summary: `Update expense #${expenseId}`,
-      };
-    }
-    case 'deleteExpense': {
-      const expenseId = asNumber(record.expenseId);
-      if (expenseId === undefined) {
-        warnings.push('No expenseId given.');
-        return undefined;
-      }
-      return {
-        operation: { op: 'deleteExpense', expenseId },
-        summary: `Delete expense #${expenseId}`,
-      };
-    }
     case 'createLoan':
       return buildCreateLoan(args);
     case 'addLoanPayment':
       return buildAddLoanPayment(args);
-    case 'deleteLoanPayment': {
-      const paymentId = asNumber(record.paymentId);
-      if (paymentId === undefined) {
-        warnings.push('No paymentId given.');
-        return undefined;
-      }
-      return {
-        operation: { op: 'deleteLoanPayment', paymentId },
-        summary: `Delete loan payment #${paymentId}`,
-      };
-    }
     default:
       return undefined;
   }
@@ -316,12 +328,13 @@ function buildOperation(
 function buildCreateAsset(args: BuildArgs) {
   const { record, warnings, checkProvenance } = args;
 
-  const ref = asString(record.ref);
+  const rawRef = asString(record.ref);
   const name = asString(record.name);
-  if (!ref || !name) {
+  if (!rawRef || !name) {
     warnings.push('Needs both a ref and a name.');
     return undefined;
   }
+  const ref = `${args.refPrefix}${rawRef}`;
 
   const category = coerceCategory(
     record.category,
@@ -342,6 +355,7 @@ function buildCreateAsset(args: BuildArgs) {
   const interestRate = asNumber(record.interestRate);
   const maturityAmount = asNumber(record.maturityAmount);
   const manualValue = asNumber(record.manualValue);
+  checkProvenance(interestRate, 'interest rate');
   checkProvenance(maturityAmount, 'maturity amount');
   checkProvenance(manualValue, 'value');
 
@@ -405,8 +419,18 @@ function buildUpdateAsset(args: BuildArgs) {
 
   const manualValue = asNumber(changes.manualValue);
   const maturityAmount = asNumber(changes.maturityAmount);
+  const interestRate = asNumber(changes.interestRate);
   checkProvenance(manualValue, 'value');
   checkProvenance(maturityAmount, 'maturity amount');
+  checkProvenance(interestRate, 'interest rate');
+
+  // Parsed rather than passed through: the executor turns this straight into a
+  // Date, so an unparseable string would be stored as an Invalid Date.
+  const maturityDateRaw = asString(changes.maturityDate);
+  const maturityDate = maturityDateRaw ? parseIsoDate(maturityDateRaw) : undefined;
+  if (maturityDateRaw && !maturityDate) {
+    warnings.push(`Ignored unparseable maturity date "${maturityDateRaw}".`);
+  }
 
   const changed = {
     name: asString(changes.name),
@@ -415,8 +439,8 @@ function buildUpdateAsset(args: BuildArgs) {
       ? coerceCategory(changes.category, Object.values(AssetCategory), warnings, 'category')
       : undefined,
     manualValue,
-    interestRate: asNumber(changes.interestRate),
-    maturityDate: asString(changes.maturityDate),
+    interestRate,
+    maturityDate: maturityDate ? maturityDateRaw : undefined,
     maturityAmount,
   };
 
@@ -442,15 +466,16 @@ function buildAddTransaction(args: BuildArgs) {
   const { record, warnings, checkProvenance } = args;
 
   const assetId = asNumber(record.assetId);
-  const assetRef = asString(record.assetRef);
+  const rawAssetRef = asString(record.assetRef);
+  const assetRef = resolveRef(rawAssetRef, args.assetRefNames, args.refPrefix);
 
   if (assetId !== undefined && !args.assetIds.has(assetId)) {
     warnings.push(`Asset ${assetId} does not exist.`);
     return undefined;
   }
-  if (assetId === undefined && (!assetRef || !args.createdAssetRefs.has(assetRef))) {
+  if (assetId === undefined && !assetRef) {
     warnings.push(
-      `No existing assetId, and assetRef "${assetRef ?? ''}" is not created by this plan.`
+      `No existing assetId, and assetRef "${rawAssetRef ?? ''}" is not created by this plan.`
     );
     return undefined;
   }
@@ -458,12 +483,6 @@ function buildAddTransaction(args: BuildArgs) {
   const rawType = asString(record.type)?.toLowerCase();
   if (rawType !== InvestmentType.BUY && rawType !== InvestmentType.SELL) {
     warnings.push(`Transaction type must be buy or sell, got "${rawType ?? ''}".`);
-    return undefined;
-  }
-
-  const totalAmount = asNumber(record.totalAmount);
-  if (totalAmount === undefined || totalAmount <= 0) {
-    warnings.push('Total amount must be a positive number.');
     return undefined;
   }
 
@@ -482,10 +501,35 @@ function buildAddTransaction(args: BuildArgs) {
     warnings.push('Quantity was negative; direction is taken from the transaction type.');
   }
 
-  checkProvenance(totalAmount, 'amount');
-  checkProvenance(quantity, 'quantity');
+  // A tradebook with a per-unit price column has no total to copy, so the model
+  // is asked for the price and the app does the multiplication. Doing it here
+  // keeps arithmetic out of the model and keeps both factors checkable against
+  // the file — the product itself never appears in it.
+  const unitPrice = asNumber(record.unitPrice);
+  const reported = asNumber(record.totalAmount);
+  const derived =
+    unitPrice !== undefined && quantity !== undefined
+      ? Math.round(unitPrice * quantity * 100) / 100
+      : undefined;
+  const totalAmount = reported ?? derived;
 
-  const target = assetId !== undefined ? `asset #${assetId}` : `new asset "${assetRef}"`;
+  if (totalAmount === undefined || totalAmount <= 0) {
+    warnings.push('Needs a positive totalAmount, or a unitPrice and quantity to derive it from.');
+    return undefined;
+  }
+
+  if (isTotalDerivedFromSource(totalAmount, quantity, args.numericTokens)) {
+    // Both factors are in the file and their product is this total — traced.
+    checkProvenance(quantity, 'quantity');
+  } else {
+    checkProvenance(totalAmount, 'amount');
+    checkProvenance(quantity, 'quantity');
+  }
+
+  const target =
+    assetId !== undefined
+      ? `asset #${assetId}`
+      : `new asset "${args.assetRefNames.get(assetRef!)}"`;
   const quantityText = quantity !== undefined ? `${quantity} units, ` : '';
 
   return {
@@ -562,12 +606,12 @@ function buildAddExpense(args: BuildArgs) {
 function buildCreateLoan(args: BuildArgs) {
   const { record, warnings, checkProvenance } = args;
 
-  const ref = asString(record.ref);
+  const rawRef = asString(record.ref);
   const name = asString(record.name);
   const principalAmount = asNumber(record.principalAmount);
   const startDate = parseIsoDate(record.startDate);
 
-  if (!ref || !name) {
+  if (!rawRef || !name) {
     warnings.push('Needs both a ref and a name.');
     return undefined;
   }
@@ -575,6 +619,7 @@ function buildCreateLoan(args: BuildArgs) {
     warnings.push('Needs a principal amount and a valid start date.');
     return undefined;
   }
+  const ref = `${args.refPrefix}${rawRef}`;
 
   checkProvenance(principalAmount, 'principal');
 
@@ -612,15 +657,16 @@ function buildAddLoanPayment(args: BuildArgs) {
   const { record, warnings, checkProvenance } = args;
 
   const loanId = asNumber(record.loanId);
-  const loanRef = asString(record.loanRef);
+  const rawLoanRef = asString(record.loanRef);
+  const loanRef = resolveRef(rawLoanRef, args.loanRefNames, args.refPrefix);
 
   if (loanId !== undefined && !args.loanIds.has(loanId)) {
     warnings.push(`Loan ${loanId} does not exist.`);
     return undefined;
   }
-  if (loanId === undefined && (!loanRef || !args.createdLoanRefs.has(loanRef))) {
+  if (loanId === undefined && !loanRef) {
     warnings.push(
-      `No existing loanId, and loanRef "${loanRef ?? ''}" is not created by this plan.`
+      `No existing loanId, and loanRef "${rawLoanRef ?? ''}" is not created by this plan.`
     );
     return undefined;
   }
@@ -639,7 +685,8 @@ function buildAddLoanPayment(args: BuildArgs) {
 
   checkProvenance(amount, 'amount');
 
-  const target = loanId !== undefined ? `loan #${loanId}` : `new loan "${loanRef}"`;
+  const target =
+    loanId !== undefined ? `loan #${loanId}` : `new loan "${args.loanRefNames.get(loanRef!)}"`;
 
   return {
     operation: {
