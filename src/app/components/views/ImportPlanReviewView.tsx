@@ -31,13 +31,9 @@ const GROUP_LABELS: Record<ImportOperationKind, string> = {
   updateAsset: 'Asset updates',
   deleteAsset: 'Asset deletions',
   addTransaction: 'Transactions',
-  deleteTransaction: 'Transaction deletions',
   addExpense: 'Expenses',
-  updateExpense: 'Expense updates',
-  deleteExpense: 'Expense deletions',
   createLoan: 'New loans',
   addLoanPayment: 'Loan payments',
-  deleteLoanPayment: 'Loan payment deletions',
 };
 
 const FLAG_LABELS: Record<OperationFlag, { label: string; color: 'warning' | 'error' | 'info' }> = {

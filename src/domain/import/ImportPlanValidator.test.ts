@@ -379,15 +379,177 @@ describe('validateImportPlan — duplicates and deletes', () => {
     expect(plan.operations[0].flags).not.toContain('duplicate');
   });
 
-  it('flags every delete as destructive', () => {
+  it('flags an asset deletion as destructive', () => {
+    const plan = validate([{ op: 'deleteAsset', assetId: 12 }]);
+
+    expect(plan.operations).toHaveLength(1);
+    expect(plan.operations[0].flags).toContain('destructive');
+  });
+
+  it.each(['deleteTransaction', 'deleteExpense', 'updateExpense', 'deleteLoanPayment'])(
+    'refuses %s, whose id the model was never shown',
+    op => {
+      const plan = validate([{ op, investmentId: 7, expenseId: 8, paymentId: 9, changes: {} }]);
+
+      expect(plan.operations).toEqual([]);
+      expect(plan.warnings[0]).toContain('not supported');
+    }
+  );
+});
+
+describe('validateImportPlan — refs across the parts of one file', () => {
+  const createWipro = {
+    op: 'createAsset',
+    ref: 'a1',
+    name: 'Wipro',
+    category: 'Stock',
+    currency: 'INR',
+    valueModel: 'MARKET_BASED',
+  };
+  const tradeOnA1 = {
+    op: 'addTransaction',
+    assetRef: 'a1',
+    type: 'buy',
+    quantity: 20,
+    totalAmount: 9000,
+    date: '2024-03-20',
+  };
+
+  function validatePart(
+    operations: unknown[],
+    refPrefix: string,
+    pendingAssets?: Map<string, string>
+  ) {
+    return validateImportPlan({
+      raw: { operations },
+      context: CONTEXT,
+      numericTokens,
+      refPrefix,
+      pendingAssets,
+    });
+  }
+
+  it('namespaces refs so two parts reusing "a1" do not collide', () => {
+    const first = validatePart([createWipro, tradeOnA1], 'p0:');
+    const second = validatePart([{ ...createWipro, name: 'Infosys Ltd' }, tradeOnA1], 'p1:');
+
+    const firstRef = (first.operations[0].operation as { ref: string }).ref;
+    const secondRef = (second.operations[0].operation as { ref: string }).ref;
+
+    expect(firstRef).not.toBe(secondRef);
+    expect(first.operations[1].operation).toMatchObject({ assetRef: firstRef });
+    expect(second.operations[1].operation).toMatchObject({ assetRef: secondRef });
+  });
+
+  it('links to an asset an earlier part already created, instead of needing its own', () => {
+    const plan = validatePart(
+      [{ ...tradeOnA1, assetRef: 'p0:a1' }],
+      'p1:',
+      new Map([['p0:a1', 'Wipro']])
+    );
+
+    expect(plan.warnings).toEqual([]);
+    expect(plan.operations[0].operation).toMatchObject({ assetRef: 'p0:a1' });
+  });
+
+  it('names the asset in the summary rather than the placeholder ref', () => {
+    const plan = validatePart([createWipro, tradeOnA1], 'p0:');
+
+    expect(plan.operations[1].summary).toContain('Wipro');
+    expect(plan.operations[1].summary).not.toContain('p0:a1');
+  });
+
+  it('lists creates before the operations that depend on them', () => {
+    const plan = validatePart([tradeOnA1, createWipro], 'p0:');
+
+    expect(plan.operations.map(item => item.operation.op)).toEqual([
+      'createAsset',
+      'addTransaction',
+    ]);
+  });
+
+  it('drops a transaction whose create was itself rejected', () => {
+    const plan = validatePart(
+      [
+        // FIXED_INCOME with no interestRate fails the shared entity validator.
+        { ...createWipro, valueModel: 'FIXED_INCOME', category: 'Fixed Deposit' },
+        tradeOnA1,
+      ],
+      'p0:'
+    );
+
+    expect(plan.operations).toEqual([]);
+    expect(plan.warnings.join(' ')).toContain('interestRate');
+  });
+});
+
+describe('validateImportPlan — totals derived from a unit price', () => {
+  const PRICE_SOURCE = [
+    'symbol,trade_date,trade_type,quantity,price',
+    'INFY,2024-03-15,buy,10,1450.75',
+  ].join('\n');
+
+  const priceTokens = normalizeSource(PRICE_SOURCE).numericTokens;
+
+  function validatePriced(record: Record<string, unknown>) {
+    return validateImportPlan({
+      raw: {
+        operations: [
+          { op: 'addTransaction', assetId: 12, type: 'buy', date: '2024-03-15', ...record },
+        ],
+      },
+      context: CONTEXT,
+      numericTokens: priceTokens,
+    });
+  }
+
+  it('multiplies a reported unit price by the quantity', () => {
+    const plan = validatePriced({ unitPrice: 1450.75, quantity: 10 });
+
+    expect(plan.operations[0].operation).toMatchObject({ totalAmount: 14507.5, quantity: 10 });
+    expect(plan.operations[0].flags).toEqual([]);
+  });
+
+  it('accepts a total the model multiplied itself, since both factors are in the file', () => {
+    const plan = validatePriced({ totalAmount: 14507.5, quantity: 10 });
+
+    expect(plan.operations[0].flags).toEqual([]);
+  });
+
+  it('still flags a total that is not the product of the factors', () => {
+    const plan = validatePriced({ totalAmount: 14000, quantity: 10 });
+
+    expect(plan.operations[0].flags).toContain('unverified');
+  });
+
+  it('drops a transaction with neither a total nor a price to derive one from', () => {
+    const plan = validatePriced({ quantity: 10 });
+
+    expect(plan.operations).toEqual([]);
+  });
+});
+
+describe('validateImportPlan — asset updates', () => {
+  it('ignores a maturity date the executor could not parse into a Date', () => {
     const plan = validate([
-      { op: 'deleteAsset', assetId: 12 },
-      { op: 'deleteTransaction', investmentId: 7 },
-      { op: 'deleteExpense', expenseId: 8 },
-      { op: 'deleteLoanPayment', paymentId: 9 },
+      {
+        op: 'updateAsset',
+        assetId: 12,
+        changes: { manualValue: 9000, maturityDate: 'next Tuesday' },
+      },
     ]);
 
-    expect(plan.operations).toHaveLength(4);
-    expect(plan.operations.every(op => op.flags.includes('destructive'))).toBe(true);
+    expect(plan.operations[0].operation).toMatchObject({ changes: { maturityDate: undefined } });
+    expect(plan.operations[0].warnings.join(' ')).toContain('next Tuesday');
+  });
+
+  it('keeps a well-formed maturity date', () => {
+    const plan = validate([
+      { op: 'updateAsset', assetId: 12, changes: { maturityDate: '2030-01-01' } },
+    ]);
+
+    expect(plan.operations[0].operation).toMatchObject({
+      changes: { maturityDate: '2030-01-01' },
+    });
   });
 });

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { canonicaliseNumber, isNumberInSource, normalizeSource } from './SourceNormalizer';
+import {
+  canonicaliseNumber,
+  isNumberInSource,
+  isTotalDerivedFromSource,
+  normalizeSource,
+} from './SourceNormalizer';
 
 describe('canonicaliseNumber', () => {
   it.each([
@@ -88,5 +93,44 @@ describe('isNumberInSource', () => {
   it('rejects non-finite values', () => {
     expect(isNumberInSource(Number.NaN, tokens)).toBe(false);
     expect(isNumberInSource(Number.POSITIVE_INFINITY, tokens)).toBe(false);
+  });
+});
+
+describe('number scanning', () => {
+  it('reads a space-grouped European number as one value', () => {
+    const { numericTokens } = normalizeSource('Total 1 234 567,89 EUR');
+
+    expect(isNumberInSource(1234567.89, numericTokens)).toBe(true);
+  });
+
+  it('does not weld two separate numbers in free text into one token', () => {
+    // A space only groups when three digits follow it, so this must not yield 1020 —
+    // a phantom token would let a hallucinated amount pass as traced.
+    const { numericTokens } = normalizeSource('Bought qty 10 at price 20 today');
+
+    expect(isNumberInSource(10, numericTokens)).toBe(true);
+    expect(isNumberInSource(20, numericTokens)).toBe(true);
+    expect(isNumberInSource(1020, numericTokens)).toBe(false);
+  });
+});
+
+describe('isTotalDerivedFromSource', () => {
+  const { numericTokens } = normalizeSource(['symbol,qty,price', 'INFY,10,1450.75'].join('\n'));
+
+  it('accepts a total that is the product of two numbers in the file', () => {
+    expect(isTotalDerivedFromSource(14507.5, 10, numericTokens)).toBe(true);
+  });
+
+  it('rejects a total whose implied unit price is not in the file', () => {
+    expect(isTotalDerivedFromSource(14000, 10, numericTokens)).toBe(false);
+  });
+
+  it('rejects it when the quantity itself is invented', () => {
+    expect(isTotalDerivedFromSource(14507.5, 77, numericTokens)).toBe(false);
+  });
+
+  it('needs a quantity to divide by', () => {
+    expect(isTotalDerivedFromSource(14507.5, undefined, numericTokens)).toBe(false);
+    expect(isTotalDerivedFromSource(14507.5, 0, numericTokens)).toBe(false);
   });
 });
