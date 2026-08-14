@@ -1,0 +1,5 @@
+# pnpm settings (pnpm 10+ no longer reads the "pnpm" field in package.json).
+# Dependency lifecycle scripts are blocked by default; only these may run.
+# esbuild's postinstall links the platform-native binary that Vite builds on.
+allowBuilds:
+  esbuild: true
