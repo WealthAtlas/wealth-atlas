@@ -17,6 +17,8 @@ const DATE_FIELDS: Record<string, readonly string[]> = {
   payments: ['date'],
   goals: ['maturityDate', 'createdAt'],
   allocations: [],
+  settings: [],
+  currencyRates: ['manualUpdatedAt', 'scriptUpdatedAt'],
 };
 
 type LooseRow = Record<string, unknown>;

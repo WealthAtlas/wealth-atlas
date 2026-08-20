@@ -7,6 +7,7 @@ import { IEMI } from '../entities/loans/EMI';
 import { ILoan } from '../entities/loans/Loan';
 import { IPayment } from '../entities/loans/Payment';
 import { isCurrencyCode } from '../entities/shared/Currency';
+import { ICurrencyRate } from '../entities/shared/CurrencyRate';
 import { Frequency } from '../entities/shared/Frequency';
 import { IScheduleBase } from '../entities/shared/AbstractSchedule';
 import { ValidationIssue } from './ValidationIssue';
@@ -178,6 +179,27 @@ export function validatePayment(payment: IPayment): ValidationIssue[] {
   }
   if (!payment.loanId) {
     issues.push({ field: 'loanId', message: 'Payment must belong to a loan' });
+  }
+
+  return issues;
+}
+
+export function validateCurrencyRate(rate: ICurrencyRate): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  validateCurrency(rate.code, issues);
+
+  const hasManual = rate.manualPerUnitInBase !== undefined;
+  const hasScript = Boolean(rate.script && rate.script.trim() !== '');
+
+  if (hasManual && !isPositiveNumber(rate.manualPerUnitInBase)) {
+    issues.push({ field: 'manualPerUnitInBase', message: 'Rate must be greater than 0' });
+  }
+  if (!hasManual && !hasScript) {
+    issues.push({
+      field: 'manualPerUnitInBase',
+      message: 'Enter a rate or a script that fetches one',
+    });
   }
 
   return issues;
