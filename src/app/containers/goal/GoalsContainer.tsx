@@ -1,3 +1,4 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { GoalsPage } from '@/app/components/pages/GoalsPage';
 import { Goal } from '@/domain/entities/goals/Goal';
 import { GoalService } from '@/domain/services/GoalService';
@@ -5,6 +6,7 @@ import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
 
 export function GoalsContainer() {
+  const { converter, baseCurrency } = useCurrency();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [showAddGoal, setShowAddGoal] = React.useState(false);
   const goalService = React.useMemo(() => new GoalService(), []);
@@ -32,9 +34,14 @@ export function GoalsContainer() {
 
   // Calculate goal-level metrics
   const goalMetrics = React.useMemo(() => {
-    const totalTargetAmount = goals.reduce((sum, goal) => sum + goal.targetAmount, 0);
+    // Targets are authored in each goal's own currency and progress comes from
+    // assets in theirs, so both sides convert to the base currency.
+    const totalTargetAmount = goals.reduce(
+      (sum, goal) => sum + converter.toBase(goal.targetAmount, goal.currency),
+      0
+    );
     const totalInflationAdjustedTarget = goals.reduce(
-      (sum, goal) => sum + goal.getInflationAdjustedTarget(),
+      (sum, goal) => sum + converter.toBase(goal.getInflationAdjustedTarget(), goal.currency),
       0
     );
 
@@ -42,7 +49,8 @@ export function GoalsContainer() {
     const totalCurrentValue = goals.reduce((sum, goal) => {
       const goalCurrentValue = goal.allocations.reduce((allocSum, allocation) => {
         const assetValue = allocation.asset.getValue() || 0;
-        return allocSum + (assetValue * allocation.allocationPercentage) / 100;
+        const allocatedValue = (assetValue * allocation.allocationPercentage) / 100;
+        return allocSum + converter.toBase(allocatedValue, allocation.asset.currency);
       }, 0);
       return sum + goalCurrentValue;
     }, 0);
@@ -57,8 +65,13 @@ export function GoalsContainer() {
       totalInflationAdjustedTarget,
       totalCurrentValue,
       averageYearsToMaturity,
+      currency: baseCurrency,
+      unratedCurrencies: converter.getUnratedCurrencies([
+        ...goals.map(goal => goal.currency),
+        ...goals.flatMap(goal => goal.allocations.map(allocation => allocation.asset.currency)),
+      ]),
     };
-  }, [goals]);
+  }, [goals, converter, baseCurrency]);
 
   useEffect(() => {
     loadGoals();

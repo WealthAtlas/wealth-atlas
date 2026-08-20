@@ -1,3 +1,5 @@
+import { Currency } from '@/domain/entities/shared/Currency';
+import { CurrencyConverter } from '@/domain/entities/shared/CurrencyConverter';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import {
   BarPlot,
@@ -10,141 +12,81 @@ import {
 } from '@mui/x-charts';
 import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
-import { Currency } from '../../../domain/entities/shared/Currency';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface ExpenseChartProps {
   monthlyExpenses: MonthlyExpense[];
+  /**
+   * Every bar is in the base currency. The chart used to carry one stack per
+   * currency, which made a month's spend impossible to read off at a glance.
+   */
+  currency: Currency;
+  converter: CurrencyConverter;
 }
 
-export function ExpenseChart(props: ExpenseChartProps) {
+const ESSENTIAL_KEY = 'essential';
+const NON_ESSENTIAL_KEY = 'nonEssential';
+const AVERAGE_KEY = 'average';
+
+export function ExpenseChart({ monthlyExpenses, currency, converter }: ExpenseChartProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const getCurrencyColor = React.useCallback(
-    (_currency: Currency, index: number) => {
-      const colors = [
-        {
-          essential: theme.palette.primary.main,
-          nonEssential: theme.palette.primary.light,
-        },
-        {
-          essential: theme.palette.secondary.main,
-          nonEssential: theme.palette.secondary.light,
-        },
-        {
-          essential: theme.palette.success.main,
-          nonEssential: theme.palette.success.light,
-        },
-        {
-          essential: theme.palette.warning.main,
-          nonEssential: theme.palette.warning.light,
-        },
-        {
-          essential: theme.palette.error.main,
-          nonEssential: theme.palette.error.light,
-        },
-        {
-          essential: theme.palette.info.main,
-          nonEssential: theme.palette.info.light,
-        },
-      ];
-      return colors[index % colors.length];
-    },
-    [theme]
-  );
+  const monthLabel = React.useCallback((month: Date): string => {
+    return new Date(month).toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' });
+  }, []);
 
   const chartData = React.useMemo(() => {
     const months = Array.from(
-      new Set(
-        props.monthlyExpenses.map(d => {
-          const date = new Date(d.month);
-          return date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' });
-        })
-      )
+      new Set(monthlyExpenses.map(expense => monthLabel(expense.month)))
     ).sort();
-
-    const currencies = Array.from(
-      new Set(props.monthlyExpenses.flatMap(d => d.getUniqueCurrencies()))
-    ).sort();
-
     const displayMonths = isMobile ? months.slice(-3) : months.slice(-12);
 
-    const barSeries: Array<{
-      dataKey: string;
-      label: string;
-      stack: string;
-      color: string;
-      type: 'bar';
-    }> = [];
+    // The average spans every month on record, not just the displayed window,
+    // so a narrow mobile view does not move the reference line.
+    const monthlyTotals = monthlyExpenses.map(monthData => monthData.getTotalAmount(converter));
+    const average = monthlyTotals.length
+      ? monthlyTotals.reduce((sum, amount) => sum + amount, 0) / monthlyTotals.length
+      : 0;
 
-    const lineSeries: Array<{
-      dataKey: string;
-      label: string;
-      color: string;
-      type: 'line';
-    }> = [];
-
-    const data: Array<Record<string, number | string>> = displayMonths.map(month => ({ month }));
-
-    // Calculate averages for each currency across all available data
-    const currencyAverages: Record<string, number> = {};
-    currencies.forEach(currency => {
-      const totalAmounts = props.monthlyExpenses.map(
-        monthData =>
-          (monthData.getEssentialAmountByCurrency(currency) || 0) +
-          (monthData.getNonEssentialAmountByCurrency(currency) || 0)
-      );
-      currencyAverages[currency] =
-        totalAmounts.reduce((sum, amount) => sum + amount, 0) / totalAmounts.length;
+    const data = displayMonths.map(month => {
+      const monthData = monthlyExpenses.find(expense => monthLabel(expense.month) === month);
+      return {
+        month,
+        [ESSENTIAL_KEY]: monthData?.getEssentialAmount(converter) ?? 0,
+        [NON_ESSENTIAL_KEY]: monthData?.getNonEssentialAmount(converter) ?? 0,
+        [AVERAGE_KEY]: average,
+      };
     });
 
-    currencies.forEach((currency, currencyIndex) => {
-      const currencyColor = getCurrencyColor(currency, currencyIndex);
+    const barSeries = [
+      {
+        dataKey: ESSENTIAL_KEY,
+        label: 'Essential',
+        stack: 'total',
+        color: theme.palette.primary.main,
+        type: 'bar' as const,
+      },
+      {
+        dataKey: NON_ESSENTIAL_KEY,
+        label: 'Non-essential',
+        stack: 'total',
+        color: theme.palette.primary.light,
+        type: 'bar' as const,
+      },
+    ];
 
-      const essentialKey = `${currency}_essential`;
-      const nonEssentialKey = `${currency}_nonEssential`;
-      const averageKey = `${currency}_average`;
-
-      barSeries.push({
-        dataKey: essentialKey,
-        label: `🔵 Essential (${currency})`, // Added emoji for visual distinction
-        stack: `${currency}`,
-        color: currencyColor.essential,
-        type: 'bar',
-      });
-
-      barSeries.push({
-        dataKey: nonEssentialKey,
-        label: `⚪ Non-Essential (${currency})`, // Added emoji for visual distinction
-        stack: `${currency}`,
-        color: currencyColor.nonEssential,
-        type: 'bar',
-      });
-
-      // Add average line series
-      lineSeries.push({
-        dataKey: averageKey,
-        label: `Avg Total (${currency})`, // Improved label format
-        color: theme.palette.grey[600], // More neutral color for average lines
-        type: 'line',
-      });
-
-      data.forEach(item => {
-        const monthData = props.monthlyExpenses.find(d => {
-          const date = new Date(d.month);
-          return (
-            date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }) === item.month
-          );
-        });
-
-        item[essentialKey] = monthData?.getEssentialAmountByCurrency(currency) || 0;
-        item[nonEssentialKey] = monthData?.getNonEssentialAmountByCurrency(currency) || 0;
-        item[averageKey] = currencyAverages[currency];
-      });
-    });
+    const lineSeries = [
+      {
+        dataKey: AVERAGE_KEY,
+        label: 'Average total',
+        color: theme.palette.grey[600],
+        type: 'line' as const,
+      },
+    ];
 
     return { data, barSeries, lineSeries, displayMonths };
-  }, [props, isMobile, getCurrencyColor, theme.palette.grey]);
+  }, [monthlyExpenses, converter, isMobile, monthLabel, theme.palette]);
 
   const formatMonthLabel = React.useCallback(
     (month: string) => {
@@ -157,7 +99,6 @@ export function ExpenseChart(props: ExpenseChartProps) {
     [isMobile]
   );
 
-  // Custom tooltip formatter
   const tooltipFormatter = React.useCallback(
     (params: {
       dataIndex?: number;
@@ -179,38 +120,29 @@ export function ExpenseChart(props: ExpenseChartProps) {
           }}
         >
           <Box sx={{ fontWeight: 'bold', mb: 1 }}>{month}</Box>
-          {params.series?.map(
-            (
-              serie: { value: number; color: string; label: string; type: string },
-              index: number
-            ) => {
-              if (serie.value === 0) return null;
+          {params.series?.map((serie, index: number) => {
+            if (serie.value === 0) return null;
 
-              const isLine = serie.type === 'line';
-              const currency = serie.label.match(/\(([^)]+)\)/)?.[1] || '';
-              const type = serie.label.split(' (')[0];
-
-              return (
-                <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                  <Box
-                    sx={{
-                      width: 12,
-                      height: 12,
-                      bgcolor: serie.color,
-                      borderRadius: isLine ? '50%' : 0,
-                    }}
-                  />
-                  <Box>
-                    {type}: {currency} {serie.value?.toLocaleString()}
-                  </Box>
+            return (
+              <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    bgcolor: serie.color,
+                    borderRadius: serie.type === 'line' ? '50%' : 0,
+                  }}
+                />
+                <Box>
+                  {serie.label}: {UIUtils.formatCurrency(serie.value, currency)}
                 </Box>
-              );
-            }
-          )}
+              </Box>
+            );
+          })}
         </Box>
       );
     },
-    [chartData.data, formatMonthLabel]
+    [chartData.data, formatMonthLabel, currency]
   );
 
   if (chartData.data.length === 0) {
@@ -229,16 +161,14 @@ export function ExpenseChart(props: ExpenseChartProps) {
     );
   }
 
-  // Calculate minimum width needed for the chart based on number of months and unique currencies
-  const uniqueCurrencies = Array.from(new Set(chartData.barSeries.map(s => s.stack)));
-  const minChartWidth = chartData.displayMonths.length * (uniqueCurrencies.length * 80);
+  const minChartWidth = chartData.displayMonths.length * 80;
   const chartWidth = Math.max(minChartWidth, isMobile ? 350 : 800);
 
   return (
     <Box
       sx={{
         width: '100%',
-        height: isMobile ? 350 : 500, // Increased height to accommodate legend
+        height: isMobile ? 350 : 500,
         overflowX: 'auto',
       }}
     >
@@ -262,7 +192,7 @@ export function ExpenseChart(props: ExpenseChartProps) {
             left: 80,
             right: 30,
             top: 30,
-            bottom: 100, // Increased bottom margin for legend
+            bottom: 100,
           }}
         >
           <BarPlot />

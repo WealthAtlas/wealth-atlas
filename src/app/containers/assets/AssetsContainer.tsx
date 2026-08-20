@@ -1,3 +1,4 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { AssetsPage } from '@/app/components/pages/AssetsPage';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetService } from '@/domain/services/AssetService';
@@ -6,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ExportPortfolioContainer } from './ExportPortfolioContainer';
 
 export function AssetsContainer() {
+  const { converter, baseCurrency } = useCurrency();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [showAddAsset, setShowAddAsset] = React.useState(false);
   const [showExportDialog, setShowExportDialog] = React.useState(false);
@@ -32,10 +34,17 @@ export function AssetsContainer() {
     [assetService, loadAssets]
   );
 
-  // Calculate portfolio-level metrics
+  // Portfolio-level metrics span assets in different currencies, so each one is
+  // converted into the base currency before it is summed.
   const portfolioMetrics = React.useMemo(() => {
-    const totalValue = assets.reduce((sum, asset) => sum + (asset.getValue() || 0), 0);
-    const totalInvested = assets.reduce((sum, asset) => sum + asset.getTotalInvestedAmount(), 0);
+    const totalValue = assets.reduce(
+      (sum, asset) => sum + converter.toBase(asset.getValue() || 0, asset.currency),
+      0
+    );
+    const totalInvested = assets.reduce(
+      (sum, asset) => sum + converter.toBase(asset.getTotalInvestedAmount(), asset.currency),
+      0
+    );
     const totalProfitLoss = totalValue - totalInvested;
 
     return {
@@ -43,8 +52,10 @@ export function AssetsContainer() {
       totalInvested,
       totalProfitLoss,
       totalProfitLossPercentage: totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0,
+      currency: baseCurrency,
+      unratedCurrencies: converter.getUnratedCurrencies(assets.map(asset => asset.currency)),
     };
-  }, [assets]);
+  }, [assets, converter, baseCurrency]);
 
   useEffect(() => {
     loadAssets();

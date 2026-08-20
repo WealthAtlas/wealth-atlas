@@ -1,10 +1,12 @@
 import { ExpensesPage } from '@/app/components/pages/ExpensePage';
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { MonthlyExpense } from '@/domain/entities/expenses/MonthlyExpense';
 import { ExpenseService } from '@/domain/services/ExpenseService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
 
 export function ExpensesContainer() {
+  const { converter, baseCurrency } = useCurrency();
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpense[]>([]);
   const [showAddExpense, setShowAddExpense] = React.useState(false);
   const expenseService = React.useMemo(() => new ExpenseService(), []);
@@ -38,6 +40,8 @@ export function ExpensesContainer() {
     <>
       <ExpensesPage
         monthlyExpenses={monthlyExpenses}
+        currency={baseCurrency}
+        converter={converter}
         showAddExpense={showAddExpense}
         setShowAddExpense={setShowAddExpense}
         deleteExpense={deleteExpense}

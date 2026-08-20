@@ -1,4 +1,5 @@
 import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
+import { CurrencyConverter } from '@/domain/entities/shared/CurrencyConverter';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { Goal, IGoal } from '@/domain/entities/goals/Goal';
 import { AccountBalance, Add, Delete, TrendingUp } from '@mui/icons-material';
@@ -32,6 +33,12 @@ import { Logger } from '../../../domain/utils/Logger';
 export interface GoalFormDialogProps {
   goal?: Goal;
   availableAssets: Asset[];
+  /**
+   * Allocated assets can be in a different currency from the goal being
+   * authored, so their values are translated into the goal's currency before
+   * they are summed or compared against the target.
+   */
+  converter: CurrencyConverter;
   open: boolean;
   onClose: () => void;
   onSave: (
@@ -58,6 +65,7 @@ const steps = ['Basic Details', 'Asset Allocation', 'Review & Save'];
 export function GoalFormDialog({
   goal,
   availableAssets,
+  converter,
   open,
   onClose,
   onSave,
@@ -109,7 +117,11 @@ export function GoalFormDialog({
       const asset = availableAssets.find(a => a.id === allocation.assetId);
       if (!asset) return sum;
 
-      const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
+      const assetValue = converter.convert(
+        asset.getValueOn(goal!.maturityDate, true) || 0,
+        asset.currency,
+        currency
+      );
       return sum + (assetValue * allocation.percentage) / 100;
     }, 0);
 
@@ -145,7 +157,16 @@ export function GoalFormDialog({
       yearsToGoal,
       monthlyRequiredSIP,
     };
-  }, [targetAmount, maturityDate, inflationRate, assetAllocations, availableAssets, goal]);
+  }, [
+    targetAmount,
+    maturityDate,
+    inflationRate,
+    assetAllocations,
+    availableAssets,
+    goal,
+    converter,
+    currency,
+  ]);
 
   const resetForm = () => {
     setActiveStep(0);
@@ -211,7 +232,11 @@ export function GoalFormDialog({
   const totalAllocatedAmount = assetAllocations.reduce((sum, allocation) => {
     const asset = availableAssets.find(a => a.id === allocation.assetId);
     if (!asset) return sum;
-    const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
+    const assetValue = converter.convert(
+      asset.getValueOn(goal!.maturityDate, true) || 0,
+      asset.currency,
+      currency
+    );
     return sum + (assetValue * allocation.percentage) / 100;
   }, 0);
 
@@ -371,7 +396,9 @@ export function GoalFormDialog({
 
       {assetAllocations.map((allocation, index) => {
         const asset = availableAssets.find(a => a.id === allocation.assetId);
-        const assetValue = asset?.getValue() || 0;
+        const assetValue = asset
+          ? converter.convert(asset.getValue() || 0, asset.currency, currency)
+          : 0;
         const allocatedValue = (assetValue * allocation.percentage) / 100;
 
         return (
@@ -591,7 +618,11 @@ export function GoalFormDialog({
         const asset = availableAssets.find(a => a.id === allocation.assetId);
         if (!asset) return null;
 
-        const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
+        const assetValue = converter.convert(
+          asset.getValueOn(goal!.maturityDate, true) || 0,
+          asset.currency,
+          currency
+        );
         const allocatedValue = (assetValue * allocation.percentage) / 100;
 
         return (

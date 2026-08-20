@@ -1,15 +1,24 @@
-import { getCurrencySymbol } from '@/domain/entities/shared/Currency';
+import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
 
 export class UIUtils {
   static formatMonth(month: Date): string {
     return month.toLocaleString('default', { month: 'long', year: 'numeric' });
   }
 
-  public static formatCurrency(amount: number | undefined, currency?: string): string {
+  /**
+   * `currency` is required on purpose. It used to be optional and defaulted to
+   * the rupee symbol, which is how cross-currency totals ended up rendered as
+   * INR — the compiler now refuses any amount whose currency the caller cannot
+   * name.
+   */
+  public static formatCurrency(amount: number | undefined, currency: string): string {
     if (amount === undefined) return 'N/A';
 
-    // Format in Indian numbering system for INR, otherwise use standard formatting
-    return `${getCurrencySymbol(currency)}${amount.toLocaleString('en-IN')}`;
+    // Indian numbering system for INR, standard grouping for everything else.
+    const locale = currency === Currency.INR ? 'en-IN' : 'en-US';
+    return `${getCurrencySymbol(currency)}${amount.toLocaleString(locale, {
+      maximumFractionDigits: 2,
+    })}`;
   }
 
   public static formatPercentage(percentage: number | undefined): string {

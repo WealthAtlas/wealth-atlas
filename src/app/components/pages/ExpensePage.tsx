@@ -1,6 +1,8 @@
 import { Add as AddIcon } from '@mui/icons-material';
 import { Box, Card, CardContent, Fab, List, Typography } from '@mui/material';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
+import { Currency } from '../../../domain/entities/shared/Currency';
+import { CurrencyConverter } from '../../../domain/entities/shared/CurrencyConverter';
 import { ExpenseFormContainer } from '../../containers/expense/ExpenseFormContainer';
 import { MonthlyExpenseViewContainer } from '../../containers/expense/MonthlyExpenseViewContainer';
 import { ExpenseCategoryChart } from '../views/ExpenseCategoryChart';
@@ -8,6 +10,8 @@ import { ExpenseChart } from '../views/MonthlyExpenseChart';
 
 export interface ExpensesPageProps {
   monthlyExpenses: MonthlyExpense[];
+  currency: Currency;
+  converter: CurrencyConverter;
   showAddExpense: boolean;
   setShowAddExpense: (show: boolean) => void;
   deleteExpense: (id: number) => void;
@@ -16,6 +20,8 @@ export interface ExpensesPageProps {
 
 export function ExpensesPage({
   monthlyExpenses,
+  currency,
+  converter,
   showAddExpense,
   setShowAddExpense,
   deleteExpense,
@@ -41,7 +47,11 @@ export function ExpensesPage({
             <Typography variant="h6" gutterBottom>
               Monthly Expense Trends
             </Typography>
-            <ExpenseChart monthlyExpenses={monthlyExpenses} />
+            <ExpenseChart
+              monthlyExpenses={monthlyExpenses}
+              currency={currency}
+              converter={converter}
+            />
           </CardContent>
         </Card>
 
@@ -50,7 +60,11 @@ export function ExpensesPage({
             <Typography variant="h6" gutterBottom>
               Expense Categories
             </Typography>
-            <ExpenseCategoryChart monthlyExpenses={monthlyExpenses} />
+            <ExpenseCategoryChart
+              monthlyExpenses={monthlyExpenses}
+              currency={currency}
+              converter={converter}
+            />
           </CardContent>
         </Card>
 

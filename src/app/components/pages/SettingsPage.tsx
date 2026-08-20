@@ -31,6 +31,7 @@ import {
   Typography,
 } from '@mui/material';
 import { AiProviderSettingsContainer } from '@/app/containers/settings/AiProviderSettingsContainer';
+import { CurrencySettingsContainer } from '@/app/containers/settings/CurrencySettingsContainer';
 import { useState } from 'react';
 import { Logger } from '../../../domain/utils/Logger';
 
@@ -355,6 +356,8 @@ export function SettingsPage(props: SettingsPageProps) {
         </Paper>
 
         {/* AI Import provider configuration */}
+        <CurrencySettingsContainer />
+
         <AiProviderSettingsContainer />
 
         {/* Local Backup Section */}
