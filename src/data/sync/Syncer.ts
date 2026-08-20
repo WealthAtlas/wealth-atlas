@@ -14,6 +14,7 @@ import { db } from '../database';
 import { rehydrateSnapshotDates } from '../migrations/rehydrateDates';
 import { upgradeSnapshotDataToV4 } from '../migrations/v4';
 import { upgradeSnapshotDataToV5 } from '../migrations/v5';
+import { upgradeSnapshotDataToV6 } from '../migrations/v6';
 import { buildSyncApiUrl } from './config';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
@@ -92,8 +93,9 @@ async function fetchRemoteVersion(keyId: string): Promise<number | undefined> {
  *     stored as ISO code rather than symbol.
  * v10: adds the `settings` singleton (base currency) and `currencyRates`. New
  *     tables only, so an older snapshot just needs the settings seed.
+ * v11: settings.currencies — the configurable currency list.
  */
-const SNAPSHOT_VERSION = 10;
+const SNAPSHOT_VERSION = 11;
 const OLDEST_SUPPORTED_SNAPSHOT_VERSION = 8;
 
 function getSchemaVersion(): number {
@@ -131,6 +133,9 @@ function upgradeSnapshot(snapshot: Snapshot): Snapshot {
   }
   if (snapshot.schemaVersion < 10) {
     upgradeSnapshotDataToV5(data);
+  }
+  if (snapshot.schemaVersion < 11) {
+    upgradeSnapshotDataToV6(data);
   }
   Logger.info(`Upgraded sync snapshot from v${snapshot.schemaVersion} to v${SNAPSHOT_VERSION}`);
   return { ...snapshot, schemaVersion: SNAPSHOT_VERSION };

@@ -12,6 +12,7 @@ import { applyImportPlan } from '../import/ImportPlanExecutor';
 import { validateImportPlan } from '../import/ImportPlanValidator';
 import { buildSystemPrompt, buildUserPrompt } from '../import/ImportPromptBuilder';
 import { normalizeSource } from '../import/SourceNormalizer';
+import { Currency } from '../entities/shared/Currency';
 import { Logger } from '../utils/Logger';
 import { AssetService } from './AssetService';
 import { ExpenseService } from './ExpenseService';
@@ -111,7 +112,17 @@ export class DataImportService {
     return getProviderHost();
   }
 
-  public async buildPlan(source: ImportSource, signal?: AbortSignal): Promise<ImportPlan> {
+  /**
+   * `currencies` is the configured list, so the model is told about a currency
+   * the user added. It comes from the caller rather than being read here: the UI
+   * already holds it, and reaching for it mid-import would put a database read
+   * behind every prompt.
+   */
+  public async buildPlan(
+    source: ImportSource,
+    signal?: AbortSignal,
+    currencies?: Currency[]
+  ): Promise<ImportPlan> {
     const normalized = normalizeSource(source.text);
     if (normalized.text === '') {
       return { operations: [], warnings: ['The file was empty.'], sourceSummary: '' };
@@ -122,7 +133,7 @@ export class DataImportService {
     const hasHeader = normalized.looksTabular;
     const { chunks, truncated } = splitIntoChunks(normalized.text, budget, hasHeader);
 
-    const system = buildSystemPrompt();
+    const system = buildSystemPrompt(currencies);
     const planWarnings: string[] = [];
     const operations: ValidatedOperation[] = [];
     const summaries: string[] = [];

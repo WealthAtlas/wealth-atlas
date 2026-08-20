@@ -1,4 +1,4 @@
-import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
+import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import { CurrencyConverter } from '@/domain/entities/shared/CurrencyConverter';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { Goal, IGoal } from '@/domain/entities/goals/Goal';
@@ -27,12 +27,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Logger } from '../../../domain/utils/Logger';
 
 export interface GoalFormDialogProps {
   goal?: Goal;
   availableAssets: Asset[];
+  /** Codes the user has configured; the picker offers these. */
+  currencies: Currency[];
   /**
    * Allocated assets can be in a different currency from the goal being
    * authored, so their values are translated into the goal's currency before
@@ -65,6 +67,7 @@ const steps = ['Basic Details', 'Asset Allocation', 'Review & Save'];
 export function GoalFormDialog({
   goal,
   availableAssets,
+  currencies,
   converter,
   open,
   onClose,
@@ -75,9 +78,19 @@ export function GoalFormDialog({
   const [targetAmount, setTargetAmount] = useState<number>(0);
   const [maturityDate, setMaturityDate] = useState('');
   const [inflationRate, setInflationRate] = useState<number>(6); // Default 6%
-  const [currency, setCurrency] = useState<Currency>(Currency.INR);
+  const [currency, setCurrency] = useState<Currency>(converter.getBaseCurrency());
   const [assetAllocations, setAssetAllocations] = useState<AssetAllocation[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const resetForm = useCallback(() => {
+    setActiveStep(0);
+    setName('');
+    setTargetAmount(0);
+    setMaturityDate('');
+    setInflationRate(6);
+    setCurrency(converter.getBaseCurrency());
+    setAssetAllocations([]);
+  }, [converter]);
 
   useEffect(() => {
     if (goal) {
@@ -95,7 +108,7 @@ export function GoalFormDialog({
     } else {
       resetForm();
     }
-  }, [goal, open, availableAssets]);
+  }, [goal, open, availableAssets, resetForm]);
 
   // Calculate progress metrics based on current form values
   const progressMetrics = useMemo((): ProgressMetrics => {
@@ -167,16 +180,6 @@ export function GoalFormDialog({
     converter,
     currency,
   ]);
-
-  const resetForm = () => {
-    setActiveStep(0);
-    setName('');
-    setTargetAmount(0);
-    setMaturityDate('');
-    setInflationRate(6);
-    setCurrency(Currency.INR);
-    setAssetAllocations([]);
-  };
 
   const handleNext = () => {
     setActiveStep(prev => prev + 1);
@@ -301,9 +304,9 @@ export function GoalFormDialog({
             onChange={e => setCurrency(e.target.value as Currency)}
             label="Currency"
           >
-            {Object.values(Currency).map(code => (
+            {currencies.map(code => (
               <MenuItem key={code} value={code}>
-                {code} - {CURRENCY_SYMBOLS[code]}
+                {code} - {getCurrencySymbol(code)}
               </MenuItem>
             ))}
           </Select>

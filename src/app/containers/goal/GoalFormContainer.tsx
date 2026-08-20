@@ -14,7 +14,7 @@ export interface GoalFormContainerProps {
 }
 
 export function GoalFormContainer({ goalToEdit, open, onClose }: GoalFormContainerProps) {
-  const { converter } = useCurrency();
+  const { converter, currencies } = useCurrency();
   const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
   const goalService = React.useMemo(() => new GoalService(), []);
   const assetService = React.useMemo(() => new AssetService(), []);
@@ -54,6 +54,7 @@ export function GoalFormContainer({ goalToEdit, open, onClose }: GoalFormContain
 
   return (
     <GoalFormDialog
+      currencies={currencies}
       goal={goalToEdit}
       availableAssets={availableAssets}
       converter={converter}

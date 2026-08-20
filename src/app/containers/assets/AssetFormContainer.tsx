@@ -1,7 +1,7 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { AssetFormDialog } from '@/app/components/dialogs/AssetFormDialog';
 import { Asset, IAsset } from '@/domain/entities/assets/Asset';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
-import { Currency } from '@/domain/entities/shared/Currency';
 import { AssetService } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useEffect, useState } from 'react';
@@ -13,13 +13,14 @@ export interface AssetFormContainer {
 }
 
 export function AssetFormContainer({ open, assetToEdit, onClose }: AssetFormContainer) {
+  const { baseCurrency, currencies } = useCurrency();
   const initialAsset: IAsset = React.useMemo(
     () => ({
       id: assetToEdit?.id,
       name: assetToEdit?.name || '',
       description: assetToEdit?.description || '',
       category: assetToEdit?.category || '',
-      currency: assetToEdit?.currency || Currency.INR,
+      currency: assetToEdit?.currency || baseCurrency,
       manualValue: assetToEdit?.manualValue || undefined,
       manualValueUpdatedAt: assetToEdit?.manualValueUpdatedAt || undefined,
       script: assetToEdit?.script || undefined,
@@ -30,7 +31,7 @@ export function AssetFormContainer({ open, assetToEdit, onClose }: AssetFormCont
       maturityDate: assetToEdit?.maturityDate || undefined,
       valueModel: assetToEdit?.valueModel || ValueModel.MARKET_BASED,
     }),
-    [assetToEdit]
+    [assetToEdit, baseCurrency]
   );
 
   const [asset, setAsset] = useState<IAsset>(initialAsset);
@@ -49,6 +50,7 @@ export function AssetFormContainer({ open, assetToEdit, onClose }: AssetFormCont
 
   return (
     <AssetFormDialog
+      currencies={currencies}
       open={open}
       title={title}
       asset={asset}

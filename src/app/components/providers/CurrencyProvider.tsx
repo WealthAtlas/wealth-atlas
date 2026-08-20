@@ -1,3 +1,4 @@
+import { Currency, DEFAULT_CURRENCIES } from '@/domain/entities/shared/Currency';
 import { CurrencyConverter } from '@/domain/entities/shared/CurrencyConverter';
 import { DEFAULT_BASE_CURRENCY } from '@/domain/entities/shared/Settings';
 import { CurrencyService } from '@/domain/services/CurrencyService';
@@ -16,10 +17,12 @@ import { useNotification } from './NotificationContext';
  */
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const { notify } = useNotification();
-  const [converter, setConverter] = useState<CurrencyConverter | undefined>();
+  const [state, setState] = useState<
+    { converter: CurrencyConverter; currencies: Currency[] } | undefined
+  >();
 
   const load = useCallback(async (): Promise<void> => {
-    setConverter(await new CurrencyService().getConverter({ skipRateUpdate: true }));
+    setState(await new CurrencyService().getCurrencyState({ skipRateUpdate: true }));
   }, []);
 
   const reload = useCallback(async () => {
@@ -43,7 +46,13 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       // Falling back to an empty converter keeps the app usable: unconvertible
       // holdings read as zero and every total says so, which beats a blank
       // screen with no way to reach Settings and fix it.
-      setConverter(current => current ?? new CurrencyConverter(DEFAULT_BASE_CURRENCY, new Map()));
+      setState(
+        current =>
+          current ?? {
+            converter: new CurrencyConverter(DEFAULT_BASE_CURRENCY, new Map()),
+            currencies: [...DEFAULT_CURRENCIES],
+          }
+      );
     });
 
     return () => {
@@ -53,8 +62,15 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () =>
-      converter ? { converter, baseCurrency: converter.getBaseCurrency(), reload } : undefined,
-    [converter, reload]
+      state
+        ? {
+            converter: state.converter,
+            currencies: state.currencies,
+            baseCurrency: state.converter.getBaseCurrency(),
+            reload,
+          }
+        : undefined,
+    [state, reload]
   );
 
   if (!value) return null;

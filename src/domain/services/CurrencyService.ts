@@ -3,8 +3,9 @@ import { CurrencyRateRepository } from '@/data/repositories/settings/CurrencyRat
 import { SettingsRepository } from '@/data/repositories/settings/SettingsRepository';
 import { Currency } from '../entities/shared/Currency';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
+import { CurrencyConfig } from '../entities/shared/CurrencyConfig';
 import { CurrencyRate, ICurrencyRate } from '../entities/shared/CurrencyRate';
-import { ISettings } from '../entities/shared/Settings';
+import { ISettings, normaliseCurrencies } from '../entities/shared/Settings';
 import { Logger } from '../utils/Logger';
 import { executeValueScript } from '../utils/ScriptExecutor';
 
@@ -41,6 +42,76 @@ export class CurrencyService {
 
   public async getBaseCurrency(): Promise<Currency> {
     return (await this.settingsRepository.get()).baseCurrency;
+  }
+
+  /** The codes this user's data may use. Always includes the base currency. */
+  public async getCurrencies(): Promise<Currency[]> {
+    const settings = await this.settingsRepository.get();
+    return normaliseCurrencies(settings.currencies, settings.baseCurrency);
+  }
+
+  /**
+   * Everything a render needs, read together so the converter and the currency
+   * pickers can never disagree about the base currency.
+   */
+  public async getCurrencyState(
+    options: { skipRateUpdate?: boolean } = {}
+  ): Promise<{ converter: CurrencyConverter; currencies: Currency[] }> {
+    if (!options.skipRateUpdate) {
+      await this.updateRates();
+    }
+
+    const settings = await this.settingsRepository.get();
+    const rates = await this.getRates();
+
+    return {
+      converter: this.buildConverter(settings.baseCurrency, rates),
+      currencies: normaliseCurrencies(settings.currencies, settings.baseCurrency),
+    };
+  }
+
+  /**
+   * Replaces the currency list and every rate in one go — the shape the JSON
+   * editor in Settings saves. Rates for currencies that are no longer configured
+   * are deleted rather than left behind to reappear if the code is re-added.
+   */
+  public async saveConfig(config: CurrencyConfig): Promise<ISettings> {
+    const current = await this.settingsRepository.get();
+    const currencies = normaliseCurrencies(config.currencies, current.baseCurrency);
+
+    return await withTransaction(async () => {
+      const existing = await this.currencyRateRepository.getAll();
+
+      for (const rate of existing) {
+        const stillConfigured = config.rates.some(candidate => candidate.code === rate.code);
+        if (!stillConfigured && rate.id !== undefined) {
+          await this.currencyRateRepository.delete(rate.id);
+        }
+      }
+
+      for (const rate of config.rates) {
+        const previous = existing.find(candidate => candidate.code === rate.code);
+        const manualChanged = rate.perUnitInBase !== previous?.manualPerUnitInBase;
+        await this.currencyRateRepository.save({
+          id: previous?.id,
+          code: rate.code,
+          manualPerUnitInBase: rate.perUnitInBase,
+          // A hand-entered rate only wins over the last script run if it is the
+          // more recent of the two, so an edited number is stamped now.
+          manualUpdatedAt:
+            rate.perUnitInBase !== undefined && manualChanged
+              ? new Date()
+              : previous?.manualUpdatedAt,
+          script: rate.script,
+          // A rewritten script invalidates the value the old one produced.
+          scriptPerUnitInBase:
+            rate.script === previous?.script ? previous?.scriptPerUnitInBase : undefined,
+          scriptUpdatedAt: rate.script === previous?.script ? previous?.scriptUpdatedAt : undefined,
+        });
+      }
+
+      return await this.settingsRepository.save({ ...current, currencies });
+    });
   }
 
   /**
@@ -90,19 +161,16 @@ export class CurrencyService {
   public async getConverter(
     options: { skipRateUpdate?: boolean } = {}
   ): Promise<CurrencyConverter> {
-    const baseCurrency = await this.getBaseCurrency();
-    if (!options.skipRateUpdate) {
-      await this.updateRates();
-    }
+    return (await this.getCurrencyState(options)).converter;
+  }
 
-    const rates = await this.getRates();
+  private buildConverter(baseCurrency: Currency, rates: CurrencyRate[]): CurrencyConverter {
     const perUnitInBase = new Map<Currency, number>();
     for (const rate of rates) {
       if (rate.code === baseCurrency) continue;
       const value = rate.getPerUnitInBase();
       if (value !== undefined) perUnitInBase.set(rate.code, value);
     }
-
     return new CurrencyConverter(baseCurrency, perUnitInBase);
   }
 

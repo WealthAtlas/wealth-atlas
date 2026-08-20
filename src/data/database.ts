@@ -15,6 +15,7 @@ import {
   upgradeExpenseRowToV4,
   upgradeInvestmentRowToV4,
 } from './migrations/v4';
+import { upgradeSettingsRowToV6 } from './migrations/v6';
 import { AutoSyncService } from './sync/AutoSyncService';
 
 export class WealthAtlasDB extends Dexie {
@@ -109,6 +110,12 @@ export class WealthAtlasDB extends Dexie {
       .upgrade(async trans => {
         await trans.table('settings').put(defaultSettings());
       });
+
+    // Migration: v6 - The currency list becomes configurable, so the settings
+    // singleton carries the codes this user's data may use. No new tables.
+    this.version(6).upgrade(async trans => {
+      await trans.table('settings').toCollection().modify(upgradeSettingsRowToV6);
+    });
   }
 
   private setupAutoSync(): void {

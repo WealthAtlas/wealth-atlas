@@ -2,6 +2,7 @@ import { Currency } from '@/domain/entities/shared/Currency';
 import { CurrencyExchange } from '@mui/icons-material';
 import {
   Alert,
+  AlertTitle,
   Button,
   Dialog,
   DialogActions,
@@ -20,36 +21,31 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 
-export interface CurrencyRateRow {
-  code: Currency;
-  /** Draft text for "units of base per one unit of `code`". */
-  rate: string;
-  script: string;
-  updatedAt?: Date;
-  isDirty: boolean;
-  error?: string;
-}
-
 export interface CurrencySettingsViewProps {
   baseCurrency: Currency;
   currencies: Currency[];
-  rates: CurrencyRateRow[];
+  /** The whole configuration as JSON text, which is what the user edits. */
+  config: string;
+  configIssues: string[];
+  isDirty: boolean;
   isSaving: boolean;
   onBaseCurrencyChange: (currency: Currency) => void;
-  onRateChange: (code: Currency, rate: string) => void;
-  onScriptChange: (code: Currency, script: string) => void;
-  onSaveRate: (code: Currency) => void;
+  onConfigChange: (config: string) => void;
+  onSaveConfig: () => void;
+  onRevertConfig: () => void;
 }
 
 export function CurrencySettingsView({
   baseCurrency,
   currencies,
-  rates,
+  config,
+  configIssues,
+  isDirty,
   isSaving,
   onBaseCurrencyChange,
-  onRateChange,
-  onScriptChange,
-  onSaveRate,
+  onConfigChange,
+  onSaveConfig,
+  onRevertConfig,
 }: CurrencySettingsViewProps) {
   const [pendingBaseCurrency, setPendingBaseCurrency] = useState<Currency | undefined>();
 
@@ -89,60 +85,54 @@ export function CurrencySettingsView({
 
         <Divider />
 
-        <Typography variant="subtitle2">Exchange rates</Typography>
+        <Typography variant="subtitle2">Currencies and rates</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Add a currency by putting its ISO code in <code>currencies</code>, and give it a rate: how
+          many {baseCurrency} one unit is worth. A rate can also be{' '}
+          <code>{'{ "rate": 88.42, "script": "…" }'}</code>, where the script exports{' '}
+          <code>getValue()</code> and is re-run daily.
+        </Typography>
 
-        {rates.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            Nothing to configure — {baseCurrency} is the only supported currency.
-          </Typography>
-        ) : (
-          rates.map(row => (
-            <Stack key={row.code} spacing={1}>
-              <Typography variant="body2" color="text.secondary">
-                1 {row.code} equals how many {baseCurrency}?
-              </Typography>
-              <Stack direction="row" spacing={1} alignItems="flex-start">
-                <TextField
-                  label={`${row.code} → ${baseCurrency}`}
-                  value={row.rate}
-                  onChange={event => onRateChange(row.code, event.target.value)}
-                  error={Boolean(row.error)}
-                  helperText={
-                    row.error ??
-                    (row.updatedAt
-                      ? `Last updated ${row.updatedAt.toLocaleDateString()}`
-                      : 'No rate set')
-                  }
-                  size="small"
-                  sx={{ flex: 1 }}
-                />
-                <Button
-                  variant="contained"
-                  size="small"
-                  disabled={!row.isDirty || isSaving}
-                  onClick={() => onSaveRate(row.code)}
-                  sx={{ mt: 0.5 }}
-                >
-                  Save
-                </Button>
-              </Stack>
-              <TextField
-                label="Rate script (optional)"
-                value={row.script}
-                onChange={event => onScriptChange(row.code, event.target.value)}
-                placeholder={`export async function getValue() { /* return ${row.code} → ${baseCurrency} */ }`}
-                multiline
-                minRows={2}
-                size="small"
-                fullWidth
-              />
+        <TextField
+          value={config}
+          onChange={event => onConfigChange(event.target.value)}
+          error={configIssues.length > 0}
+          multiline
+          minRows={8}
+          fullWidth
+          spellCheck={false}
+          inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.85rem' } }}
+        />
+
+        {configIssues.length > 0 && (
+          <Alert severity="error">
+            <AlertTitle>Nothing saved yet</AlertTitle>
+            <Stack component="ul" sx={{ pl: 2, m: 0 }} spacing={0.5}>
+              {configIssues.map(issue => (
+                <li key={issue}>
+                  <Typography variant="body2">{issue}</Typography>
+                </li>
+              ))}
             </Stack>
-          ))
+          </Alert>
         )}
 
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="contained"
+            onClick={onSaveConfig}
+            disabled={!isDirty || isSaving || configIssues.length > 0}
+          >
+            Save
+          </Button>
+          <Button onClick={onRevertConfig} disabled={!isDirty || isSaving}>
+            Revert
+          </Button>
+        </Stack>
+
         <Alert severity="info" variant="outlined">
-          A currency with no rate contributes zero to every total, and the dashboard says so — it is
-          never guessed at 1:1.
+          A currency with no rate contributes zero to every total, and the pages that aggregate say
+          so — it is never guessed at 1:1.
         </Alert>
       </Stack>
 

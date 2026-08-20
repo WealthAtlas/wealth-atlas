@@ -2,6 +2,7 @@ import { db as database } from '@/data/database';
 import { rehydrateSnapshotDates } from '@/data/migrations/rehydrateDates';
 import { upgradeSnapshotDataToV4 } from '@/data/migrations/v4';
 import { upgradeSnapshotDataToV5 } from '@/data/migrations/v5';
+import { upgradeSnapshotDataToV6 } from '@/data/migrations/v6';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment } from '@/domain/entities/assets/Investment';
 import { ISIP } from '@/domain/entities/assets/SIP';
@@ -40,8 +41,9 @@ export class BackupService {
    * currency stored as an ISO code. v1.0.0 files are migrated on restore.
    * v2.1.0: adds the settings singleton (base currency) and currency rates. New
    * tables only, so 2.0.0 files stay restorable and simply pick up the defaults.
+   * v2.2.0: settings.currencies — the configurable currency list.
    */
-  private static readonly BACKUP_VERSION = '2.1.0';
+  private static readonly BACKUP_VERSION = '2.2.0';
 
   /**
    * Export all data from the database as a JSON string
@@ -252,6 +254,7 @@ export class BackupService {
     // settings row as-is and otherwise supplies the default base currency, which
     // is exactly what a pre-2.1.0 file needs.
     upgradeSnapshotDataToV5(data);
+    upgradeSnapshotDataToV6(data);
 
     rehydrateSnapshotDates(data);
   }

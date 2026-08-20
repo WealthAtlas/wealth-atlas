@@ -2,7 +2,7 @@ import { AssetCategory } from '../entities/assets/AssetCategory';
 import { InvestmentType } from '../entities/assets/Investment';
 import { ValueModel } from '../entities/assets/ValueModel';
 import { ExpenseCategory } from '../entities/expenses/ExpenseCategory';
-import { Currency } from '../entities/shared/Currency';
+import { Currency, DEFAULT_CURRENCIES } from '../entities/shared/Currency';
 import { ImportContext, PendingAsset, toPromptContext } from './ImportContextBuilder';
 
 /**
@@ -14,7 +14,11 @@ function list(values: readonly string[]): string {
   return values.map(value => `"${value}"`).join(', ');
 }
 
-export function buildSystemPrompt(): string {
+/**
+ * `currencies` is the list the user has configured, so the model is told about
+ * a currency they added rather than a fixed three.
+ */
+export function buildSystemPrompt(currencies: Currency[] = DEFAULT_CURRENCIES): string {
   return `You convert personal-finance statement files into a list of database operations for a wealth tracking app.
 
 Return ONLY a JSON object of this shape:
@@ -41,7 +45,7 @@ AssetCategory: ${list(Object.values(AssetCategory))}
 ValueModel: ${list(Object.values(ValueModel))}
 InvestmentType: ${list(Object.values(InvestmentType))}
 ExpenseCategory: ${list(Object.values(ExpenseCategory))}
-Currency: ${list(Object.values(Currency))}
+Currency: ${list(currencies)}
 
 ## Rules
 

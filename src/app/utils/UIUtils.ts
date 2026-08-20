@@ -1,5 +1,29 @@
 import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
 
+/** Rupees read naturally in the Indian grouping; everything else does not. */
+function localeFor(currency: Currency): string {
+  return currency === Currency.INR ? 'en-IN' : 'en-US';
+}
+
+const formatterCache = new Map<Currency, Intl.NumberFormat>();
+
+function formatterFor(currency: Currency): Intl.NumberFormat {
+  const cached = formatterCache.get(currency);
+  if (cached) return cached;
+
+  const formatter = new Intl.NumberFormat(localeFor(currency), {
+    style: 'currency',
+    currency,
+    currencyDisplay: 'narrowSymbol',
+    // Whole amounts read better without a trailing ".00", but a converted value
+    // can land on paise, so allow two.
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+  formatterCache.set(currency, formatter);
+  return formatter;
+}
+
 export class UIUtils {
   static formatMonth(month: Date): string {
     return month.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -8,17 +32,22 @@ export class UIUtils {
   /**
    * `currency` is required on purpose. It used to be optional and defaulted to
    * the rupee symbol, which is how cross-currency totals ended up rendered as
-   * INR — the compiler now refuses any amount whose currency the caller cannot
-   * name.
+   * INR — an amount whose currency the caller cannot name should not compile.
+   *
+   * Formatting comes from Intl, so a newly configured currency gets its correct
+   * symbol and grouping without anything being added here.
    */
-  public static formatCurrency(amount: number | undefined, currency: string): string {
+  public static formatCurrency(amount: number | undefined, currency: Currency): string {
     if (amount === undefined) return 'N/A';
 
-    // Indian numbering system for INR, standard grouping for everything else.
-    const locale = currency === Currency.INR ? 'en-IN' : 'en-US';
-    return `${getCurrencySymbol(currency)}${amount.toLocaleString(locale, {
-      maximumFractionDigits: 2,
-    })}`;
+    try {
+      return formatterFor(currency).format(amount);
+    } catch {
+      // An unrecognised code still has to render as something.
+      return `${getCurrencySymbol(currency)}${amount.toLocaleString(localeFor(currency), {
+        maximumFractionDigits: 2,
+      })}`;
+    }
   }
 
   public static formatPercentage(percentage: number | undefined): string {
@@ -27,7 +56,7 @@ export class UIUtils {
     return `${sign}${percentage.toFixed(2)}%`;
   }
 
-  public static formatNumberInput(value: string, currency: string): string {
+  public static formatNumberInput(value: string, currency: Currency): string {
     // Remove any existing formatting and non-numeric characters except decimal point
     const cleanValue = value.replace(/[^\d.]/g, '');
     const numericValue = parseFloat(cleanValue);
@@ -36,12 +65,7 @@ export class UIUtils {
       return '';
     }
 
-    // Format based on currency
-    if (currency === 'INR') {
-      return numericValue.toLocaleString('en-IN');
-    } else {
-      return numericValue.toLocaleString();
-    }
+    return numericValue.toLocaleString(localeFor(currency));
   }
 
   public static parseFormattedNumber(formattedValue: string): number {

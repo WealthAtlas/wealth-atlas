@@ -1,7 +1,7 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { ExpenseFormDialog } from '@/app/components/dialogs/ExpenseFormDialog';
 import { Expense, IExpense } from '@/domain/entities/expenses/Expense';
 import { ExpenseCategory } from '@/domain/entities/expenses/ExpenseCategory';
-import { Currency } from '@/domain/entities/shared/Currency';
 import { ExpenseService } from '@/domain/services/ExpenseService';
 import { Logger } from '@/domain/utils/Logger';
 import { useEffect, useMemo, useState } from 'react';
@@ -13,17 +13,18 @@ export interface ExpenseFormContainerProps {
 }
 
 export function ExpenseFormContainer({ open, expenseToEdit, onClose }: ExpenseFormContainerProps) {
+  const { baseCurrency, currencies } = useCurrency();
   const initialExpense: IExpense = useMemo(
     () => ({
       id: expenseToEdit?.id || undefined,
       amount: expenseToEdit?.amount || 0,
-      currency: expenseToEdit?.currency || Currency.INR,
+      currency: expenseToEdit?.currency || baseCurrency,
       date: expenseToEdit?.date || new Date(),
       category: expenseToEdit?.category || ExpenseCategory.OTHER,
       isEssential: expenseToEdit?.isEssential !== undefined ? expenseToEdit?.isEssential : true,
       description: expenseToEdit?.description || '',
     }),
-    [expenseToEdit]
+    [expenseToEdit, baseCurrency]
   );
 
   const [expense, setExpense] = useState<IExpense>(initialExpense);
@@ -67,6 +68,7 @@ export function ExpenseFormContainer({ open, expenseToEdit, onClose }: ExpenseFo
 
   return (
     <ExpenseFormDialog
+      currencies={currencies}
       open={open}
       title={title}
       formData={expense}

@@ -7,6 +7,8 @@ export interface CurrencyContextValue {
   baseCurrency: Currency;
   /** Translates a single entity's amount into any other currency. */
   converter: CurrencyConverter;
+  /** The codes the user has configured; what every currency picker offers. */
+  currencies: Currency[];
   /** Re-reads the base currency and rates; call after editing them in Settings. */
   reload: () => Promise<void>;
 }

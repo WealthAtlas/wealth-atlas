@@ -1,25 +1,25 @@
 import { Currency } from '@/domain/entities/shared/Currency';
-import { ISettings, SETTINGS_ID } from '@/domain/entities/shared/Settings';
+import { defaultSettings, SETTINGS_ID } from '@/domain/entities/shared/Settings';
 import { describe, expect, it } from 'vitest';
 import { rehydrateSnapshotDates } from './rehydrateDates';
-import { seedSettingsRows, upgradeSnapshotDataToV5 } from './v5';
+import { seedSettingsRows, upgradeSnapshotDataToV5, V5SettingsRow } from './v5';
 
 describe('seedSettingsRows', () => {
   it('seeds the default base currency when there is no settings row', () => {
-    expect(seedSettingsRows(undefined)).toEqual([{ id: SETTINGS_ID, baseCurrency: Currency.INR }]);
-    expect(seedSettingsRows([])).toEqual([{ id: SETTINGS_ID, baseCurrency: Currency.INR }]);
+    expect(seedSettingsRows(undefined)).toEqual([defaultSettings()]);
+    expect(seedSettingsRows([])).toEqual([defaultSettings()]);
   });
 
   it('keeps a base currency the user has already chosen', () => {
-    const existing: ISettings = { id: SETTINGS_ID, baseCurrency: Currency.GBP };
+    const existing: V5SettingsRow = { id: SETTINGS_ID, baseCurrency: Currency.GBP };
 
     expect(seedSettingsRows([existing])).toEqual([existing]);
   });
 
   it('replaces an unusable base currency rather than leaving totals unlabelled', () => {
-    const broken = [{ id: SETTINGS_ID, baseCurrency: 'ZZZ' as Currency }];
+    const broken = [{ id: SETTINGS_ID, baseCurrency: 'not a currency' }];
 
-    expect(seedSettingsRows(broken)).toEqual([{ id: SETTINGS_ID, baseCurrency: Currency.INR }]);
+    expect(seedSettingsRows(broken)).toEqual([defaultSettings()]);
   });
 
   it('collapses stray rows onto the singleton', () => {
@@ -37,7 +37,7 @@ describe('upgradeSnapshotDataToV5', () => {
     const data: Record<string, unknown[] | undefined> = { assets: [], expenses: [] };
     upgradeSnapshotDataToV5(data);
 
-    expect(data.settings).toEqual([{ id: SETTINGS_ID, baseCurrency: Currency.INR }]);
+    expect(data.settings).toEqual([defaultSettings()]);
     expect(data.currencyRates).toEqual([]);
   });
 
