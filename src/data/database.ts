@@ -128,12 +128,19 @@ export class WealthAtlasDB extends Dexie {
 
   private setupAutoSync(): void {
     // Initialize auto-sync service when database is ready
-    this.on('ready', () => {
+    this.on('ready', async () => {
+      // Hydration first, and deliberately before the change hooks are listening.
+      // Dexie holds every other query until this resolves, which is what lets the
+      // AI provider config be read synchronously everywhere else: any code that
+      // has seen a database row has, by then, a warm cache.
+      //
+      // It can also write — the one-time adoption of the pre-v7 localStorage keys
+      // — and that write must not schedule a push, or a device upgrading would
+      // race its own first pull and whichever won would decide whose provider
+      // config survived. `App` registers the hooks eagerly too, so suppressing is
+      // what settles it rather than the ordering here.
+      await AutoSyncService.withoutScheduling(() => hydrateAiProviderSettings());
       AutoSyncService.startListening();
-      // Dexie holds every other query until this resolves, which is what lets
-      // the AI provider config be read synchronously everywhere else: any code
-      // that has seen a database row has, by then, a warm cache.
-      return hydrateAiProviderSettings();
     });
   }
 }

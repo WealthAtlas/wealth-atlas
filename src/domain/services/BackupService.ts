@@ -4,6 +4,7 @@ import { upgradeSnapshotDataToV4 } from '@/data/migrations/v4';
 import { upgradeSnapshotDataToV5 } from '@/data/migrations/v5';
 import { upgradeSnapshotDataToV6 } from '@/data/migrations/v6';
 import { upgradeSnapshotDataToV7 } from '@/data/migrations/v7';
+import { emitDatabaseReplaced } from '@/data/databaseEvents';
 import { hydrateAiProviderSettings } from '@/data/llm/state';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment } from '@/domain/entities/assets/Investment';
@@ -139,6 +140,7 @@ export class BackupService {
       // The restored row is read from a synchronous cache; refill it so AI
       // import and the assistant see the endpoint that was just restored.
       await hydrateAiProviderSettings();
+      emitDatabaseReplaced();
 
       Logger.info('Data import completed successfully');
     } catch (error) {

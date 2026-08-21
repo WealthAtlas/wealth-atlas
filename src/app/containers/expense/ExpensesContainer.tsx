@@ -1,5 +1,6 @@
 import { ExpensesPage } from '@/app/components/pages/ExpensePage';
 import { useCurrency } from '@/app/components/providers/CurrencyContext';
+import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { MonthlyExpense } from '@/domain/entities/expenses/MonthlyExpense';
 import { ExpenseService } from '@/domain/services/ExpenseService';
 import { Logger } from '@/domain/utils/Logger';
@@ -35,6 +36,9 @@ export function ExpensesContainer() {
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
+
+  // A sync pull replaces every row, including these.
+  useDatabaseReplaced(() => void loadExpenses());
 
   return (
     <>
