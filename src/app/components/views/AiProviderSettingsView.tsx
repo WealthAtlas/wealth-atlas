@@ -1,5 +1,5 @@
 import { LlmPreset } from '@/data/llm/presets';
-import { AutoAwesome, Check, Science } from '@mui/icons-material';
+import { AutoAwesome, Check, Save, Science } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -23,12 +23,16 @@ export interface AiProviderSettingsViewProps {
   model: string;
   configured: boolean;
   needsApiKey: boolean;
+  isDirty: boolean;
+  isSaving: boolean;
   isTesting: boolean;
   testResult?: { ok: boolean; message: string };
   onPresetChange: (presetId: string) => void;
   onBaseUrlChange: (baseUrl: string) => void;
   onApiKeyChange: (apiKey: string) => void;
   onModelChange: (model: string) => void;
+  onSave: () => void;
+  onRevert: () => void;
   onTest: () => void;
   onClear: () => void;
 }
@@ -51,8 +55,9 @@ export function AiProviderSettingsView(props: AiProviderSettingsViewProps) {
 
         <Typography variant="body2" color="text.secondary">
           Connect your own LLM to read broker and bank statements. Any OpenAI-compatible endpoint
-          works. Your key is stored on this device only — it is never included in a backup or
-          synced.
+          works. These settings sync to your other devices — the snapshot is encrypted with your
+          sync passphrase — but the key is left out of the exported backup file, which is plain
+          text.
         </Typography>
 
         <FormControl fullWidth>
@@ -116,16 +121,43 @@ export function AiProviderSettingsView(props: AiProviderSettingsViewProps) {
           </Alert>
         )}
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        {props.isDirty && (
+          <Typography variant="caption" color="text.secondary">
+            Unsaved changes. Save them before testing the connection.
+          </Typography>
+        )}
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           <Button
             variant="contained"
+            startIcon={<Save />}
+            onClick={props.onSave}
+            disabled={!props.isDirty || props.isSaving}
+          >
+            {props.isSaving ? 'Saving…' : 'Save'}
+          </Button>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={props.onRevert}
+            disabled={!props.isDirty || props.isSaving}
+          >
+            Revert
+          </Button>
+          <Button
+            variant="outlined"
             startIcon={props.testResult?.ok ? <Check /> : <Science />}
             onClick={props.onTest}
-            disabled={props.isTesting || !props.configured}
+            disabled={props.isTesting || props.isDirty || !props.configured}
           >
             {props.isTesting ? 'Testing…' : 'Test connection'}
           </Button>
-          <Button variant="outlined" color="inherit" onClick={props.onClear}>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={props.onClear}
+            disabled={props.isSaving}
+          >
             Clear
           </Button>
         </Box>

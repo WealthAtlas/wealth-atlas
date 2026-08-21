@@ -15,6 +15,8 @@ import { rehydrateSnapshotDates } from '../migrations/rehydrateDates';
 import { upgradeSnapshotDataToV4 } from '../migrations/v4';
 import { upgradeSnapshotDataToV5 } from '../migrations/v5';
 import { upgradeSnapshotDataToV6 } from '../migrations/v6';
+import { upgradeSnapshotDataToV7 } from '../migrations/v7';
+import { hydrateAiProviderSettings } from '../llm/state';
 import { buildSyncApiUrl } from './config';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
@@ -94,8 +96,10 @@ async function fetchRemoteVersion(keyId: string): Promise<number | undefined> {
  * v10: adds the `settings` singleton (base currency) and `currencyRates`. New
  *     tables only, so an older snapshot just needs the settings seed.
  * v11: settings.currencies — the configurable currency list.
+ * v12: settings.ai — the AI provider configuration, which used to be
+ *     device-local. An older snapshot just gets an empty block.
  */
-const SNAPSHOT_VERSION = 11;
+const SNAPSHOT_VERSION = 12;
 const OLDEST_SUPPORTED_SNAPSHOT_VERSION = 8;
 
 function getSchemaVersion(): number {
@@ -136,6 +140,9 @@ function upgradeSnapshot(snapshot: Snapshot): Snapshot {
   }
   if (snapshot.schemaVersion < 11) {
     upgradeSnapshotDataToV6(data);
+  }
+  if (snapshot.schemaVersion < 12) {
+    upgradeSnapshotDataToV7(data);
   }
   Logger.info(`Upgraded sync snapshot from v${snapshot.schemaVersion} to v${SNAPSHOT_VERSION}`);
   return { ...snapshot, schemaVersion: SNAPSHOT_VERSION };
@@ -252,6 +259,11 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
       await db.currencyRates.bulkPut(d.currencyRates || []);
     }
   );
+
+  // The pulled row carries the AI provider configuration, and it is read from a
+  // synchronous cache — refill it or this device keeps talking to the provider
+  // the snapshot just replaced.
+  await hydrateAiProviderSettings();
 }
 
 export class SyncService {

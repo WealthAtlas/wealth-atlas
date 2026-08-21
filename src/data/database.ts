@@ -16,6 +16,8 @@ import {
   upgradeInvestmentRowToV4,
 } from './migrations/v4';
 import { upgradeSettingsRowToV6 } from './migrations/v6';
+import { upgradeSettingsRowToV7 } from './migrations/v7';
+import { hydrateAiProviderSettings } from './llm/state';
 import { AutoSyncService } from './sync/AutoSyncService';
 
 export class WealthAtlasDB extends Dexie {
@@ -116,12 +118,22 @@ export class WealthAtlasDB extends Dexie {
     this.version(6).upgrade(async trans => {
       await trans.table('settings').toCollection().modify(upgradeSettingsRowToV6);
     });
+
+    // Migration: v7 - The AI provider configuration joins the settings
+    // singleton, so it syncs with everything else in Settings. No new tables.
+    this.version(7).upgrade(async trans => {
+      await trans.table('settings').toCollection().modify(upgradeSettingsRowToV7);
+    });
   }
 
   private setupAutoSync(): void {
     // Initialize auto-sync service when database is ready
     this.on('ready', () => {
       AutoSyncService.startListening();
+      // Dexie holds every other query until this resolves, which is what lets
+      // the AI provider config be read synchronously everywhere else: any code
+      // that has seen a database row has, by then, a warm cache.
+      return hydrateAiProviderSettings();
     });
   }
 }
