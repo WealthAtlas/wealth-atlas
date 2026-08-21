@@ -38,9 +38,24 @@ interface ChatCompletionResponse {
   error?: { message?: string };
 }
 
+export type ChatRole = 'system' | 'user' | 'assistant';
+
+/** One turn of a conversation, in the wire shape every provider here accepts. */
+export interface LlmMessage {
+  role: ChatRole;
+  content: string;
+}
+
 interface ChatArgs {
   system: string;
   user: string;
+  signal?: AbortSignal;
+  /** Some providers cap this; left undefined to use the provider default. */
+  maxTokens?: number;
+}
+
+interface ChatTurnsArgs {
+  messages: LlmMessage[];
   signal?: AbortSignal;
   /** Some providers cap this; left undefined to use the provider default. */
   maxTokens?: number;
@@ -201,9 +216,15 @@ async function post(
 }
 
 /**
- * Sends one chat turn and returns the parsed JSON object the model produced.
+ * Sends a whole conversation and returns the parsed JSON object the model
+ * produced. Used by the assistant, which needs the assistant turns and tool
+ * results of earlier steps in context.
  */
-export async function chatJson({ system, user, signal, maxTokens }: ChatArgs): Promise<unknown> {
+export async function chatJsonTurns({
+  messages,
+  signal,
+  maxTokens,
+}: ChatTurnsArgs): Promise<unknown> {
   const settings = requireSettings();
 
   const payload = await post(
@@ -214,10 +235,7 @@ export async function chatJson({ system, user, signal, maxTokens }: ChatArgs): P
       temperature: 0,
       response_format: { type: 'json_object' },
       max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
+      messages,
     },
     signal
   );
@@ -239,6 +257,21 @@ export async function chatJson({ system, user, signal, maxTokens }: ChatArgs): P
   }
 
   return extractJson(content);
+}
+
+/**
+ * Sends one system + user pair. The statement importer's whole interaction fits
+ * this shape, so it stays the simpler call.
+ */
+export async function chatJson({ system, user, signal, maxTokens }: ChatArgs): Promise<unknown> {
+  return chatJsonTurns({
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    signal,
+    maxTokens,
+  });
 }
 
 /** Cheap round-trip used by the Settings "Test connection" button. */

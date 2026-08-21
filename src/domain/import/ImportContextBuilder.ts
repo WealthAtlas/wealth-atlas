@@ -1,6 +1,7 @@
 import { Asset } from '../entities/assets/Asset';
 import { Expense } from '../entities/expenses/Expense';
 import { Loan } from '../entities/loans/Loan';
+import { isoDate } from '../utils/DateUtils';
 
 /**
  * The compact picture of the current database sent to the model, so it can
@@ -57,10 +58,6 @@ export interface ImportContext {
   /** Used by the validator for duplicate detection, not sent to the model. */
   existingTransactions: ExistingTransaction[];
   existingExpenses: ExistingExpense[];
-}
-
-function isoDate(date: Date): string {
-  return date.toISOString().split('T')[0];
 }
 
 export function buildImportContext(
