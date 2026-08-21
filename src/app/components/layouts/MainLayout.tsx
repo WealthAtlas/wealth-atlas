@@ -1,6 +1,7 @@
 import {
   AccountBalance,
   Assessment,
+  AutoAwesome,
   CreditCard,
   Dashboard,
   MoreVert,
@@ -12,6 +13,7 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   Box,
+  Fab,
   IconButton,
   Menu,
   MenuItem,
@@ -31,6 +33,14 @@ interface MainLayoutProps {
   onMenuClose: () => void;
   onSettingsClick: () => void;
   onImportClick: () => void;
+  onAssistantClick: () => void;
+  /**
+   * Whether the tab on show has its own primary FAB. Assets, Expenses, Loans
+   * and Goals each have an "add" FAB in the bottom-right corner, so the
+   * assistant sits one slot above it there and takes the corner on the
+   * Dashboard, which has none.
+   */
+  hasPageFab: boolean;
 }
 
 export function MainLayout({
@@ -42,6 +52,8 @@ export function MainLayout({
   onMenuClose,
   onSettingsClick,
   onImportClick,
+  onAssistantClick,
+  hasPageFab,
 }: MainLayoutProps) {
   const theme = useTheme();
   const isTablet = useMediaQuery(theme.breakpoints.up('md'));
@@ -105,6 +117,26 @@ export function MainLayout({
       >
         {children}
       </Box>
+
+      {/*
+        Extended rather than circular, and labelled: the pages it floats over
+        already have a circular primary FAB, and a second round button would
+        read as another "add" rather than as the assistant.
+      */}
+      <Fab
+        variant="extended"
+        color="primary"
+        aria-label="Ask the assistant"
+        onClick={onAssistantClick}
+        sx={{
+          position: 'fixed',
+          bottom: hasPageFab ? 148 : 80,
+          right: 16,
+        }}
+      >
+        <AutoAwesome sx={{ mr: 1 }} />
+        Ask
+      </Fab>
 
       {/* Bottom Navigation for Mobile/Tablet */}
       <BottomNavigation

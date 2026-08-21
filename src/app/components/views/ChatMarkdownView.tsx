@@ -1,0 +1,197 @@
+import { LinkableEntity, linkEntities, LinkTarget } from '@/domain/chat/EntityLinks';
+import { InlineSpan, MarkdownBlock, parseMarkdownBlocks } from '@/domain/chat/MarkdownBlocks';
+import {
+  Box,
+  Link,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@mui/material';
+import { Fragment, useMemo } from 'react';
+
+/**
+ * Renders the assistant's markdown subset with Material-UI components.
+ *
+ * The parser is in the domain layer (`MarkdownBlocks.ts`); this only maps blocks
+ * to components, so there is no parsing logic to test through the DOM.
+ */
+
+export interface ChatMarkdownViewProps {
+  text: string;
+  /** The user's own records, whose names become tappable. */
+  entities: LinkableEntity[];
+  onNavigate: (target: LinkTarget) => void;
+}
+
+function Spans({
+  spans,
+  onNavigate,
+}: {
+  spans: InlineSpan[];
+  onNavigate: (target: LinkTarget) => void;
+}) {
+  return (
+    <>
+      {spans.map((span, index) => {
+        if (span.code) {
+          return (
+            <Box
+              key={index}
+              component="code"
+              sx={{
+                px: 0.5,
+                borderRadius: 0.5,
+                bgcolor: 'action.hover',
+                fontFamily: 'monospace',
+                fontSize: '0.85em',
+              }}
+            >
+              {span.text}
+            </Box>
+          );
+        }
+        if (span.link) {
+          const target = span.link;
+          return (
+            <Link
+              key={index}
+              component="button"
+              type="button"
+              variant="body2"
+              underline="hover"
+              onClick={() => onNavigate(target)}
+              sx={{
+                p: 0,
+                border: 0,
+                bgcolor: 'transparent',
+                cursor: 'pointer',
+                font: 'inherit',
+                fontWeight: span.bold ? 600 : undefined,
+                verticalAlign: 'baseline',
+              }}
+            >
+              {span.text}
+            </Link>
+          );
+        }
+        if (span.bold) {
+          return (
+            <Box key={index} component="strong" sx={{ fontWeight: 600 }}>
+              {span.text}
+            </Box>
+          );
+        }
+        return <Fragment key={index}>{span.text}</Fragment>;
+      })}
+    </>
+  );
+}
+
+function Block({
+  block,
+  onNavigate,
+}: {
+  block: MarkdownBlock;
+  onNavigate: (target: LinkTarget) => void;
+}) {
+  switch (block.kind) {
+    case 'heading':
+      return (
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 1 }}>
+          <Spans spans={block.spans} onNavigate={onNavigate} />
+        </Typography>
+      );
+
+    case 'paragraph':
+      return (
+        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+          <Spans spans={block.spans} onNavigate={onNavigate} />
+        </Typography>
+      );
+
+    case 'list':
+      return (
+        <Box component={block.ordered ? 'ol' : 'ul'} sx={{ m: 0, pl: 2.5, '& li': { mb: 0.25 } }}>
+          {block.items.map((item, index) => (
+            <li key={index}>
+              <Typography variant="body2" component="span">
+                <Spans spans={item} onNavigate={onNavigate} />
+              </Typography>
+            </li>
+          ))}
+        </Box>
+      );
+
+    case 'code':
+      return (
+        <Box
+          component="pre"
+          sx={{
+            m: 0,
+            p: 1,
+            borderRadius: 1,
+            bgcolor: 'action.hover',
+            fontFamily: 'monospace',
+            fontSize: '0.8rem',
+            overflowX: 'auto',
+          }}
+        >
+          {block.text}
+        </Box>
+      );
+
+    case 'table':
+      return (
+        // A wide table scrolls inside its own bubble rather than stretching the
+        // thread, which would push the whole page sideways on a phone.
+        <Paper variant="outlined" sx={{ overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                {block.headers.map((header, index) => (
+                  <TableCell
+                    key={index}
+                    align={block.align[index]}
+                    sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+                  >
+                    <Spans spans={header} onNavigate={onNavigate} />
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {block.rows.map((row, rowIndex) => (
+                <TableRow key={rowIndex}>
+                  {row.map((cell, cellIndex) => (
+                    <TableCell
+                      key={cellIndex}
+                      align={block.align[cellIndex]}
+                      sx={{ whiteSpace: 'nowrap' }}
+                    >
+                      <Spans spans={cell} onNavigate={onNavigate} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      );
+  }
+}
+
+export function ChatMarkdownView({ text, entities, onNavigate }: ChatMarkdownViewProps) {
+  const blocks = useMemo(() => linkEntities(parseMarkdownBlocks(text), entities), [text, entities]);
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {blocks.map((block, index) => (
+        <Block key={index} block={block} onNavigate={onNavigate} />
+      ))}
+    </Box>
+  );
+}
