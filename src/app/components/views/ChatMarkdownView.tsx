@@ -11,7 +11,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { Fragment, useMemo } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Renders the assistant's markdown subset with Material-UI components.
@@ -19,6 +19,12 @@ import { Fragment, useMemo } from 'react';
  * The parser is in the domain layer (`MarkdownBlocks.ts`); this only maps blocks
  * to components, so there is no parsing logic to test through the DOM.
  */
+
+/** Overflow smaller than this is rounding, not a column the reader is missing. */
+const OVERFLOW_SLACK_PX = 8;
+
+/** Below this the label column stacks one word per line, which is unreadable. */
+const LABEL_COLUMN_MIN_PX = 104;
 
 export interface ChatMarkdownViewProps {
   text: string;
@@ -145,43 +151,96 @@ function Block({
       );
 
     case 'table':
-      return (
-        // A wide table scrolls inside its own bubble rather than stretching the
-        // thread, which would push the whole page sideways on a phone.
-        <Paper variant="outlined" sx={{ overflowX: 'auto' }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {block.headers.map((header, index) => (
-                  <TableCell
-                    key={index}
-                    align={block.align[index]}
-                    sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
-                  >
-                    <Spans spans={header} onNavigate={onNavigate} />
+      return <TableBlock block={block} onNavigate={onNavigate} />;
+  }
+}
+
+/**
+ * A wide table scrolls inside its own bubble rather than stretching the thread,
+ * which would push the whole page sideways on a phone.
+ *
+ * Three things keep it usable at phone width: the label column wraps while
+ * numeric columns stay on one line, cells are tighter than the MUI default, and
+ * when the table still does not fit a hint says so — 140px of hidden column with
+ * no cue reads as the app having truncated the data.
+ */
+function TableBlock({
+  block,
+  onNavigate,
+}: {
+  block: Extract<MarkdownBlock, { kind: 'table' }>;
+  onNavigate: (target: LinkTarget) => void;
+}) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    // A few pixels of overflow is border and rounding, not a hidden column.
+    const measure = () =>
+      setOverflowing(scroller.scrollWidth - scroller.clientWidth > OVERFLOW_SLACK_PX);
+    measure();
+
+    // ResizeObserver is unavailable in some test environments; the measurement
+    // above is still correct for the initial render.
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [block]);
+
+  // Headers wrap freely — "Invested (INR)" over two lines costs nothing and
+  // narrows the column to the width of the figures under it.
+  const headerSx = (index: number) => ({
+    px: 1,
+    fontWeight: 700,
+    whiteSpace: 'normal' as const,
+    ...(index === 0 ? { minWidth: LABEL_COLUMN_MIN_PX } : {}),
+  });
+
+  // Data cells: only the label wraps, and not below a width where it would
+  // stack one word per line. Wrapping a number would split it across lines and
+  // make the column unscannable.
+  const cellSx = (index: number) =>
+    index === 0
+      ? { px: 1, whiteSpace: 'normal' as const, minWidth: LABEL_COLUMN_MIN_PX }
+      : { px: 1, whiteSpace: 'nowrap' as const };
+
+  return (
+    <Box>
+      <Paper variant="outlined" ref={scrollerRef} sx={{ overflowX: 'auto' }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              {block.headers.map((header, index) => (
+                <TableCell key={index} align={block.align[index]} sx={headerSx(index)}>
+                  <Spans spans={header} onNavigate={onNavigate} />
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {block.rows.map((row, rowIndex) => (
+              <TableRow key={rowIndex}>
+                {row.map((cell, cellIndex) => (
+                  <TableCell key={cellIndex} align={block.align[cellIndex]} sx={cellSx(cellIndex)}>
+                    <Spans spans={cell} onNavigate={onNavigate} />
                   </TableCell>
                 ))}
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {block.rows.map((row, rowIndex) => (
-                <TableRow key={rowIndex}>
-                  {row.map((cell, cellIndex) => (
-                    <TableCell
-                      key={cellIndex}
-                      align={block.align[cellIndex]}
-                      sx={{ whiteSpace: 'nowrap' }}
-                    >
-                      <Spans spans={cell} onNavigate={onNavigate} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-      );
-  }
+            ))}
+          </TableBody>
+        </Table>
+      </Paper>
+      {overflowing && (
+        <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
+          Scroll the table sideways for more →
+        </Typography>
+      )}
+    </Box>
+  );
 }
 
 export function ChatMarkdownView({ text, entities, onNavigate }: ChatMarkdownViewProps) {
