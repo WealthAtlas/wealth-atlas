@@ -1,4 +1,4 @@
-import { Close } from '@mui/icons-material';
+import { Close, RestartAlt } from '@mui/icons-material';
 import { Box, IconButton, SwipeableDrawer, Tooltip, Typography } from '@mui/material';
 import { ReactNode } from 'react';
 
@@ -6,6 +6,9 @@ export interface ChatSheetViewProps {
   open: boolean;
   providerHost: string;
   configured: boolean;
+  /** False with an empty thread, so the control is not offered with nothing to clear. */
+  canClear: boolean;
+  onClear: () => void;
   onClose: () => void;
   children: ReactNode;
 }
@@ -73,6 +76,16 @@ export function ChatSheetView(props: ChatSheetViewProps) {
             </Tooltip>
           )}
         </Box>
+        {props.canClear && (
+          // A long thread is also the model's context, so starting over is both
+          // how the user drops a question they would rather not have asked and
+          // how they recover a conversation that has drifted.
+          <Tooltip title="Clear conversation">
+            <IconButton onClick={props.onClear} aria-label="Clear conversation">
+              <RestartAlt />
+            </IconButton>
+          </Tooltip>
+        )}
         <IconButton onClick={props.onClose} aria-label="Close assistant">
           <Close />
         </IconButton>

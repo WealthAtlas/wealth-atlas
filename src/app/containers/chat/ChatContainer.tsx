@@ -50,9 +50,11 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
   const nextId = useRef(1);
 
   /**
-   * Only the plain questions and answers, which is what `ChatService.ask` wants:
-   * it attaches a fresh snapshot to the live question, so replaying an old one
-   * would have the model reasoning about figures that have since moved.
+   * The conversation as the model sees it: questions, replies, and the tool
+   * calls and results behind them. Written by the loop and handed straight back,
+   * so a follow-up can build on what the last answer was computed from instead
+   * of starting the lookups again. A fresh snapshot is still attached to each
+   * live question, so no stale figure travels with it.
    */
   const history = useRef<LlmMessage[]>([]);
 
@@ -103,11 +105,7 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
           onToolCall: setActiveTool,
         });
 
-        history.current = [
-          ...history.current,
-          { role: 'user', content: trimmed },
-          { role: 'assistant', content: answer.reply },
-        ];
+        history.current = answer.transcript;
 
         setMessages(current => [
           ...current,
@@ -136,6 +134,20 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
     [chatService, converter, isThinking, notify]
   );
 
+  /**
+   * Drops the thread and the history the model is sent with it, so the next
+   * question starts clean. The draft is left alone: a half-typed question is
+   * not part of what is being cleared.
+   */
+  const handleClear = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = undefined;
+    history.current = [];
+    setMessages([]);
+    setIsThinking(false);
+    setActiveTool(undefined);
+  }, []);
+
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = undefined;
@@ -148,6 +160,8 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
       open={open}
       providerHost={chatService.getProviderHost()}
       configured={configured}
+      canClear={messages.length > 0}
+      onClear={handleClear}
       onClose={onClose}
     >
       {!configured ? (

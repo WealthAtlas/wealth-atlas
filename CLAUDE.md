@@ -63,10 +63,33 @@ registry of tools (`ChatTools.ts`) built on the same domain services the pages u
 quotes matches the page that shows it. The prompt's tool catalogue is generated from the registry
 (`ChatPromptBuilder.ts`), the way `ImportPromptBuilder` generates its enum lists — adding a tool
 needs no prompt edit. Multi-turn transport is `chatJsonTurns` in `src/data/llm/LlmClient.ts`; the
-agent loop is `ChatLoop.ts`, pure apart from an injected transport so it is testable without a
-network. Conversations are in-memory only, deliberately: nothing is persisted, so no Dexie version
-bump. There is **no income entity**, so surplus cannot be computed — the assistant reasons from
-committed SIP/EMI outflow, spending and goal shortfalls, and asks the user for the amount available.
+agent loop is `ChatLoop.ts`, pure apart from an injected transport and code runner so it is testable
+without a network. Conversations are in-memory only, deliberately: nothing is persisted, so no Dexie
+version bump. There is **no income entity**, so surplus cannot be computed — the assistant reasons
+from committed SIP/EMI outflow, spending and goal shortfalls, and asks the user for the amount
+available.
+
+The conversation is a real transcript, not a list of question-and-answer pairs: `runChatLoop`
+returns `ChatAnswer.transcript` — the questions, the replies, *and* the tool calls and results
+behind them — and the container hands it straight back as `history`. That is what makes a follow-up
+like "break that down by asset" work without re-running the lookups. Two invariants hold there. The
+snapshot is attached to the live question only and the stored turn keeps the question bare, so the
+model never sees two generations of net worth. And an assistant turn is always stored as the JSON
+envelope: the model copies the shape of the last assistant message it can see, so a bare markdown
+reply in history teaches it that prose is allowed and the next turn comes back unparseable
+(`toProtocolHistory` re-wraps anything that is not already an envelope). `trimTranscript` drops the
+oldest turns past `TRANSCRIPT_BUDGET_CHARS` and leaves one fixed note saying so.
+
+`runCalculation` executes **model-authored JavaScript**, because a model doing arithmetic in its head
+guesses. It runs in `src/data/sandbox/CodeSandbox.ts`, in an iframe sandboxed *without*
+`allow-same-origin` — an opaque origin, where IndexedDB and localStorage throw — under
+`default-src 'none'`, which blocks every outbound channel. `SANDBOX_FRAME_POLICY` holds those two
+strings and `CodeSandbox.test.ts` pins them; widening either is a one-token edit that nothing else
+would catch. This is deliberately *not* the posture of `ScriptExecutor`, which runs the user's own
+asset scripts through `new Function` with a `with (sandbox)` wrapper: that code has a trusted author,
+whereas a snippet from the model is steerable by asset names and imported statement text. The snippet
+reaches no database, so everything it may compute over is passed in by `buildSandboxData`
+(`SandboxData.ts`) using the same key names the read tools return; only plain JSON comes back.
 
 The assistant has no route of its own. It opens as a 92dvh bottom sheet (`ChatSheetView`) whose
 state lives in `MainPage`, so the tab underneath stays mounted and dismissing returns the user

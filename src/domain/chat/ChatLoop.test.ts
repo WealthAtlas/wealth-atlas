@@ -2,7 +2,7 @@ import { LlmMessage } from '@/data/llm/LlmClient';
 import { describe, expect, it } from 'vitest';
 import { asset, fakeContext, loan } from './ChatFixtures';
 import { ChatSnapshot } from './ChatContextBuilder';
-import { MAX_TOOL_STEPS, runChatLoop, TurnsChatFn } from './ChatLoop';
+import { MAX_TOOL_STEPS, runChatLoop, trimTranscript, TurnsChatFn } from './ChatLoop';
 import { ChatToolContext } from './ChatToolContext';
 
 const SNAPSHOT: ChatSnapshot = {
@@ -248,6 +248,89 @@ describe('runChatLoop', () => {
     expect(messages[3].content).toContain('netWorth');
   });
 
+  // A prose turn in history teaches the model that prose is allowed, and the
+  // next reply comes back unparseable. History has to look like the contract.
+  it('re-wraps a prior plain-text reply as the JSON envelope', async () => {
+    const history: LlmMessage[] = [
+      { role: 'user', content: 'how much do I have in gold?' },
+      { role: 'assistant', content: 'INR 40,000.' },
+    ];
+    const chat = scripted([{ reply: 'ok' }]);
+
+    await ask(chat, fakeContext(), history);
+
+    expect(chat.calls[0][2].content).toBe(JSON.stringify({ reply: 'INR 40,000.' }));
+  });
+
+  it('leaves a history turn that is already an envelope alone', async () => {
+    const envelope = JSON.stringify({ reply: 'INR 40,000.' });
+    const history: LlmMessage[] = [
+      { role: 'user', content: 'how much do I have in gold?' },
+      { role: 'assistant', content: envelope },
+    ];
+    const chat = scripted([{ reply: 'ok' }]);
+
+    await ask(chat, fakeContext(), history);
+
+    expect(chat.calls[0][2].content).toBe(envelope);
+  });
+
+  it('returns a transcript carrying the tool traffic behind the answer', async () => {
+    const chat = scripted([
+      { toolCalls: [{ name: 'getPortfolioSummary' }] },
+      { reply: 'INR 250,000.' },
+    ]);
+
+    const answer = await ask(chat);
+
+    // question, the tool-call turn, the results, the reply.
+    expect(answer.transcript.map(message => message.role)).toEqual([
+      'user',
+      'assistant',
+      'user',
+      'assistant',
+    ]);
+    // Stored bare: the snapshot belongs to the turn it was built for.
+    expect(answer.transcript[0].content).toBe('what is my net worth?');
+    expect(answer.transcript[0].content).not.toContain('netWorth');
+    // The results are what makes "break that down" answerable without a re-run.
+    expect(answer.transcript[2].content).toContain('## Tool results');
+  });
+
+  it('feeds the previous transcript back as the model context', async () => {
+    const first = await ask(
+      scripted([{ toolCalls: [{ name: 'getPortfolioSummary' }] }, { reply: 'INR 250,000.' }])
+    );
+
+    const chat = scripted([{ reply: 'Mostly index funds.' }]);
+    await runChatLoop({
+      chat,
+      context: fakeContext(),
+      snapshot: SNAPSHOT,
+      history: first.transcript,
+      question: 'where is it concentrated?',
+    });
+
+    const sent = chat.calls[0];
+    expect(sent[0].role).toBe('system');
+    // The earlier question, its tool call, its results and its answer all survive.
+    expect(sent.some(message => message.content.includes('## Tool results'))).toBe(true);
+    expect(sent.some(message => message.content === 'what is my net worth?')).toBe(true);
+    expect(sent[sent.length - 1].content).toContain('where is it concentrated?');
+  });
+
+  // The nudge is true for the question it was sent on and false afterwards.
+  it('leaves the out-of-budget nudge out of the transcript', async () => {
+    const chat = scripted([{ toolCalls: [{ name: 'getPortfolioSummary' }] }]);
+
+    const answer = await ask(chat);
+
+    expect(answer.warnings.join(' ')).toContain('did not produce an answer');
+    expect(answer.transcript.some(message => message.content.includes('no more tool calls'))).toBe(
+      false
+    );
+  });
+
   it('stops at an abort rather than running the next turn', async () => {
     const controller = new AbortController();
     const chat = scripted([{ toolCalls: [{ name: 'getPortfolioSummary' }] }, { reply: 'late' }]);
@@ -265,5 +348,61 @@ describe('runChatLoop', () => {
     ).rejects.toThrow();
 
     expect(chat.calls).toHaveLength(0);
+  });
+});
+
+describe('trimTranscript', () => {
+  const turn = (role: 'user' | 'assistant', content: string): LlmMessage => ({ role, content });
+
+  it('keeps everything that fits', () => {
+    const transcript = [turn('user', 'q'), turn('assistant', 'a')];
+
+    expect(trimTranscript(transcript, 1000)).toEqual(transcript);
+  });
+
+  it('drops the oldest turns and says so', () => {
+    const transcript = [
+      turn('user', 'old question'),
+      turn('assistant', 'x'.repeat(300)),
+      turn('user', 'new question'),
+      turn('assistant', 'recent answer'),
+    ];
+
+    const trimmed = trimTranscript(transcript, 100);
+
+    expect(trimmed[0].content).toContain('Earlier messages');
+    expect(trimmed.slice(1)).toEqual(transcript.slice(2));
+  });
+
+  // An assistant turn at the front reads as the answer to a question the model
+  // cannot see, which is the confusion the transcript exists to remove.
+  it('advances the kept slice to a question', () => {
+    const transcript = [
+      turn('user', 'q1'),
+      turn('user', 'tool results'),
+      turn('assistant', 'y'.repeat(80)),
+    ];
+
+    const trimmed = trimTranscript(transcript, 100);
+
+    expect(trimmed[1].role).toBe('user');
+  });
+
+  it('carries one note however often it is trimmed', () => {
+    const transcript = [
+      turn('user', 'q1'),
+      turn('assistant', 'z'.repeat(300)),
+      turn('user', 'q2'),
+      turn('assistant', 'z'.repeat(300)),
+      turn('user', 'q3'),
+    ];
+
+    const once = trimTranscript(transcript, 50);
+    const twice = trimTranscript(
+      [...once, turn('assistant', 'z'.repeat(300)), turn('user', 'q4')],
+      50
+    );
+
+    expect(twice.filter(message => message.content.includes('Earlier messages'))).toHaveLength(1);
   });
 });

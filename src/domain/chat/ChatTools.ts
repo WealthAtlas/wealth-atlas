@@ -11,6 +11,7 @@ import { computeLoanPortfolioTotals } from '../services/LoanService';
 import { isoDate, monthKey } from '../utils/DateUtils';
 import { computeUpcomingCommitments } from './ChatCommitments';
 import { ChatToolContext } from './ChatToolContext';
+import { buildSandboxData } from './SandboxData';
 
 /**
  * The read-only surface the assistant can call. Every tool answers from the
@@ -363,6 +364,39 @@ export const CHAT_TOOLS: ChatTool[] = [
         sipInstalments: capped(commitments.sipInstalments),
         emiPayments: capped(commitments.emiPayments),
         currency: ctx.converter.getBaseCurrency(),
+      };
+    },
+  },
+
+  {
+    name: 'runCalculation',
+    description:
+      'Run a short JavaScript snippet to work out a figure the other tools do not return — a projection, a what-if, a comparison, or a total over a set you have filtered yourself. Prefer this over doing arithmetic in your head.',
+    argsHint:
+      'code: string — the body of an async function. It receives `data` ({today, baseCurrency, unratedCurrencies, assets[], loans[], goals[], monthlyExpenses[]}, all amounts already in the base currency, keys as in listAssets/getLoanSummary/getGoalProgress) and must `return` a number or a plain object. No network and no database access; console.log is echoed back.',
+    async run(args, ctx) {
+      const code = asString(args.code);
+      if (code === undefined) return { error: 'code is required.' };
+
+      const data = await buildSandboxData(ctx);
+      const outcome = await ctx.runCode(code, data);
+
+      if (!outcome.ok) {
+        return {
+          error: outcome.error ?? 'The snippet failed.',
+          logs: outcome.logs,
+          // Named so a retry fixes the snippet rather than inventing the answer.
+          hint: 'Fix the snippet and call runCalculation again, or say you could not work it out. Do not guess the result.',
+        };
+      }
+
+      return {
+        result: outcome.value,
+        logs: outcome.logs,
+        baseCurrency: ctx.converter.getBaseCurrency(),
+        // The snippet computed over the same zeroed figures as everything else.
+        unratedCurrencies: data.unratedCurrencies,
+        ...(data.truncated.length > 0 ? { truncatedInputs: data.truncated } : {}),
       };
     },
   },
