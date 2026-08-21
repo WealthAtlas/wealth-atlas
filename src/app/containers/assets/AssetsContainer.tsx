@@ -1,4 +1,5 @@
 import { useCurrency } from '@/app/components/providers/CurrencyContext';
+import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { AssetsPage } from '@/app/components/pages/AssetsPage';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { AssetService, computeAssetPortfolioTotals } from '@/domain/services/AssetService';
@@ -42,6 +43,9 @@ export function AssetsContainer() {
   useEffect(() => {
     loadAssets();
   }, [loadAssets]);
+
+  // A sync pull replaces every row, including these.
+  useDatabaseReplaced(() => void loadAssets());
 
   return (
     <>

@@ -17,6 +17,7 @@ import { upgradeSnapshotDataToV5 } from '../migrations/v5';
 import { upgradeSnapshotDataToV6 } from '../migrations/v6';
 import { upgradeSnapshotDataToV7 } from '../migrations/v7';
 import { hydrateAiProviderSettings } from '../llm/state';
+import { emitDatabaseReplaced } from '../databaseEvents';
 import { buildSyncApiUrl } from './config';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
@@ -264,6 +265,10 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
   // synchronous cache — refill it or this device keeps talking to the provider
   // the snapshot just replaced.
   await hydrateAiProviderSettings();
+
+  // Views hold what they read on mount, so without this the pull is invisible
+  // until the user navigates away and back.
+  emitDatabaseReplaced();
 }
 
 export class SyncService {

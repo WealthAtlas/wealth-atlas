@@ -8,9 +8,10 @@ import {
   isLocalEndpoint,
   saveAiProviderSettings,
 } from '@/data/llm/state';
+import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { IAiProviderSettings } from '@/domain/entities/shared/Settings';
 import { Logger } from '@/domain/utils/Logger';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 /**
  * The provider configuration is a synced row now, so it is edited as a draft and
@@ -52,6 +53,12 @@ function toStored(draft: Draft): IAiProviderSettings {
   };
 }
 
+const FIELDS = ['presetId', 'baseUrl', 'apiKey', 'model'] as const;
+
+function isSameDraft(a: Draft, b: Draft): boolean {
+  return FIELDS.every(field => a[field] === b[field]);
+}
+
 export function AiProviderSettingsContainer() {
   const { notify } = useNotification();
   const [stored, setStored] = useState<Draft>(() => toDraft(getStoredAiProviderSettings()));
@@ -60,10 +67,22 @@ export function AiProviderSettingsContainer() {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | undefined>();
 
-  const isDirty = useMemo(
-    () => (Object.keys(draft) as (keyof Draft)[]).some(field => draft[field] !== stored[field]),
-    [draft, stored]
-  );
+  const isDirty = useMemo(() => !isSameDraft(draft, stored), [draft, stored]);
+
+  // Readable from the subscription below without resubscribing on every edit.
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
+
+  // A pull brings the provider, endpoint, model and key from another device.
+  // Adopted into the form only when the user has nothing unsaved: the baseline
+  // still moves, so `isDirty` keeps telling the truth about what Save would
+  // write, but an edit in progress is never overwritten.
+  useDatabaseReplaced(() => {
+    const saved = toDraft(getStoredAiProviderSettings());
+    setDraft(current => (isSameDraft(current, storedRef.current) ? saved : current));
+    setStored(saved);
+    setTestResult(undefined);
+  });
 
   const update = useCallback((changes: Partial<Draft>) => {
     setDraft(current => ({ ...current, ...changes }));

@@ -2,6 +2,7 @@ import { ChatSheetView } from '@/app/components/views/ChatSheetView';
 import { LinkableEntity, LinkTarget } from '@/domain/chat/EntityLinks';
 import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { useNotification } from '@/app/components/providers/NotificationContext';
+import { useDatabaseVersion } from '@/app/utils/useDatabaseReplaced';
 import { ChatComposerView } from '@/app/components/views/ChatComposerView';
 import { ChatMessageView, ChatThreadView } from '@/app/components/views/ChatThreadView';
 import { LlmError, LlmMessage } from '@/data/llm/LlmClient';
@@ -55,6 +56,9 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
    */
   const history = useRef<LlmMessage[]>([]);
 
+  // Read live rather than held in state, so a pull that changes the provider has
+  // to reach this render.
+  useDatabaseVersion();
   const configured = chatService.isConfigured();
 
   useEffect(() => {

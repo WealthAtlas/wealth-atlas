@@ -2,6 +2,7 @@ import { SettingsPage } from '@/app/components/pages/SettingsPage';
 import { useNotification } from '@/app/components/providers/NotificationContext';
 import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { SyncService } from '@/data/sync/Syncer';
+import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { BackupService } from '@/domain/services/BackupService';
 import { Logger } from '@/domain/utils/Logger';
 import { useCallback, useState } from 'react';
@@ -13,6 +14,10 @@ export function SettingsContainer() {
   const [, setStatusVersion] = useState(0); // trigger re-render only
   const status = SyncService.getStatus();
   const autoSyncStatus = AutoSyncService.getStatus();
+
+  // Read at render, so a background pull needs a nudge for "Last Sync" and the
+  // remote version to stop showing the state from before it.
+  useDatabaseReplaced(() => setStatusVersion(v => v + 1));
 
   const wrap = useCallback(
     (fn: () => Promise<unknown>) =>

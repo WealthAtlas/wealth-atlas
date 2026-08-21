@@ -1,4 +1,5 @@
 import { useCurrency } from '@/app/components/providers/CurrencyContext';
+import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { GoalsPage } from '@/app/components/pages/GoalsPage';
 import { Goal } from '@/domain/entities/goals/Goal';
 import { computeGoalPortfolioTotals, GoalService } from '@/domain/services/GoalService';
@@ -40,6 +41,9 @@ export function GoalsContainer() {
   useEffect(() => {
     loadGoals();
   }, [loadGoals]);
+
+  // A sync pull replaces every row, including these.
+  useDatabaseReplaced(() => void loadGoals());
 
   return (
     <>

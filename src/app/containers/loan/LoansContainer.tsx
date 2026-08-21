@@ -1,4 +1,5 @@
 import { useCurrency } from '@/app/components/providers/CurrencyContext';
+import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { LoansPage } from '@/app/components/pages/LoansPage';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { computeLoanPortfolioTotals, LoanService } from '@/domain/services/LoanService';
@@ -40,6 +41,9 @@ export function LoansContainer() {
   useEffect(() => {
     loadLoans();
   }, [loadLoans]);
+
+  // A sync pull replaces every row, including these.
+  useDatabaseReplaced(() => void loadLoans());
 
   return (
     <>

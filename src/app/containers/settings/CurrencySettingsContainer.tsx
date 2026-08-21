@@ -8,7 +8,7 @@ import {
 } from '@/domain/entities/shared/CurrencyConfig';
 import { CurrencyService } from '@/domain/services/CurrencyService';
 import { Logger } from '@/domain/utils/Logger';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export function CurrencySettingsContainer() {
   const { baseCurrency, currencies, reload } = useCurrency();
@@ -19,11 +19,20 @@ export function CurrencySettingsContainer() {
   const [draft, setDraft] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // What the editor was last handed, readable without making `load` depend on it
+  // — the effect below re-runs whenever the currency context reloads, which now
+  // includes a sync pull landing mid-session.
+  const storedRef = useRef('');
+
   const load = useCallback(async () => {
     const rates = await currencyService.getRates();
     const text = serializeCurrencyConfig(currencies, rates, baseCurrency);
+    // Adopted into the editor only when there is nothing to lose. A pull can
+    // arrive while the user is halfway through typing a rate, and silently
+    // replacing the text under the cursor is worse than showing it stale.
+    setDraft(current => (current === storedRef.current ? text : current));
+    storedRef.current = text;
     setStored(text);
-    setDraft(text);
   }, [currencyService, currencies, baseCurrency]);
 
   useEffect(() => {

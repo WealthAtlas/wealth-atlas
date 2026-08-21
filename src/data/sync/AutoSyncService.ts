@@ -8,6 +8,12 @@ export class AutoSyncService {
   private static isListening = false;
   private static readonly SYNC_DELAY_MS = 2000; // 2 seconds delay to batch changes
 
+  /**
+   * Depth of `withoutScheduling` calls. A counter rather than a boolean so nested
+   * callers cannot switch scheduling back on for each other.
+   */
+  private static suppressionDepth = 0;
+
   private static pollTimer: NodeJS.Timeout | null = null;
   private static pollInFlight = false;
   private static readonly POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -66,11 +72,34 @@ export class AutoSyncService {
   }
 
   /**
+   * Runs `fn` with change-driven pushes turned off, and drops rather than defers
+   * whatever it writes.
+   *
+   * For writes that are not the user changing their mind about anything: a schema
+   * migration, or the one-time adoption of settings that used to live outside
+   * Dexie. Pushing those would race the device's own first pull, and whichever
+   * won would silently decide which device's settings survived. They reach the
+   * cloud with the next real edit instead.
+   */
+  static async withoutScheduling<T>(fn: () => Promise<T>): Promise<T> {
+    AutoSyncService.suppressionDepth++;
+    try {
+      return await fn();
+    } finally {
+      AutoSyncService.suppressionDepth--;
+    }
+  }
+
+  /**
    * Schedule a sync operation with debouncing to batch multiple changes
    */
   private static scheduleSync(operation: string, tableName: string): void {
     // Only proceed if still listening and auto-sync is configured
     if (!AutoSyncService.isListening) return;
+    if (AutoSyncService.suppressionDepth > 0) {
+      Logger.log(`AutoSyncService: Not scheduling for ${operation} on ${tableName} - suppressed`);
+      return;
+    }
 
     const keyId = getKeyId();
     const autoSyncEnabled = getAutoSyncEnabled();

@@ -16,6 +16,7 @@ import {
 import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { DataImportService } from '@/domain/services/DataImportService';
 import { Logger } from '@/domain/utils/Logger';
+import { useDatabaseVersion } from '@/app/utils/useDatabaseReplaced';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -24,6 +25,9 @@ export function ImportContainer() {
   const { notify } = useNotification();
   const { currencies } = useCurrency();
   const importService = useMemo(() => new DataImportService(), []);
+  // The provider host is shown to the user before any of their data is sent, so
+  // it must not lag behind a provider a pull has just replaced.
+  useDatabaseVersion();
   const abortRef = useRef<AbortController | undefined>(undefined);
 
   const [step, setStep] = useState<ImportStep>('source');

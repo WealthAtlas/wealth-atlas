@@ -1,6 +1,7 @@
 import { Currency, DEFAULT_CURRENCIES } from '@/domain/entities/shared/Currency';
 import { CurrencyConverter } from '@/domain/entities/shared/CurrencyConverter';
 import { DEFAULT_BASE_CURRENCY } from '@/domain/entities/shared/Settings';
+import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { CurrencyService } from '@/domain/services/CurrencyService';
 import { Logger } from '@/domain/utils/Logger';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,6 +29,13 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     await load();
   }, [load]);
+
+  // A pull can bring a new base currency, a new currency list or new rates. Every
+  // total on screen is computed through this converter, so it has to re-read or
+  // the whole app keeps reporting in the currency the user just replaced.
+  useDatabaseReplaced(() => {
+    reload().catch(error => Logger.error('Failed to re-read currency settings:', error));
+  });
 
   useEffect(() => {
     let cancelled = false;
