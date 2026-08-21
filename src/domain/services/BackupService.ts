@@ -1,6 +1,8 @@
 import { db as database } from '@/data/database';
 import { rehydrateSnapshotDates } from '@/data/migrations/rehydrateDates';
 import { upgradeSnapshotDataToV4 } from '@/data/migrations/v4';
+import { upgradeSnapshotDataToV5 } from '@/data/migrations/v5';
+import { upgradeSnapshotDataToV6 } from '@/data/migrations/v6';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment } from '@/domain/entities/assets/Investment';
 import { ISIP } from '@/domain/entities/assets/SIP';
@@ -10,6 +12,8 @@ import { IGoal } from '@/domain/entities/goals/Goal';
 import { IEMI } from '@/domain/entities/loans/EMI';
 import { ILoan } from '@/domain/entities/loans/Loan';
 import { IPayment } from '@/domain/entities/loans/Payment';
+import { ICurrencyRate } from '@/domain/entities/shared/CurrencyRate';
+import { ISettings } from '@/domain/entities/shared/Settings';
 import { Logger } from '../utils/Logger';
 
 export interface BackupData {
@@ -25,6 +29,9 @@ export interface BackupData {
     payments: IPayment[];
     goals: IGoal[];
     allocations: IAllocation[];
+    /** Added in 2.1.0; absent from older files, which restore with defaults. */
+    settings?: ISettings[];
+    currencyRates?: ICurrencyRate[];
   };
 }
 
@@ -32,8 +39,11 @@ export class BackupService {
   /**
    * v2.0.0: investments.price -> totalAmount (sells stored positive) and expense
    * currency stored as an ISO code. v1.0.0 files are migrated on restore.
+   * v2.1.0: adds the settings singleton (base currency) and currency rates. New
+   * tables only, so 2.0.0 files stay restorable and simply pick up the defaults.
+   * v2.2.0: settings.currencies — the configurable currency list.
    */
-  private static readonly BACKUP_VERSION = '2.0.0';
+  private static readonly BACKUP_VERSION = '2.2.0';
 
   /**
    * Export all data from the database as a JSON string
@@ -42,18 +52,31 @@ export class BackupService {
     try {
       Logger.info('Starting data export...');
 
-      const [assets, investments, sips, expenses, loans, emis, payments, goals, allocations] =
-        await Promise.all([
-          database.assets.toArray(),
-          database.investments.toArray(),
-          database.sips.toArray(),
-          database.expenses.toArray(),
-          database.loans.toArray(),
-          database.emis.toArray(),
-          database.payments.toArray(),
-          database.goals.toArray(),
-          database.allocations.toArray(),
-        ]);
+      const [
+        assets,
+        investments,
+        sips,
+        expenses,
+        loans,
+        emis,
+        payments,
+        goals,
+        allocations,
+        settings,
+        currencyRates,
+      ] = await Promise.all([
+        database.assets.toArray(),
+        database.investments.toArray(),
+        database.sips.toArray(),
+        database.expenses.toArray(),
+        database.loans.toArray(),
+        database.emis.toArray(),
+        database.payments.toArray(),
+        database.goals.toArray(),
+        database.allocations.toArray(),
+        database.settings.toArray(),
+        database.currencyRates.toArray(),
+      ]);
 
       const backupData: BackupData = {
         version: this.BACKUP_VERSION,
@@ -68,6 +91,8 @@ export class BackupService {
           payments,
           goals,
           allocations,
+          settings,
+          currencyRates,
         },
       };
 
@@ -225,6 +250,12 @@ export class BackupService {
       backupData.version = this.BACKUP_VERSION;
     }
 
+    // Idempotent, and cheap enough to run for every file: it keeps a valid
+    // settings row as-is and otherwise supplies the default base currency, which
+    // is exactly what a pre-2.1.0 file needs.
+    upgradeSnapshotDataToV5(data);
+    upgradeSnapshotDataToV6(data);
+
     rehydrateSnapshotDates(data);
   }
 
@@ -244,6 +275,8 @@ export class BackupService {
       database.payments.clear(),
       database.goals.clear(),
       database.allocations.clear(),
+      database.settings.clear(),
+      database.currencyRates.clear(),
     ]);
 
     Logger.info('Existing data cleared');
@@ -267,6 +300,8 @@ export class BackupService {
       database.payments.bulkAdd(data.payments as IPayment[]),
       database.goals.bulkAdd(data.goals as IGoal[]),
       database.allocations.bulkAdd(data.allocations as IAllocation[]),
+      database.settings.bulkAdd(data.settings ?? []),
+      database.currencyRates.bulkAdd(data.currencyRates ?? []),
     ]);
 
     Logger.info('Backup data imported successfully');

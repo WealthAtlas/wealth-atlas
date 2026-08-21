@@ -13,6 +13,7 @@ import {
   toggleSelection,
   withoutOrphans,
 } from '@/domain/import/ImportSelection';
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { DataImportService } from '@/domain/services/DataImportService';
 import { Logger } from '@/domain/utils/Logger';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -21,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 export function ImportContainer() {
   const navigate = useNavigate();
   const { notify } = useNotification();
+  const { currencies } = useCurrency();
   const importService = useMemo(() => new DataImportService(), []);
   const abortRef = useRef<AbortController | undefined>(undefined);
 
@@ -61,7 +63,8 @@ export function ImportContainer() {
     try {
       const built = await importService.buildPlan(
         { text: sourceText, fileName },
-        controller.signal
+        controller.signal,
+        currencies
       );
       setPlan(built);
       setSelected(defaultSelection(built.operations));
@@ -80,7 +83,7 @@ export function ImportContainer() {
     } finally {
       abortRef.current = undefined;
     }
-  }, [fileName, importService, notify, sourceText]);
+  }, [fileName, importService, notify, sourceText, currencies]);
 
   const handleCancelAnalysis = useCallback(() => {
     abortRef.current?.abort();

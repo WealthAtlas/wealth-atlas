@@ -35,6 +35,8 @@ interface ExpenseFormDialogProps {
   open: boolean;
   title: string;
   formData: IExpense;
+  /** Codes the user has configured; the picker offers these. */
+  currencies: Currency[];
   isSubmitting: boolean;
   onClose: () => void;
   onSubmit: () => void;
@@ -44,6 +46,7 @@ interface ExpenseFormDialogProps {
 export function ExpenseFormDialog({
   open,
   title,
+  currencies,
   formData,
   isSubmitting,
   onClose,
@@ -212,7 +215,7 @@ export function ExpenseFormDialog({
                 label="Currency"
                 required
               >
-                {Object.values(Currency).map(code => (
+                {currencies.map(code => (
                   <MenuItem key={code} value={code}>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Typography fontWeight="bold">{getCurrencySymbol(code)}</Typography>

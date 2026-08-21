@@ -8,11 +8,14 @@ import { IGoal } from '../domain/entities/goals/Goal';
 import { IEMI } from '../domain/entities/loans/EMI';
 import { ILoan } from '../domain/entities/loans/Loan';
 import { IPayment } from '../domain/entities/loans/Payment';
+import { ICurrencyRate } from '../domain/entities/shared/CurrencyRate';
+import { defaultSettings, ISettings } from '../domain/entities/shared/Settings';
 import {
   upgradeCurrencyBearingRowToV4,
   upgradeExpenseRowToV4,
   upgradeInvestmentRowToV4,
 } from './migrations/v4';
+import { upgradeSettingsRowToV6 } from './migrations/v6';
 import { AutoSyncService } from './sync/AutoSyncService';
 
 export class WealthAtlasDB extends Dexie {
@@ -25,6 +28,8 @@ export class WealthAtlasDB extends Dexie {
   payments!: Table<IPayment>;
   goals!: Table<IGoal>;
   allocations!: Table<IAllocation>;
+  settings!: Table<ISettings>;
+  currencyRates!: Table<ICurrencyRate>;
 
   constructor() {
     super('WealthAtlasDB');
@@ -93,6 +98,24 @@ export class WealthAtlasDB extends Dexie {
         await trans.table('loans').toCollection().modify(upgradeCurrencyBearingRowToV4);
         await trans.table('goals').toCollection().modify(upgradeCurrencyBearingRowToV4);
       });
+
+    // Migration: v5 - Base-currency reporting. Adds the `settings` singleton
+    // (base currency) and one `currencyRates` row per non-base currency. Dexie
+    // carries every unchanged table forward, so only the new stores are listed.
+    this.version(5)
+      .stores({
+        settings: 'id',
+        currencyRates: '++id, &code',
+      })
+      .upgrade(async trans => {
+        await trans.table('settings').put(defaultSettings());
+      });
+
+    // Migration: v6 - The currency list becomes configurable, so the settings
+    // singleton carries the codes this user's data may use. No new tables.
+    this.version(6).upgrade(async trans => {
+      await trans.table('settings').toCollection().modify(upgradeSettingsRowToV6);
+    });
   }
 
   private setupAutoSync(): void {
@@ -116,6 +139,8 @@ export const ALL_TABLES = [
   db.payments,
   db.goals,
   db.allocations,
+  db.settings,
+  db.currencyRates,
 ];
 
 /**

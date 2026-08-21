@@ -10,6 +10,8 @@ export interface Snapshot {
     payments: unknown[];
     goals: unknown[];
     allocations: unknown[];
+    settings: unknown[];
+    currencyRates: unknown[];
   };
 }
 

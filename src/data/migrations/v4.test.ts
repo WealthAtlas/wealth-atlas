@@ -72,8 +72,17 @@ describe('upgradeExpenseRowToV4', () => {
     expect(row.currency).toBe(expected);
   });
 
-  it('falls back to INR for anything unrecognised', () => {
+  it('keeps a three-letter code it does not recognise, now that the list is configurable', () => {
     const row: Record<string, unknown> = { currency: 'wat' };
+    upgradeExpenseRowToV4(row);
+
+    // Coercing it to INR would silently relabel the amount. An unconfigured
+    // code is reported as unconvertible instead, which the user can see and fix.
+    expect(row.currency).toBe('WAT');
+  });
+
+  it('still falls back to INR for something that is not a code at all', () => {
+    const row: Record<string, unknown> = { currency: 'not a currency' };
     upgradeExpenseRowToV4(row);
 
     expect(row.currency).toBe(Currency.INR);

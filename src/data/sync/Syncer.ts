@@ -7,10 +7,14 @@ import type { IGoal } from '@/domain/entities/goals/Goal';
 import type { IEMI } from '@/domain/entities/loans/EMI';
 import type { ILoan } from '@/domain/entities/loans/Loan';
 import type { IPayment } from '@/domain/entities/loans/Payment';
+import type { ICurrencyRate } from '@/domain/entities/shared/CurrencyRate';
+import type { ISettings } from '@/domain/entities/shared/Settings';
 import { Logger } from '@/domain/utils/Logger';
 import { db } from '../database';
 import { rehydrateSnapshotDates } from '../migrations/rehydrateDates';
 import { upgradeSnapshotDataToV4 } from '../migrations/v4';
+import { upgradeSnapshotDataToV5 } from '../migrations/v5';
+import { upgradeSnapshotDataToV6 } from '../migrations/v6';
 import { buildSyncApiUrl } from './config';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
@@ -87,8 +91,11 @@ async function fetchRemoteVersion(keyId: string): Promise<number | undefined> {
  *
  * v9: investments.price -> totalAmount (sells positive), expense currency
  *     stored as ISO code rather than symbol.
+ * v10: adds the `settings` singleton (base currency) and `currencyRates`. New
+ *     tables only, so an older snapshot just needs the settings seed.
+ * v11: settings.currencies — the configurable currency list.
  */
-const SNAPSHOT_VERSION = 9;
+const SNAPSHOT_VERSION = 11;
 const OLDEST_SUPPORTED_SNAPSHOT_VERSION = 8;
 
 function getSchemaVersion(): number {
@@ -117,7 +124,19 @@ function upgradeSnapshot(snapshot: Snapshot): Snapshot {
     );
   }
 
-  upgradeSnapshotDataToV4(snapshot.data as unknown as Record<string, Record<string, unknown>[]>);
+  const data = snapshot.data as unknown as Record<string, Record<string, unknown>[]>;
+  // Each step is gated on the version that introduced it: the v4 transforms are
+  // idempotent, but re-running them on a v9 snapshot would be needless work and
+  // makes the upgrade path harder to read as more steps land.
+  if (snapshot.schemaVersion < 9) {
+    upgradeSnapshotDataToV4(data);
+  }
+  if (snapshot.schemaVersion < 10) {
+    upgradeSnapshotDataToV5(data);
+  }
+  if (snapshot.schemaVersion < 11) {
+    upgradeSnapshotDataToV6(data);
+  }
   Logger.info(`Upgraded sync snapshot from v${snapshot.schemaVersion} to v${SNAPSHOT_VERSION}`);
   return { ...snapshot, schemaVersion: SNAPSHOT_VERSION };
 }
@@ -131,18 +150,31 @@ function rehydrateSnapshot(snapshot: Snapshot): void {
 }
 
 async function exportSnapshot(): Promise<Snapshot> {
-  const [assets, investments, sips, expenses, loans, emis, payments, goals, allocations] =
-    await Promise.all([
-      db.assets.toArray(),
-      db.investments.toArray(),
-      db.sips.toArray(),
-      db.expenses.toArray(),
-      db.loans.toArray(),
-      db.emis.toArray(),
-      db.payments.toArray(),
-      db.goals.toArray(),
-      db.allocations.toArray(),
-    ]);
+  const [
+    assets,
+    investments,
+    sips,
+    expenses,
+    loans,
+    emis,
+    payments,
+    goals,
+    allocations,
+    settings,
+    currencyRates,
+  ] = await Promise.all([
+    db.assets.toArray(),
+    db.investments.toArray(),
+    db.sips.toArray(),
+    db.expenses.toArray(),
+    db.loans.toArray(),
+    db.emis.toArray(),
+    db.payments.toArray(),
+    db.goals.toArray(),
+    db.allocations.toArray(),
+    db.settings.toArray(),
+    db.currencyRates.toArray(),
+  ]);
   return {
     schemaVersion: getSchemaVersion(),
     data: {
@@ -155,6 +187,8 @@ async function exportSnapshot(): Promise<Snapshot> {
       payments,
       goals,
       allocations,
+      settings,
+      currencyRates,
     },
   };
 }
@@ -174,9 +208,13 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
       db.payments,
       db.goals,
       db.allocations,
+      db.settings,
+      db.currencyRates,
     ],
     async () => {
       await Promise.all([
+        db.currencyRates.clear(),
+        db.settings.clear(),
         db.allocations.clear(),
         db.goals.clear(),
         db.payments.clear(),
@@ -197,6 +235,8 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
         payments?: IPayment[];
         goals?: IGoal[];
         allocations?: IAllocation[];
+        settings?: ISettings[];
+        currencyRates?: ICurrencyRate[];
       };
       // Order respects dependencies
       await db.assets.bulkPut(d.assets || []);
@@ -208,6 +248,8 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
       await db.payments.bulkPut(d.payments || []);
       await db.goals.bulkPut(d.goals || []);
       await db.allocations.bulkPut(d.allocations || []);
+      await db.settings.bulkPut(d.settings || []);
+      await db.currencyRates.bulkPut(d.currencyRates || []);
     }
   );
 }

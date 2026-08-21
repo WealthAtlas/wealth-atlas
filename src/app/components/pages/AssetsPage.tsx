@@ -1,6 +1,7 @@
+import { Currency } from '@/domain/entities/shared/Currency';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { Add, FileDownload } from '@mui/icons-material';
-import { Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
 import { AssetFormContainer } from '../../containers/assets/AssetFormContainer';
 import { AssetViewContainer } from '../../containers/assets/AssetViewContainer';
 import { UIUtils } from '../../utils/UIUtils';
@@ -13,6 +14,8 @@ export interface AssetsPageProps {
     totalInvested: number;
     totalProfitLoss: number;
     totalProfitLossPercentage: number;
+    currency: Currency;
+    unratedCurrencies: Currency[];
   };
   refresh: () => void;
   deleteAsset: (id: number) => void;
@@ -51,7 +54,7 @@ export function AssetsPage({
                   Total Value
                 </Typography>
                 <Typography variant="h6">
-                  {UIUtils.formatCurrency(portfolioMetrics.totalValue, 'INR')}
+                  {UIUtils.formatCurrency(portfolioMetrics.totalValue, portfolioMetrics.currency)}
                 </Typography>
               </Box>
               <Box>
@@ -59,7 +62,10 @@ export function AssetsPage({
                   Total Invested
                 </Typography>
                 <Typography variant="h6">
-                  {UIUtils.formatCurrency(portfolioMetrics.totalInvested, 'INR')}
+                  {UIUtils.formatCurrency(
+                    portfolioMetrics.totalInvested,
+                    portfolioMetrics.currency
+                  )}
                 </Typography>
               </Box>
               <Box>
@@ -70,8 +76,11 @@ export function AssetsPage({
                   variant="h6"
                   color={portfolioMetrics.totalProfitLoss >= 0 ? 'success.main' : 'error.main'}
                 >
-                  {UIUtils.formatCurrency(portfolioMetrics.totalProfitLoss, 'INR')} (
-                  {UIUtils.formatPercentage(portfolioMetrics.totalProfitLossPercentage)})
+                  {UIUtils.formatCurrency(
+                    portfolioMetrics.totalProfitLoss,
+                    portfolioMetrics.currency
+                  )}{' '}
+                  ({UIUtils.formatPercentage(portfolioMetrics.totalProfitLossPercentage)})
                 </Typography>
               </Box>
             </Box>
@@ -85,6 +94,13 @@ export function AssetsPage({
             Export for Analysis
           </Button>
         </Box>
+
+        {portfolioMetrics.unratedCurrencies.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            Totals exclude assets in {portfolioMetrics.unratedCurrencies.join(', ')} — no exchange
+            rate set. Add one in Settings.
+          </Alert>
+        )}
 
         <Grid container spacing={3}>
           {assets.map(asset => (

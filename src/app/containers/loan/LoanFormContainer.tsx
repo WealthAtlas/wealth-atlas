@@ -1,5 +1,5 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { LoanFormDialog } from '@/app/components/dialogs/LoanFormDialog';
-import { Currency } from '@/domain/entities/shared/Currency';
 import { ILoan, Loan } from '@/domain/entities/loans/Loan';
 import { LoanService } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
@@ -12,16 +12,17 @@ export interface LoanFormContainerProps {
 }
 
 export function LoanFormContainer({ open, loanToEdit, onClose }: LoanFormContainerProps) {
+  const { baseCurrency, currencies } = useCurrency();
   const initialLoan: ILoan = React.useMemo(
     () => ({
       id: loanToEdit?.id,
       name: loanToEdit?.name || '',
       description: loanToEdit?.description || '',
       principalAmount: loanToEdit?.principalAmount || 0,
-      currency: loanToEdit?.currency || Currency.INR,
+      currency: loanToEdit?.currency || baseCurrency,
       startDate: loanToEdit?.startDate || new Date(),
     }),
-    [loanToEdit]
+    [loanToEdit, baseCurrency]
   );
 
   const [loan, setLoan] = useState<ILoan>(initialLoan);
@@ -39,6 +40,7 @@ export function LoanFormContainer({ open, loanToEdit, onClose }: LoanFormContain
 
   return (
     <LoanFormDialog
+      currencies={currencies}
       open={open}
       title={title}
       loan={loan}

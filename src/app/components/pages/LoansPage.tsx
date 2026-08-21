@@ -1,6 +1,7 @@
+import { Currency } from '@/domain/entities/shared/Currency';
 import { Loan } from '@/domain/entities/loans/Loan';
 import { Add } from '@mui/icons-material';
-import { Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
 import { LoanFormContainer } from '../../containers/loan/LoanFormContainer';
 import { LoanViewContainer } from '../../containers/loan/LoanViewContainer';
 import { UIUtils } from '../../utils/UIUtils';
@@ -13,6 +14,8 @@ export interface LoansPageProps {
     totalPaid: number;
     totalInterestAmount: number;
     totalLoans: number;
+    currency: Currency;
+    unratedCurrencies: Currency[];
   };
   refresh: () => void;
   deleteLoan: (id: number) => void;
@@ -49,7 +52,10 @@ export function LoansPage({
                   Total Outstanding
                 </Typography>
                 <Typography variant="h6">
-                  {UIUtils.formatCurrency(portfolioMetrics.totalOutstanding, 'INR')}
+                  {UIUtils.formatCurrency(
+                    portfolioMetrics.totalOutstanding,
+                    portfolioMetrics.currency
+                  )}
                 </Typography>
               </Box>
               <Box>
@@ -57,7 +63,7 @@ export function LoansPage({
                   Total Paid
                 </Typography>
                 <Typography variant="h6">
-                  {UIUtils.formatCurrency(portfolioMetrics.totalPaid, 'INR')}
+                  {UIUtils.formatCurrency(portfolioMetrics.totalPaid, portfolioMetrics.currency)}
                 </Typography>
               </Box>
               <Box>
@@ -65,7 +71,10 @@ export function LoansPage({
                   Interest Amount
                 </Typography>
                 <Typography variant="h6" color="warning.main">
-                  {UIUtils.formatCurrency(portfolioMetrics.totalInterestAmount, 'INR')}
+                  {UIUtils.formatCurrency(
+                    portfolioMetrics.totalInterestAmount,
+                    portfolioMetrics.currency
+                  )}
                 </Typography>
               </Box>
               <Box>
@@ -77,6 +86,13 @@ export function LoansPage({
             </Box>
           </Box>
         </Box>
+
+        {portfolioMetrics.unratedCurrencies.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            Totals exclude loans in {portfolioMetrics.unratedCurrencies.join(', ')} — no exchange
+            rate set. Add one in Settings.
+          </Alert>
+        )}
 
         <Grid container spacing={3}>
           {loans.map(loan => (

@@ -1,3 +1,4 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { MonthlyExpense } from '@/domain/entities/expenses/MonthlyExpense';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { ExpenseService } from '../../../domain/services/ExpenseService';
@@ -14,6 +15,7 @@ export function MonthlyExpenseViewContainer({
   deleteExpense,
   refresh,
 }: MonthlyExpenseViewContainerProps) {
+  const { converter, baseCurrency } = useCurrency();
   const [monthlyExpense, setMonthlyExpense] = React.useState<MonthlyExpense | undefined>(undefined);
   const expenseService = useMemo(() => new ExpenseService(), []);
 
@@ -37,6 +39,11 @@ export function MonthlyExpenseViewContainer({
         <MonthlyExpenseView
           key={monthlyExpense?.month.toISOString()}
           monthlyExpense={monthlyExpense}
+          currency={baseCurrency}
+          totalAmount={monthlyExpense.getTotalAmount(converter)}
+          essentialAmount={monthlyExpense.getEssentialAmount(converter)}
+          nonEssentialAmount={monthlyExpense.getNonEssentialAmount(converter)}
+          unratedCurrencies={monthlyExpense.getUnratedCurrencies(converter)}
           deleteExpense={deleteExpense}
           refresh={() => {
             fetchMonthlyExpense();

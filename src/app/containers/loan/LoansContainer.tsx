@@ -1,10 +1,12 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { LoansPage } from '@/app/components/pages/LoansPage';
 import { Loan } from '@/domain/entities/loans/Loan';
-import { LoanService } from '@/domain/services/LoanService';
+import { computeLoanPortfolioTotals, LoanService } from '@/domain/services/LoanService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
 
 export function LoansContainer() {
+  const { converter } = useCurrency();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [showAddLoan, setShowAddLoan] = React.useState(false);
   const loanService = React.useMemo(() => new LoanService(), []);
@@ -30,20 +32,10 @@ export function LoansContainer() {
     [loanService, loadLoans]
   );
 
-  // Calculate portfolio-level metrics
-  const portfolioMetrics = React.useMemo(() => {
-    const totalOutstanding = loans.reduce((sum, loan) => sum + loan.getOutstandingAmount(), 0);
-    const totalPaid = loans.reduce((sum, loan) => sum + loan.getPaidAmount(), 0);
-    const totalInterestAmount = loans.reduce((sum, loan) => sum + loan.getInterestAmount(), 0);
-    const totalLoans = loans.length;
-
-    return {
-      totalOutstanding,
-      totalPaid,
-      totalInterestAmount,
-      totalLoans,
-    };
-  }, [loans]);
+  const portfolioMetrics = React.useMemo(
+    () => computeLoanPortfolioTotals(loans, converter),
+    [loans, converter]
+  );
 
   useEffect(() => {
     loadLoans();

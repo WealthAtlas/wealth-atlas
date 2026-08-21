@@ -8,8 +8,10 @@ import {
 } from '../../../domain/services/DashboardService';
 import { Logger } from '../../../domain/utils/Logger';
 import { DashboardPage } from '../../components/pages/DashboardPage';
+import { useCurrency } from '../../components/providers/CurrencyContext';
 
 export function DashboardContainer() {
+  const { converter, baseCurrency } = useCurrency();
   const [metrics, setMetrics] = React.useState<DashboardMetrics>({
     totalWealth: 0,
     totalAssetValue: 0,
@@ -17,6 +19,8 @@ export function DashboardContainer() {
     totalInvestedAmount: 0,
     totalProfitLoss: 0,
     profitLossPercentage: 0,
+    currency: baseCurrency,
+    unratedCurrencies: [],
   });
   const [monthlyInvestmentData, setMonthlyInvestmentData] = React.useState<MonthlyInvestmentData[]>(
     []
@@ -34,10 +38,10 @@ export function DashboardContainer() {
 
       const [metricsData, monthlyData, categoryData, timelineDataResult] = await Promise.allSettled(
         [
-          dashboardService.getDashboardMetrics(),
-          dashboardService.getMonthlyInvestmentData(),
-          dashboardService.getAssetCategoryData(),
-          dashboardService.getTimelineData(),
+          dashboardService.getDashboardMetrics(converter),
+          dashboardService.getMonthlyInvestmentData(converter),
+          dashboardService.getAssetCategoryData(converter),
+          dashboardService.getTimelineData(converter),
         ]
       );
 
@@ -71,7 +75,7 @@ export function DashboardContainer() {
     } finally {
       setIsLoading(false);
     }
-  }, [dashboardService]);
+  }, [dashboardService, converter]);
 
   React.useEffect(() => {
     loadDashboardData();

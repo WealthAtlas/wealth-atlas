@@ -2,7 +2,7 @@ import { validateAsset } from '@/domain/validation/EntityValidators';
 import { isValid } from '@/domain/validation/ValidationIssue';
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
-import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
+import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import { executeValueScript } from '@/domain/utils/ScriptExecutor';
 import { scriptTemplates } from '@/domain/utils/ScriptTemplate';
 import {
@@ -42,6 +42,8 @@ export interface AssetFormDialogProps {
   open: boolean;
   title: string;
   asset: IAsset;
+  /** Codes the user has configured; the picker offers these. */
+  currencies: Currency[];
   isSubmitting: boolean;
   onClose: () => void;
   onSubmit: () => void;
@@ -57,6 +59,7 @@ interface ScriptTestResult {
 export function AssetFormDialog({
   open,
   title,
+  currencies,
   asset,
   isSubmitting,
   onClose,
@@ -200,9 +203,9 @@ export function AssetFormDialog({
                       onAssetChange({ ...asset, currency: e.target.value as Currency })
                     }
                   >
-                    {Object.values(Currency).map(code => (
+                    {currencies.map(code => (
                       <MenuItem key={code} value={code}>
-                        {code} - {CURRENCY_SYMBOLS[code]}
+                        {code} - {getCurrencySymbol(code)}
                       </MenuItem>
                     ))}
                   </Select>

@@ -1,73 +1,62 @@
 import { Currency } from '../shared/Currency';
+import { CurrencyConverter } from '../shared/CurrencyConverter';
 import { Expense } from './Expense';
 
+/**
+ * A month's expenses, totalled in the base currency.
+ *
+ * Totals used to be reported per currency, which left the reader adding up two
+ * or three columns to know what a month cost. Each expense keeps its own
+ * currency for its own row; every sum here converts.
+ */
 export class MonthlyExpense {
   constructor(
     public month: Date,
     public expenses: Expense[]
   ) {}
 
-  // Multi-currency support methods
-  getExpensesByCurrency(): Map<Currency, Expense[]> {
-    const currencyMap = new Map<Currency, Expense[]>();
-
-    this.expenses.forEach(expense => {
-      const existingExpenses = currencyMap.get(expense.currency) || [];
-      currencyMap.set(expense.currency, [...existingExpenses, expense]);
-    });
-
-    return currencyMap;
+  public getTotalAmount(converter: CurrencyConverter): number {
+    return this.sum(converter, this.expenses);
   }
 
-  getTotalAmountByCurrency(currency: Currency): number {
-    return this.expenses
-      .filter(expense => expense.currency === currency)
-      .reduce((total, expense) => total + expense.amount, 0);
-  }
-
-  getEssentialAmountByCurrency(currency: Currency): number {
-    return this.expenses
-      .filter(expense => expense.currency === currency && expense.isEssential)
-      .reduce((total, expense) => total + expense.amount, 0);
-  }
-
-  getNonEssentialAmountByCurrency(currency: Currency): number {
-    return this.expenses
-      .filter(expense => expense.currency === currency && !expense.isEssential)
-      .reduce((total, expense) => total + expense.amount, 0);
-  }
-
-  getUniqueCurrencies(): Currency[] {
-    const currencies = new Set(this.expenses.map(expense => expense.currency));
-    return Array.from(currencies);
-  }
-
-  hasMultipleCurrencies(): boolean {
-    return this.getUniqueCurrencies().length > 1;
-  }
-
-  // Category-related methods
-  getCategoriesByCurrency(currency: Currency): string[] {
-    const categories = new Set(
-      this.expenses
-        .filter(expense => expense.currency === currency)
-        .map(expense => expense.category)
+  public getEssentialAmount(converter: CurrencyConverter): number {
+    return this.sum(
+      converter,
+      this.expenses.filter(expense => expense.isEssential)
     );
-    return Array.from(categories);
   }
 
-  getCategoryTotalByCurrency(currency: Currency, category: string): number {
-    return this.expenses
-      .filter(expense => expense.currency === currency && expense.category === category)
-      .reduce((total, expense) => total + expense.amount, 0);
+  public getNonEssentialAmount(converter: CurrencyConverter): number {
+    return this.sum(
+      converter,
+      this.expenses.filter(expense => !expense.isEssential)
+    );
   }
 
-  getAllCategories(): string[] {
-    const categories = new Set(this.expenses.map(expense => expense.category));
-    return Array.from(categories);
+  public getCategoryTotal(converter: CurrencyConverter, category: string): number {
+    return this.sum(
+      converter,
+      this.expenses.filter(expense => expense.category === category)
+    );
   }
 
-  getSortedExpenses(): Expense[] {
+  public getAllCategories(): string[] {
+    return Array.from(new Set(this.expenses.map(expense => expense.category)));
+  }
+
+  /** Currencies spent this month that have no rate, so contributed 0 to the sums. */
+  public getUnratedCurrencies(converter: CurrencyConverter): Currency[] {
+    return converter.getUnratedCurrencies(this.expenses.map(expense => expense.currency));
+  }
+
+  public getSortedExpenses(): Expense[] {
     return this.expenses.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }
+
+  private sum(converter: CurrencyConverter, expenses: Expense[]): number {
+    return expenses.reduce(
+      (total, expense) => total + converter.toBase(expense.amount, expense.currency),
+      0
+    );
   }
 }

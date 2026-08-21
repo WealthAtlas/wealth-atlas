@@ -1,6 +1,6 @@
 import { validateLoan } from '@/domain/validation/EntityValidators';
 import { isValid } from '@/domain/validation/ValidationIssue';
-import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
+import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
 import { ILoan } from '@/domain/entities/loans/Loan';
 import { Save } from '@mui/icons-material';
 import {
@@ -22,6 +22,8 @@ export interface LoanFormDialogProps {
   open: boolean;
   title: string;
   loan: ILoan;
+  /** Codes the user has configured; the picker offers these. */
+  currencies: Currency[];
   isSubmitting: boolean;
   onClose: () => void;
   onSubmit: () => void;
@@ -31,6 +33,7 @@ export interface LoanFormDialogProps {
 export function LoanFormDialog({
   open,
   title,
+  currencies,
   loan,
   isSubmitting,
   onClose,
@@ -97,9 +100,9 @@ export function LoanFormDialog({
                 label="Currency"
                 onChange={e => onLoanChange({ ...loan, currency: e.target.value as Currency })}
               >
-                {Object.values(Currency).map(code => (
+                {currencies.map(code => (
                   <MenuItem key={code} value={code}>
-                    {code} - {CURRENCY_SYMBOLS[code]}
+                    {code} - {getCurrencySymbol(code)}
                   </MenuItem>
                 ))}
               </Select>

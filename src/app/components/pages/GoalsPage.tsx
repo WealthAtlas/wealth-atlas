@@ -1,6 +1,7 @@
+import { Currency } from '@/domain/entities/shared/Currency';
 import { Goal } from '@/domain/entities/goals/Goal';
 import { Add } from '@mui/icons-material';
-import { Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Fab, Grid, Paper, Typography } from '@mui/material';
 import { UIUtils } from '../../utils/UIUtils';
 import { GoalFormContainer } from '../../containers/goal/GoalFormContainer';
 import { GoalViewContainer } from '../../containers/goal/GoalViewContainer';
@@ -13,6 +14,8 @@ export interface GoalsPageProps {
     totalInflationAdjustedTarget: number;
     totalCurrentValue: number;
     averageYearsToMaturity: number;
+    currency: Currency;
+    unratedCurrencies: Currency[];
   };
   refresh: () => void;
   deleteGoal: (id: number) => void;
@@ -49,7 +52,7 @@ export function GoalsPage({
                   Total Target
                 </Typography>
                 <Typography variant="h6">
-                  {UIUtils.formatCurrency(goalMetrics.totalTargetAmount, 'INR')}
+                  {UIUtils.formatCurrency(goalMetrics.totalTargetAmount, goalMetrics.currency)}
                 </Typography>
               </Box>
               <Box>
@@ -57,7 +60,10 @@ export function GoalsPage({
                   Inflation Adjusted
                 </Typography>
                 <Typography variant="h6">
-                  {UIUtils.formatCurrency(goalMetrics.totalInflationAdjustedTarget, 'INR')}
+                  {UIUtils.formatCurrency(
+                    goalMetrics.totalInflationAdjustedTarget,
+                    goalMetrics.currency
+                  )}
                 </Typography>
               </Box>
               <Box>
@@ -65,7 +71,7 @@ export function GoalsPage({
                   Current Value
                 </Typography>
                 <Typography variant="h6">
-                  {UIUtils.formatCurrency(goalMetrics.totalCurrentValue, 'INR')}
+                  {UIUtils.formatCurrency(goalMetrics.totalCurrentValue, goalMetrics.currency)}
                 </Typography>
               </Box>
               <Box>
@@ -79,6 +85,13 @@ export function GoalsPage({
             </Box>
           </Box>
         </Box>
+
+        {goalMetrics.unratedCurrencies.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            Totals exclude goals in {goalMetrics.unratedCurrencies.join(', ')} — no exchange rate
+            set. Add one in Settings.
+          </Alert>
+        )}
 
         <Grid container spacing={3}>
           {goals.map(goal => (

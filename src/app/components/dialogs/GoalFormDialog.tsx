@@ -1,4 +1,5 @@
-import { CURRENCY_SYMBOLS, Currency } from '@/domain/entities/shared/Currency';
+import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
+import { CurrencyConverter } from '@/domain/entities/shared/CurrencyConverter';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { Goal, IGoal } from '@/domain/entities/goals/Goal';
 import { AccountBalance, Add, Delete, TrendingUp } from '@mui/icons-material';
@@ -26,12 +27,20 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Logger } from '../../../domain/utils/Logger';
 
 export interface GoalFormDialogProps {
   goal?: Goal;
   availableAssets: Asset[];
+  /** Codes the user has configured; the picker offers these. */
+  currencies: Currency[];
+  /**
+   * Allocated assets can be in a different currency from the goal being
+   * authored, so their values are translated into the goal's currency before
+   * they are summed or compared against the target.
+   */
+  converter: CurrencyConverter;
   open: boolean;
   onClose: () => void;
   onSave: (
@@ -58,6 +67,8 @@ const steps = ['Basic Details', 'Asset Allocation', 'Review & Save'];
 export function GoalFormDialog({
   goal,
   availableAssets,
+  currencies,
+  converter,
   open,
   onClose,
   onSave,
@@ -67,9 +78,19 @@ export function GoalFormDialog({
   const [targetAmount, setTargetAmount] = useState<number>(0);
   const [maturityDate, setMaturityDate] = useState('');
   const [inflationRate, setInflationRate] = useState<number>(6); // Default 6%
-  const [currency, setCurrency] = useState<Currency>(Currency.INR);
+  const [currency, setCurrency] = useState<Currency>(converter.getBaseCurrency());
   const [assetAllocations, setAssetAllocations] = useState<AssetAllocation[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const resetForm = useCallback(() => {
+    setActiveStep(0);
+    setName('');
+    setTargetAmount(0);
+    setMaturityDate('');
+    setInflationRate(6);
+    setCurrency(converter.getBaseCurrency());
+    setAssetAllocations([]);
+  }, [converter]);
 
   useEffect(() => {
     if (goal) {
@@ -87,7 +108,7 @@ export function GoalFormDialog({
     } else {
       resetForm();
     }
-  }, [goal, open, availableAssets]);
+  }, [goal, open, availableAssets, resetForm]);
 
   // Calculate progress metrics based on current form values
   const progressMetrics = useMemo((): ProgressMetrics => {
@@ -109,7 +130,11 @@ export function GoalFormDialog({
       const asset = availableAssets.find(a => a.id === allocation.assetId);
       if (!asset) return sum;
 
-      const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
+      const assetValue = converter.convert(
+        asset.getValueOn(goal!.maturityDate, true) || 0,
+        asset.currency,
+        currency
+      );
       return sum + (assetValue * allocation.percentage) / 100;
     }, 0);
 
@@ -145,17 +170,16 @@ export function GoalFormDialog({
       yearsToGoal,
       monthlyRequiredSIP,
     };
-  }, [targetAmount, maturityDate, inflationRate, assetAllocations, availableAssets, goal]);
-
-  const resetForm = () => {
-    setActiveStep(0);
-    setName('');
-    setTargetAmount(0);
-    setMaturityDate('');
-    setInflationRate(6);
-    setCurrency(Currency.INR);
-    setAssetAllocations([]);
-  };
+  }, [
+    targetAmount,
+    maturityDate,
+    inflationRate,
+    assetAllocations,
+    availableAssets,
+    goal,
+    converter,
+    currency,
+  ]);
 
   const handleNext = () => {
     setActiveStep(prev => prev + 1);
@@ -211,7 +235,11 @@ export function GoalFormDialog({
   const totalAllocatedAmount = assetAllocations.reduce((sum, allocation) => {
     const asset = availableAssets.find(a => a.id === allocation.assetId);
     if (!asset) return sum;
-    const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
+    const assetValue = converter.convert(
+      asset.getValueOn(goal!.maturityDate, true) || 0,
+      asset.currency,
+      currency
+    );
     return sum + (assetValue * allocation.percentage) / 100;
   }, 0);
 
@@ -276,9 +304,9 @@ export function GoalFormDialog({
             onChange={e => setCurrency(e.target.value as Currency)}
             label="Currency"
           >
-            {Object.values(Currency).map(code => (
+            {currencies.map(code => (
               <MenuItem key={code} value={code}>
-                {code} - {CURRENCY_SYMBOLS[code]}
+                {code} - {getCurrencySymbol(code)}
               </MenuItem>
             ))}
           </Select>
@@ -371,7 +399,9 @@ export function GoalFormDialog({
 
       {assetAllocations.map((allocation, index) => {
         const asset = availableAssets.find(a => a.id === allocation.assetId);
-        const assetValue = asset?.getValue() || 0;
+        const assetValue = asset
+          ? converter.convert(asset.getValue() || 0, asset.currency, currency)
+          : 0;
         const allocatedValue = (assetValue * allocation.percentage) / 100;
 
         return (
@@ -591,7 +621,11 @@ export function GoalFormDialog({
         const asset = availableAssets.find(a => a.id === allocation.assetId);
         if (!asset) return null;
 
-        const assetValue = asset.getValueOn(goal!.maturityDate, true) || 0;
+        const assetValue = converter.convert(
+          asset.getValueOn(goal!.maturityDate, true) || 0,
+          asset.currency,
+          currency
+        );
         const allocatedValue = (assetValue * allocation.percentage) / 100;
 
         return (

@@ -1,10 +1,17 @@
 import { Asset } from '../entities/assets/Asset';
-import { Investment } from '../entities/assets/Investment';
+import { Loan } from '../entities/loans/Loan';
+import { Currency } from '../entities/shared/Currency';
+import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { Logger } from '../utils/Logger';
 import { monthKey } from '../utils/DateUtils';
 import { AssetService } from './AssetService';
 import { LoanService } from './LoanService';
 
+/**
+ * Every figure here is in the base currency. Each asset and loan converts from
+ * its own currency at a single rate, so ratios within one holding survive the
+ * conversion untouched — see `CurrencyConverter`.
+ */
 export interface DashboardMetrics {
   totalWealth: number;
   totalAssetValue: number;
@@ -12,6 +19,13 @@ export interface DashboardMetrics {
   totalInvestedAmount: number;
   totalProfitLoss: number;
   profitLossPercentage: number;
+  currency: Currency;
+  /**
+   * Currencies in use that have no rate configured. Their holdings contributed 0
+   * to every figure above, so the UI must say so: a zeroed loan quietly
+   * *inflates* net worth, which reads as good news rather than as an error.
+   */
+  unratedCurrencies: Currency[];
 }
 
 export interface MonthlyInvestmentData {
@@ -35,6 +49,166 @@ export interface TimelineData {
   cumulativeValue: number;
 }
 
+/** Outstanding principal, or the full principal if the schedule cannot be read. */
+function outstandingAmount(loan: Loan): number {
+  try {
+    return loan.getOutstandingAmount();
+  } catch (error) {
+    Logger.error(`Failed to calculate outstanding principal for loan ${loan.id}: ${error}`);
+    Logger.warn(
+      `Failed to calculate outstanding principal for loan ${loan.id}, using principal amount`
+    );
+    return loan.principalAmount;
+  }
+}
+
+function currenciesInUse(assets: Asset[], loans: Loan[]): Currency[] {
+  return [...assets.map(asset => asset.currency), ...loans.map(loan => loan.currency)];
+}
+
+export function computeDashboardMetrics(
+  assets: Asset[],
+  loans: Loan[],
+  converter: CurrencyConverter
+): DashboardMetrics {
+  const totalAssetValue = assets.reduce(
+    (total, asset) => total + converter.toBase(asset.getValue() || 0, asset.currency),
+    0
+  );
+
+  const totalInvestedAmount = assets.reduce(
+    (total, asset) => total + converter.toBase(asset.getTotalInvestedAmount(), asset.currency),
+    0
+  );
+
+  const totalLoanAmount = loans.reduce(
+    (total, loan) => total + converter.toBase(outstandingAmount(loan), loan.currency),
+    0
+  );
+
+  const totalWealth = totalAssetValue - totalLoanAmount;
+  const totalProfitLoss = totalAssetValue - totalInvestedAmount;
+  const profitLossPercentage =
+    totalInvestedAmount > 0 ? (totalProfitLoss / totalInvestedAmount) * 100 : 0;
+
+  return {
+    totalWealth,
+    totalAssetValue,
+    totalLoanAmount,
+    totalInvestedAmount,
+    totalProfitLoss,
+    profitLossPercentage,
+    currency: converter.getBaseCurrency(),
+    unratedCurrencies: converter.getUnratedCurrencies(currenciesInUse(assets, loans)),
+  };
+}
+
+export function computeMonthlyInvestmentData(
+  assets: Asset[],
+  converter: CurrencyConverter
+): MonthlyInvestmentData[] {
+  const monthlyMap = new Map<string, number>();
+
+  assets.forEach(asset => {
+    asset.getInvestments(new Date(), false).forEach(investment => {
+      const key = monthKey(investment.date);
+      const amount = converter.toBase(investment.getTotalAmount(), asset.currency);
+      monthlyMap.set(key, (monthlyMap.get(key) || 0) + amount);
+    });
+  });
+
+  return Array.from(monthlyMap.entries())
+    .map(([key, amount]) => {
+      const [year, month] = key.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const monthName = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      return { month: monthName, amount, date };
+    })
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .slice(-12); // Show only last 12 months
+}
+
+export function computeAssetCategoryData(
+  assets: Asset[],
+  converter: CurrencyConverter
+): AssetCategoryData[] {
+  const categoryMap = new Map<string, number>();
+  let totalValue = 0;
+
+  assets.forEach(asset => {
+    const value = converter.toBase(asset.getValue() || 0, asset.currency);
+    totalValue += value;
+    categoryMap.set(asset.category, (categoryMap.get(asset.category) || 0) + value);
+  });
+
+  return Array.from(categoryMap.entries())
+    .map(([category, value]) => ({
+      id: category,
+      label: category,
+      value,
+      percentage: totalValue > 0 ? (value / totalValue) * 100 : 0,
+    }))
+    .filter(item => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
+export function computeTimelineData(assets: Asset[], converter: CurrencyConverter): TimelineData[] {
+  // Investments are grouped by day, but each carries its own asset's currency
+  // until it has been converted — the amount alone is not comparable.
+  const dailyInvested = new Map<string, number>();
+
+  assets.forEach(asset => {
+    asset.getInvestments(new Date(), false).forEach(investment => {
+      const dateKey = investment.date.toISOString().split('T')[0];
+      const amount = converter.toBase(investment.getTotalAmount(), asset.currency);
+      dailyInvested.set(dateKey, (dailyInvested.get(dateKey) || 0) + amount);
+    });
+  });
+
+  const timelineData: TimelineData[] = [];
+  let cumulativeInvested = 0;
+
+  Array.from(dailyInvested.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .forEach(([dateKey, investedAmount]) => {
+      const date = new Date(dateKey);
+      cumulativeInvested += investedAmount;
+      const assetValueAtDate = calculateAssetValueAtDate(assets, date, converter);
+
+      timelineData.push({
+        date,
+        investedAmount,
+        assetValue: assetValueAtDate,
+        cumulativeInvested,
+        cumulativeValue: assetValueAtDate,
+      });
+    });
+
+  return timelineData;
+}
+
+function calculateAssetValueAtDate(
+  assets: Asset[],
+  date: Date,
+  converter: CurrencyConverter
+): number {
+  return assets.reduce((total, asset) => {
+    try {
+      const value = asset.getWeightedValueOn(date);
+      return total + converter.toBase(value || 0, asset.currency);
+    } catch (error) {
+      Logger.error(`Failed to calculate asset value for ${asset.name} at ${date}: ${error}`);
+      // If calculation fails, return 0 for this asset at this date
+      return total;
+    }
+  }, 0);
+}
+
+/**
+ * Loads the entities each figure needs and hands them to the pure functions
+ * above. The converter comes from the caller so a single render shares one set
+ * of rates.
+ */
 export class DashboardService {
   private readonly assetService: AssetService;
   private readonly loanService: LoanService;
@@ -44,166 +218,26 @@ export class DashboardService {
     this.loanService = new LoanService();
   }
 
-  public async getDashboardMetrics(): Promise<DashboardMetrics> {
+  public async getDashboardMetrics(converter: CurrencyConverter): Promise<DashboardMetrics> {
     const [assets, loans] = await Promise.all([
       this.assetService.getAssets(),
       this.loanService.getLoans(),
     ]);
 
-    const totalAssetValue = assets.reduce((total, asset) => {
-      const value = asset.getValue();
-      return total + (value || 0);
-    }, 0);
-
-    const totalInvestedAmount = assets.reduce((total, asset) => {
-      return total + asset.getTotalInvestedAmount();
-    }, 0);
-
-    const totalLoanAmount = loans.reduce((total, loan) => {
-      try {
-        return total + loan.getOutstandingAmount();
-      } catch (error) {
-        Logger.error(`Failed to calculate outstanding principal for loan ${loan.id}: ${error}`);
-        Logger.warn(
-          `Failed to calculate outstanding principal for loan ${loan.id}, using principal amount`
-        );
-        return total + loan.principalAmount;
-      }
-    }, 0);
-
-    const totalWealth = totalAssetValue - totalLoanAmount;
-    const totalProfitLoss = totalAssetValue - totalInvestedAmount;
-    const profitLossPercentage =
-      totalInvestedAmount > 0 ? (totalProfitLoss / totalInvestedAmount) * 100 : 0;
-
-    return {
-      totalWealth,
-      totalAssetValue,
-      totalLoanAmount,
-      totalInvestedAmount,
-      totalProfitLoss,
-      profitLossPercentage,
-    };
+    return computeDashboardMetrics(assets, loans, converter);
   }
 
-  public async getMonthlyInvestmentData(): Promise<MonthlyInvestmentData[]> {
-    const assets = await this.assetService.getAssets();
-    const allInvestments: Investment[] = [];
-
-    assets.forEach(asset => {
-      const investments = asset.getInvestments(new Date(), false);
-      allInvestments.push(...investments);
-    });
-
-    // Group investments by month
-    const monthlyMap = new Map<string, number>();
-
-    allInvestments.forEach(investment => {
-      const key = monthKey(investment.date);
-      const currentAmount = monthlyMap.get(key) || 0;
-      monthlyMap.set(key, currentAmount + investment.getTotalAmount());
-    });
-
-    // Convert to array and sort by date
-    return Array.from(monthlyMap.entries())
-      .map(([key, amount]) => {
-        const [year, month] = key.split('-');
-        const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-        const monthName = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-        return {
-          month: monthName,
-          amount,
-          date,
-        };
-      })
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(-12); // Show only last 12 months
+  public async getMonthlyInvestmentData(
+    converter: CurrencyConverter
+  ): Promise<MonthlyInvestmentData[]> {
+    return computeMonthlyInvestmentData(await this.assetService.getAssets(), converter);
   }
 
-  public async getAssetCategoryData(): Promise<AssetCategoryData[]> {
-    const assets = await this.assetService.getAssets();
-
-    const categoryMap = new Map<string, number>();
-    let totalValue = 0;
-
-    assets.forEach(asset => {
-      const value = asset.getValue() || 0;
-      totalValue += value;
-
-      const currentValue = categoryMap.get(asset.category) || 0;
-      categoryMap.set(asset.category, currentValue + value);
-    });
-
-    return Array.from(categoryMap.entries())
-      .map(([category, value]) => ({
-        id: category,
-        label: category,
-        value,
-        percentage: totalValue > 0 ? (value / totalValue) * 100 : 0,
-      }))
-      .filter(item => item.value > 0)
-      .sort((a, b) => b.value - a.value);
+  public async getAssetCategoryData(converter: CurrencyConverter): Promise<AssetCategoryData[]> {
+    return computeAssetCategoryData(await this.assetService.getAssets(), converter);
   }
 
-  public async getTimelineData(): Promise<TimelineData[]> {
-    const assets = await this.assetService.getAssets();
-    const allInvestments: Investment[] = [];
-
-    assets.forEach(asset => {
-      const investments = asset.getInvestments(new Date(), false);
-      allInvestments.push(...investments);
-    });
-
-    // Sort investments by date
-    allInvestments.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    const timelineData: TimelineData[] = [];
-    let cumulativeInvested = 0;
-
-    // Group investments by date and calculate cumulative values
-    const dateMap = new Map<string, Investment[]>();
-
-    allInvestments.forEach(investment => {
-      const dateKey = investment.date.toISOString().split('T')[0];
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, []);
-      }
-      dateMap.get(dateKey)!.push(investment);
-    });
-
-    // Process each unique date
-    Array.from(dateMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([dateKey, investments]) => {
-        const date = new Date(dateKey);
-        const dailyInvestment = investments.reduce((sum, inv) => sum + inv.getTotalAmount(), 0);
-        cumulativeInvested += dailyInvestment;
-
-        // Calculate asset value at this point in time
-        const assetValueAtDate = this.calculateAssetValueAtDate(assets, date);
-
-        timelineData.push({
-          date,
-          investedAmount: dailyInvestment,
-          assetValue: assetValueAtDate,
-          cumulativeInvested,
-          cumulativeValue: assetValueAtDate,
-        });
-      });
-
-    return timelineData;
-  }
-
-  private calculateAssetValueAtDate(assets: Asset[], date: Date): number {
-    return assets.reduce((total, asset) => {
-      try {
-        const value = asset.getWeightedValueOn(date);
-        return total + (value || 0);
-      } catch (error) {
-        Logger.error(`Failed to calculate asset value for ${asset.name} at ${date}: ${error}`);
-        // If calculation fails, return 0 for this asset at this date
-        return total;
-      }
-    }, 0);
+  public async getTimelineData(converter: CurrencyConverter): Promise<TimelineData[]> {
+    return computeTimelineData(await this.assetService.getAssets(), converter);
   }
 }

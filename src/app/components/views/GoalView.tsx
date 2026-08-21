@@ -1,4 +1,5 @@
 import { Goal } from '@/domain/entities/goals/Goal';
+import { Currency } from '@/domain/entities/shared/Currency';
 import {
   AccessTime,
   AccountBalance,
@@ -11,6 +12,7 @@ import {
   Warning,
 } from '@mui/icons-material';
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -39,10 +41,18 @@ import { UIUtils } from '../../utils/UIUtils';
 
 export interface GoalViewProps {
   goal: Goal;
+  /**
+   * Every amount below is in the base currency, not `goal.currency`: progress is
+   * summed from assets that may each be denominated differently, and a target it
+   * is compared against has to be in the same unit.
+   */
+  currency: Currency;
   currentValue: number;
+  targetAmount: number;
   inflationAdjustedTarget: number;
   progressPercentage: number;
   shortfall: number;
+  unratedCurrencies: Currency[];
   showEditGoal: boolean;
   deleteGoal: (id: number) => void;
   refresh: () => void;
@@ -51,10 +61,13 @@ export interface GoalViewProps {
 
 export function GoalView({
   goal,
+  currency,
   currentValue,
+  targetAmount,
   inflationAdjustedTarget,
   progressPercentage,
   shortfall,
+  unratedCurrencies,
   showEditGoal,
   deleteGoal,
   refresh,
@@ -310,13 +323,20 @@ export function GoalView({
                   Current Progress
                 </Typography>
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
-                  {UIUtils.formatCurrency(currentValue, goal.currency)}
+                  {UIUtils.formatCurrency(currentValue, currency)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  of {UIUtils.formatCurrency(inflationAdjustedTarget, goal.currency)}
+                  of {UIUtils.formatCurrency(inflationAdjustedTarget, currency)}
                 </Typography>
               </Box>
             </Box>
+
+            {unratedCurrencies.length > 0 && (
+              <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
+                Allocated assets in {unratedCurrencies.join(', ')} are counted as zero — no exchange
+                rate set.
+              </Alert>
+            )}
 
             <Divider sx={{ mb: 2 }} />
 
@@ -331,7 +351,7 @@ export function GoalView({
                   sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {UIUtils.formatCurrency(goal.targetAmount, goal.currency)}
+                    {UIUtils.formatCurrency(targetAmount, currency)}
                   </Typography>
                   <Chip
                     label={`${UIUtils.formatPercentage(goal.inflationRate * 100)} inflation`}
@@ -361,7 +381,7 @@ export function GoalView({
                     </Typography>
                   </Box>
                   <Typography variant="h6" color="error.main" sx={{ fontWeight: 700 }}>
-                    {UIUtils.formatCurrency(shortfall, goal.currency)}
+                    {UIUtils.formatCurrency(shortfall, currency)}
                   </Typography>
                   <Typography variant="caption" color="error.main">
                     Additional funding needed to achieve goal

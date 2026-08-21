@@ -1,4 +1,5 @@
 import { GoalFormDialog } from '@/app/components/dialogs/GoalFormDialog';
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { Asset } from '@/domain/entities/assets/Asset';
 import { Goal, IGoal } from '@/domain/entities/goals/Goal';
 import { AssetService } from '@/domain/services/AssetService';
@@ -13,6 +14,7 @@ export interface GoalFormContainerProps {
 }
 
 export function GoalFormContainer({ goalToEdit, open, onClose }: GoalFormContainerProps) {
+  const { converter, currencies } = useCurrency();
   const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
   const goalService = React.useMemo(() => new GoalService(), []);
   const assetService = React.useMemo(() => new AssetService(), []);
@@ -52,8 +54,10 @@ export function GoalFormContainer({ goalToEdit, open, onClose }: GoalFormContain
 
   return (
     <GoalFormDialog
+      currencies={currencies}
       goal={goalToEdit}
       availableAssets={availableAssets}
+      converter={converter}
       open={open}
       onClose={onClose}
       onSave={handleSave}

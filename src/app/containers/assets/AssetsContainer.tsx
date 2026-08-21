@@ -1,11 +1,13 @@
+import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { AssetsPage } from '@/app/components/pages/AssetsPage';
 import { Asset } from '@/domain/entities/assets/Asset';
-import { AssetService } from '@/domain/services/AssetService';
+import { AssetService, computeAssetPortfolioTotals } from '@/domain/services/AssetService';
 import { Logger } from '@/domain/utils/Logger';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ExportPortfolioContainer } from './ExportPortfolioContainer';
 
 export function AssetsContainer() {
+  const { converter } = useCurrency();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [showAddAsset, setShowAddAsset] = React.useState(false);
   const [showExportDialog, setShowExportDialog] = React.useState(false);
@@ -32,19 +34,10 @@ export function AssetsContainer() {
     [assetService, loadAssets]
   );
 
-  // Calculate portfolio-level metrics
-  const portfolioMetrics = React.useMemo(() => {
-    const totalValue = assets.reduce((sum, asset) => sum + (asset.getValue() || 0), 0);
-    const totalInvested = assets.reduce((sum, asset) => sum + asset.getTotalInvestedAmount(), 0);
-    const totalProfitLoss = totalValue - totalInvested;
-
-    return {
-      totalValue,
-      totalInvested,
-      totalProfitLoss,
-      totalProfitLossPercentage: totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0,
-    };
-  }, [assets]);
+  const portfolioMetrics = React.useMemo(
+    () => computeAssetPortfolioTotals(assets, converter),
+    [assets, converter]
+  );
 
   useEffect(() => {
     loadAssets();

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Box,
   FormControl,
   Grid,
@@ -13,9 +14,14 @@ import { PieChart } from '@mui/x-charts';
 import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { Currency } from '../../../domain/entities/shared/Currency';
+import { CurrencyConverter } from '../../../domain/entities/shared/CurrencyConverter';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface ExpenseCategoryChartProps {
   monthlyExpenses: MonthlyExpense[];
+  /** Categories are totalled in the base currency, not once per currency. */
+  currency: Currency;
+  converter: CurrencyConverter;
 }
 
 interface CategoryData {
@@ -24,7 +30,11 @@ interface CategoryData {
   label: string;
 }
 
-export function ExpenseCategoryChart({ monthlyExpenses }: ExpenseCategoryChartProps) {
+export function ExpenseCategoryChart({
+  monthlyExpenses,
+  currency,
+  converter,
+}: ExpenseCategoryChartProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -59,33 +69,24 @@ export function ExpenseCategoryChart({ monthlyExpenses }: ExpenseCategoryChartPr
     return monthlyExpenses.find(me => me.month.toISOString().substring(0, 7) === selectedMonth);
   }, [monthlyExpenses, selectedMonth]);
 
-  const categoryDataByCurrency = React.useMemo(() => {
-    if (!selectedMonthlyExpense) return new Map<Currency, CategoryData[]>();
+  const categoryData = React.useMemo((): CategoryData[] => {
+    if (!selectedMonthlyExpense) return [];
 
-    const currencyMap = new Map<Currency, CategoryData[]>();
-    const expensesByCurrency = selectedMonthlyExpense.getExpensesByCurrency();
+    return selectedMonthlyExpense
+      .getAllCategories()
+      .map(category => ({
+        id: category,
+        value: selectedMonthlyExpense.getCategoryTotal(converter, category),
+        label: category,
+      }))
+      .filter(item => item.value > 0)
+      .sort((a, b) => b.value - a.value); // Sort by amount descending
+  }, [selectedMonthlyExpense, converter]);
 
-    expensesByCurrency.forEach((expenses, currency) => {
-      const categoryTotals = new Map<string, number>();
-
-      expenses.forEach(expense => {
-        const currentTotal = categoryTotals.get(expense.category) || 0;
-        categoryTotals.set(expense.category, currentTotal + expense.amount);
-      });
-
-      const categoryData: CategoryData[] = Array.from(categoryTotals.entries())
-        .map(([category, amount]) => ({
-          id: category,
-          value: amount,
-          label: category,
-        }))
-        .sort((a, b) => b.value - a.value); // Sort by amount descending
-
-      currencyMap.set(currency, categoryData);
-    });
-
-    return currencyMap;
-  }, [selectedMonthlyExpense]);
+  const unratedCurrencies = React.useMemo(
+    () => selectedMonthlyExpense?.getUnratedCurrencies(converter) ?? [],
+    [selectedMonthlyExpense, converter]
+  );
 
   const getCategoryColors = React.useCallback(() => {
     return [
@@ -126,7 +127,7 @@ export function ExpenseCategoryChart({ monthlyExpenses }: ExpenseCategoryChartPr
     );
   }
 
-  if (!selectedMonthlyExpense || categoryDataByCurrency.size === 0) {
+  if (!selectedMonthlyExpense || categoryData.length === 0) {
     return (
       <Box>
         <FormControl sx={{ minWidth: 200, mb: 3 }}>
@@ -158,8 +159,8 @@ export function ExpenseCategoryChart({ monthlyExpenses }: ExpenseCategoryChartPr
     );
   }
 
-  const currencies = Array.from(categoryDataByCurrency.keys());
   const colors = getCategoryColors();
+  const totalAmount = categoryData.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <Box>
@@ -178,51 +179,50 @@ export function ExpenseCategoryChart({ monthlyExpenses }: ExpenseCategoryChartPr
         </Select>
       </FormControl>
 
+      {unratedCurrencies.length > 0 && (
+        <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
+          Expenses in {unratedCurrencies.join(', ')} are counted as zero — no exchange rate set.
+        </Alert>
+      )}
+
       <Grid container spacing={3}>
-        {currencies.map(currency => {
-          const categoryData = categoryDataByCurrency.get(currency) || [];
-          const totalAmount = categoryData.reduce((sum, item) => sum + item.value, 0);
+        <Grid item xs={12}>
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Expense Categories
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Total: {UIUtils.formatCurrency(totalAmount, currency)}
+            </Typography>
 
-          return (
-            <Grid item xs={12} md={currencies.length > 1 ? 6 : 12} key={currency}>
-              <Box>
-                <Typography variant="h6" gutterBottom>
-                  {currencies.length > 1 ? `${currency} Categories` : 'Expense Categories'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Total: {currency} {totalAmount.toLocaleString()}
-                </Typography>
-
-                <Box
-                  sx={{
-                    height: isMobile ? 300 : 400,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <PieChart
-                    series={[
-                      {
-                        data: categoryData,
-                        valueFormatter: value => `${currency} ${value.value.toLocaleString()}`,
-                      },
-                    ]}
-                    colors={colors}
-                    width={isMobile ? 350 : 450}
-                    height={isMobile ? 300 : 400}
-                    margin={{
-                      top: 20,
-                      bottom: 20,
-                      left: 20,
-                      right: 20,
-                    }}
-                  />
-                </Box>
-              </Box>
-            </Grid>
-          );
-        })}
+            <Box
+              sx={{
+                height: isMobile ? 300 : 400,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <PieChart
+                series={[
+                  {
+                    data: categoryData,
+                    valueFormatter: value => UIUtils.formatCurrency(value.value, currency),
+                  },
+                ]}
+                colors={colors}
+                width={isMobile ? 350 : 450}
+                height={isMobile ? 300 : 400}
+                margin={{
+                  top: 20,
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                }}
+              />
+            </Box>
+          </Box>
+        </Grid>
       </Grid>
     </Box>
   );

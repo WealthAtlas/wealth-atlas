@@ -4,7 +4,46 @@ import { PaymentRepository } from '@/data/repositories/loan/PaymentRepository';
 import { EMI, IEMI } from '../entities/loans/EMI';
 import { ILoan, Loan } from '../entities/loans/Loan';
 import { IPayment, Payment } from '../entities/loans/Payment';
+import { Currency } from '../entities/shared/Currency';
+import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { processSchedules } from '../utils/ScheduleProcessor';
+
+/**
+ * Totals across loans that may each be in a different currency, so every amount
+ * converts to the base currency before it is summed.
+ */
+export interface LoanPortfolioTotals {
+  totalOutstanding: number;
+  totalPaid: number;
+  totalInterestAmount: number;
+  totalLoans: number;
+  currency: Currency;
+  /** Currencies with no rate, whose loans contributed 0 to the figures above. */
+  unratedCurrencies: Currency[];
+}
+
+export function computeLoanPortfolioTotals(
+  loans: Loan[],
+  converter: CurrencyConverter
+): LoanPortfolioTotals {
+  return {
+    totalOutstanding: loans.reduce(
+      (sum, loan) => sum + converter.toBase(loan.getOutstandingAmount(), loan.currency),
+      0
+    ),
+    totalPaid: loans.reduce(
+      (sum, loan) => sum + converter.toBase(loan.getPaidAmount(), loan.currency),
+      0
+    ),
+    totalInterestAmount: loans.reduce(
+      (sum, loan) => sum + converter.toBase(loan.getInterestAmount(), loan.currency),
+      0
+    ),
+    totalLoans: loans.length,
+    currency: converter.getBaseCurrency(),
+    unratedCurrencies: converter.getUnratedCurrencies(loans.map(loan => loan.currency)),
+  };
+}
 
 export class LoanService {
   private readonly loanRepository: LoanRepository;
