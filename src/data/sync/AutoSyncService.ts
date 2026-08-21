@@ -32,6 +32,10 @@ export class AutoSyncService {
       db.payments,
       db.goals,
       db.allocations,
+      // Settings and rates are part of the snapshot too, so a base-currency,
+      // rate or AI-provider change has to wake a push like any other edit.
+      db.settings,
+      db.currencyRates,
     ];
 
     tables.forEach(table => {

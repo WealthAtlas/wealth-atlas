@@ -3,6 +3,8 @@ import { rehydrateSnapshotDates } from '@/data/migrations/rehydrateDates';
 import { upgradeSnapshotDataToV4 } from '@/data/migrations/v4';
 import { upgradeSnapshotDataToV5 } from '@/data/migrations/v5';
 import { upgradeSnapshotDataToV6 } from '@/data/migrations/v6';
+import { upgradeSnapshotDataToV7 } from '@/data/migrations/v7';
+import { hydrateAiProviderSettings } from '@/data/llm/state';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment } from '@/domain/entities/assets/Investment';
 import { ISIP } from '@/domain/entities/assets/SIP';
@@ -13,7 +15,7 @@ import { IEMI } from '@/domain/entities/loans/EMI';
 import { ILoan } from '@/domain/entities/loans/Loan';
 import { IPayment } from '@/domain/entities/loans/Payment';
 import { ICurrencyRate } from '@/domain/entities/shared/CurrencyRate';
-import { ISettings } from '@/domain/entities/shared/Settings';
+import { ISettings, SETTINGS_ID } from '@/domain/entities/shared/Settings';
 import { Logger } from '../utils/Logger';
 
 export interface BackupData {
@@ -42,8 +44,11 @@ export class BackupService {
    * v2.1.0: adds the settings singleton (base currency) and currency rates. New
    * tables only, so 2.0.0 files stay restorable and simply pick up the defaults.
    * v2.2.0: settings.currencies — the configurable currency list.
+   * v2.3.0: settings.ai — the AI provider configuration. Unlike the sync
+   * snapshot, this file is plaintext on the user's disk, so the API key is
+   * stripped on export and the key already on the device is kept on restore.
    */
-  private static readonly BACKUP_VERSION = '2.2.0';
+  private static readonly BACKUP_VERSION = '2.3.0';
 
   /**
    * Export all data from the database as a JSON string
@@ -91,7 +96,7 @@ export class BackupService {
           payments,
           goals,
           allocations,
-          settings,
+          settings: settings.map(row => this.withoutApiKey(row)),
           currencyRates,
         },
       };
@@ -121,11 +126,19 @@ export class BackupService {
       // strings JSON gave us back into real Dates before they hit IndexedDB.
       this.upgradeBackupData(backupData);
 
+      // The file carries no API key, so the one on this device is the only one
+      // there is. Decided before the wipe, while it can still be read.
+      await this.carryOverApiKey(backupData);
+
       // Clear all existing data
       await this.clearAllData();
 
       // Import the new data
       await this.importBackupData(backupData);
+
+      // The restored row is read from a synchronous cache; refill it so AI
+      // import and the assistant see the endpoint that was just restored.
+      await hydrateAiProviderSettings();
 
       Logger.info('Data import completed successfully');
     } catch (error) {
@@ -255,8 +268,42 @@ export class BackupService {
     // is exactly what a pre-2.1.0 file needs.
     upgradeSnapshotDataToV5(data);
     upgradeSnapshotDataToV6(data);
+    upgradeSnapshotDataToV7(data);
 
     rehydrateSnapshotDates(data);
+  }
+
+  /**
+   * The export strips the API key, so a restore would otherwise leave the user
+   * with an endpoint and no credential. The key on this device fills the gap —
+   * but only when the file points at the same provider. Pairing a key with
+   * whatever endpoint the file happens to name would send an OpenRouter key to
+   * OpenAI, so a restore that changes provider deliberately asks for a new key.
+   */
+  private static async carryOverApiKey(backupData: BackupData): Promise<void> {
+    const incoming = backupData.data.settings?.find(row => row.id === SETTINGS_ID);
+    if (!incoming || incoming.ai?.apiKey) return;
+
+    const current = await database.settings.get(SETTINGS_ID);
+    const key = current?.ai?.apiKey;
+    if (!key) return;
+
+    const samePreset =
+      (incoming.ai?.presetId ?? undefined) === (current?.ai?.presetId ?? undefined);
+    const sameBaseUrl = (incoming.ai?.baseUrl ?? undefined) === (current?.ai?.baseUrl ?? undefined);
+    if (!samePreset || !sameBaseUrl) {
+      Logger.info('Backup names a different AI provider; the stored API key was not carried over');
+      return;
+    }
+
+    incoming.ai = { ...incoming.ai, apiKey: key };
+  }
+
+  /** Keys never go into the backup file: it is plaintext on the user's disk. */
+  private static withoutApiKey(settings: ISettings): ISettings {
+    const ai = { ...(settings.ai ?? {}) };
+    delete ai.apiKey;
+    return { ...settings, ai };
   }
 
   /**
