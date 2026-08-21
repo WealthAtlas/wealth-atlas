@@ -4,9 +4,49 @@ import { SIPRepository } from '@/data/repositories/assets/SIPRepository';
 import { Asset, IAsset } from '../entities/assets/Asset';
 import { IInvestment, Investment } from '../entities/assets/Investment';
 import { ISIP, SIP } from '../entities/assets/SIP';
+import { Currency } from '../entities/shared/Currency';
+import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { Logger } from '../utils/Logger';
 import { processSchedules } from '../utils/ScheduleProcessor';
 import { executeValueScript } from '../utils/ScriptExecutor';
+
+/**
+ * Portfolio totals across assets that may each be in a different currency, so
+ * every amount converts to the base currency before it is summed.
+ */
+export interface AssetPortfolioTotals {
+  totalValue: number;
+  totalInvested: number;
+  totalProfitLoss: number;
+  totalProfitLossPercentage: number;
+  currency: Currency;
+  /** Currencies with no rate, whose holdings contributed 0 to the figures above. */
+  unratedCurrencies: Currency[];
+}
+
+export function computeAssetPortfolioTotals(
+  assets: Asset[],
+  converter: CurrencyConverter
+): AssetPortfolioTotals {
+  const totalValue = assets.reduce(
+    (sum, asset) => sum + converter.toBase(asset.getValue() || 0, asset.currency),
+    0
+  );
+  const totalInvested = assets.reduce(
+    (sum, asset) => sum + converter.toBase(asset.getTotalInvestedAmount(), asset.currency),
+    0
+  );
+  const totalProfitLoss = totalValue - totalInvested;
+
+  return {
+    totalValue,
+    totalInvested,
+    totalProfitLoss,
+    totalProfitLossPercentage: totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0,
+    currency: converter.getBaseCurrency(),
+    unratedCurrencies: converter.getUnratedCurrencies(assets.map(asset => asset.currency)),
+  };
+}
 
 export class AssetService {
   private readonly assetRepository: AssetRepository;
