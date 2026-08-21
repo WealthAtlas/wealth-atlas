@@ -84,6 +84,30 @@ describe('buildChatSystemPrompt', () => {
   it('says income is not tracked and must be asked for', () => {
     expect(buildChatSystemPrompt()).toContain('does not track income');
   });
+
+  // Earlier turns are sent, but nothing used to tell the model they were the
+  // same conversation, so a bare follow-up read as a new, unanswerable question.
+  it('tells the model earlier turns are the same conversation', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('## Conversation');
+    expect(prompt).toContain('same conversation');
+    // The transcript carries the tool traffic, so a re-cut of something already
+    // looked up must not cost another call.
+    expect(prompt).toContain('still above');
+    expect(prompt).toContain('clarifying question');
+  });
+
+  // Rule 2 used to ban arithmetic outright; runCalculation replaces the ban with
+  // a destination, and a model told only "do not" will still quietly guess.
+  it('sends arithmetic to runCalculation rather than banning it', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('runCalculation');
+    expect(prompt).toContain('do not work it out in your head');
+    // The sandbox is offline, and a snippet that assumes otherwise wastes a turn.
+    expect(prompt).toContain('no network and no database access');
+  });
 });
 
 describe('buildChatUserPrompt', () => {

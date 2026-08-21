@@ -1,9 +1,10 @@
 import { chatJsonTurns, LlmMessage } from '@/data/llm/LlmClient';
 import { getProviderHost, isLlmConfigured } from '@/data/llm/state';
+import { runInSandbox } from '@/data/sandbox/CodeSandbox';
 import { buildChatSnapshot } from '../chat/ChatContextBuilder';
 import { LinkableEntity } from '../chat/EntityLinks';
 import { ChatAnswer, runChatLoop, TurnsChatFn } from '../chat/ChatLoop';
-import { createChatToolContext } from '../chat/ChatToolContext';
+import { CodeRunner, createChatToolContext } from '../chat/ChatToolContext';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { AssetService } from './AssetService';
 import { CurrencyService } from './CurrencyService';
@@ -25,6 +26,8 @@ import { LoanService } from './LoanService';
 
 export interface ChatDeps {
   chat?: TurnsChatFn;
+  /** Overridden in tests, which have no DOM to host the sandbox iframe. */
+  runCode?: CodeRunner;
 }
 
 export interface AskOptions {
@@ -40,6 +43,7 @@ export class ChatService {
   private readonly goalService: GoalService;
   private readonly currencyService: CurrencyService;
   private readonly chat: TurnsChatFn;
+  private readonly runCode: CodeRunner;
 
   constructor(deps: ChatDeps = {}) {
     this.assetService = new AssetService();
@@ -48,6 +52,7 @@ export class ChatService {
     this.goalService = new GoalService();
     this.currencyService = new CurrencyService();
     this.chat = deps.chat ?? chatJsonTurns;
+    this.runCode = deps.runCode ?? runInSandbox;
   }
 
   public isConfigured(): boolean {
@@ -79,9 +84,11 @@ export class ChatService {
   }
 
   /**
-   * `history` holds the plain questions and answers so far; the snapshot is
-   * attached to the current question only, so a follow-up reasons about fresh
-   * figures rather than ones that were true two questions ago.
+   * `history` is the `transcript` from the previous answer — questions, replies
+   * and the tool traffic behind them — and the next one comes back on
+   * `ChatAnswer.transcript`. The snapshot is attached to the current question
+   * only, so a follow-up reasons about fresh figures rather than ones that were
+   * true two questions ago.
    */
   public async ask(
     history: LlmMessage[],
@@ -97,7 +104,8 @@ export class ChatService {
         goalService: this.goalService,
         currencyService: this.currencyService,
       },
-      converter
+      converter,
+      this.runCode
     );
 
     return runChatLoop({

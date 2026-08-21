@@ -14,7 +14,7 @@ import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { CurrencyRate } from '../entities/shared/CurrencyRate';
 import { Frequency } from '../entities/shared/Frequency';
 import { monthKey } from '../utils/DateUtils';
-import { ChatToolContext } from './ChatToolContext';
+import { ChatToolContext, CodeRunner } from './ChatToolContext';
 
 /**
  * Entity builders and an in-memory `ChatToolContext`, shared by the chat tests.
@@ -230,6 +230,8 @@ export function fakeContext(
     rates?: CurrencyRate[];
     converter?: CurrencyConverter;
     today?: Date;
+    /** Defaults to a runner that refuses, so a test opts in to code execution. */
+    runCode?: CodeRunner;
   } = {}
 ): FakeChatToolContext {
   const loadCounts: Record<string, number> = {
@@ -269,5 +271,8 @@ export function fakeContext(
     },
     converter: data.converter ?? converter(),
     today: data.today ?? TODAY,
+    runCode:
+      data.runCode ??
+      (async () => ({ ok: false, error: 'No code runner in this test.', logs: [] })),
   };
 }

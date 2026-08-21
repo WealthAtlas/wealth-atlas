@@ -20,6 +20,25 @@ import { LoanService } from '../services/LoanService';
  * Reloading for each call would multiply that fan-out for no new information;
  * within a single question the data is also expected not to change.
  */
+/**
+ * What a sandboxed snippet returns. A failure is data, not an exception: the
+ * model is shown the reason and gets to correct itself on the next turn.
+ */
+export interface CodeRunResult {
+  ok: boolean;
+  value?: unknown;
+  error?: string;
+  /** Whatever the snippet logged, capped by the runner. */
+  logs: string[];
+}
+
+/**
+ * Runs model-authored JavaScript over a JSON dataset. Injected rather than
+ * imported because the real implementation needs an iframe, which would put DOM
+ * code in the domain layer and make every tool test need a browser.
+ */
+export type CodeRunner = (code: string, data: unknown) => Promise<CodeRunResult>;
+
 export interface ChatToolContext {
   assets(): Promise<Asset[]>;
   loans(): Promise<Loan[]>;
@@ -30,6 +49,7 @@ export interface ChatToolContext {
   converter: CurrencyConverter;
   /** Passed in rather than read from the clock, so tools stay testable. */
   today: Date;
+  runCode: CodeRunner;
 }
 
 export interface ChatToolServices {
@@ -49,6 +69,7 @@ function once<T>(load: () => Promise<T>): () => Promise<T> {
 export function createChatToolContext(
   services: ChatToolServices,
   converter: CurrencyConverter,
+  runCode: CodeRunner,
   today: Date = new Date()
 ): ChatToolContext {
   const sipCache = new Map<number, Promise<SIP[]>>();
@@ -69,5 +90,6 @@ export function createChatToolContext(
     rates: once(() => services.currencyService.getRates()),
     converter,
     today,
+    runCode,
   };
 }

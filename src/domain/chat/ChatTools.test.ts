@@ -354,3 +354,62 @@ describe('getExchangeRates', () => {
     expect(result.rates[0].updatedAt).toBe(TODAY.toISOString().split('T')[0]);
   });
 });
+
+describe('runCalculation', () => {
+  it('hands the snippet the records and returns what it computed', async () => {
+    let seenCode = '';
+    let seenData: { assets: { investedInBase: number }[] } | undefined;
+
+    const result = (await tool('runCalculation').run(
+      { code: 'return data.assets.length' },
+      fakeContext({
+        assets: [asset({ id: 1, invested: 400000 }), asset({ id: 2, invested: 150000 })],
+        runCode: async (code, data) => {
+          seenCode = code;
+          seenData = data as typeof seenData;
+          return { ok: true, value: 2, logs: ['counted'] };
+        },
+      })
+    )) as { result: unknown; logs: string[]; baseCurrency: string };
+
+    expect(seenCode).toBe('return data.assets.length');
+    expect(seenData?.assets).toHaveLength(2);
+    expect(seenData?.assets[0].investedInBase).toBe(400000);
+    expect(result.result).toBe(2);
+    expect(result.logs).toEqual(['counted']);
+    expect(result.baseCurrency).toBe(Currency.INR);
+  });
+
+  it('reports a failing snippet back with an instruction not to guess', async () => {
+    const result = (await tool('runCalculation').run(
+      { code: 'throw new Error("nope")' },
+      fakeContext({
+        runCode: async () => ({ ok: false, error: 'nope', logs: [] }),
+      })
+    )) as { error: string; hint: string };
+
+    expect(result.error).toBe('nope');
+    expect(result.hint).toContain('Do not guess');
+  });
+
+  it('rejects a call with no code rather than running an empty snippet', async () => {
+    const result = (await tool('runCalculation').run({}, fakeContext())) as { error: string };
+
+    expect(result.error).toContain('code is required');
+  });
+
+  // An unrated currency counts as 0 everywhere else, and a snippet total that
+  // quietly excluded a holding reads as complete unless it is said.
+  it('passes on the unrated currencies its figures were computed with', async () => {
+    const result = (await tool('runCalculation').run(
+      { code: 'return 1' },
+      fakeContext({
+        assets: [asset({ currency: Currency.USD })],
+        converter: converter(),
+        runCode: async () => ({ ok: true, value: 1, logs: [] }),
+      })
+    )) as { unratedCurrencies: string[] };
+
+    expect(result.unratedCurrencies).toContain(Currency.USD);
+  });
+});
