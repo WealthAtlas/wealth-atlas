@@ -11,11 +11,15 @@ import type { ICurrencyRate } from '@/domain/entities/shared/CurrencyRate';
 import type { ISettings } from '@/domain/entities/shared/Settings';
 import { Logger } from '@/domain/utils/Logger';
 import { db } from '../database';
+import { IDecisionEntry } from '@/domain/entities/journal/DecisionEntry';
 import { rehydrateSnapshotDates } from '../migrations/rehydrateDates';
 import { upgradeSnapshotDataToV4 } from '../migrations/v4';
 import { upgradeSnapshotDataToV5 } from '../migrations/v5';
 import { upgradeSnapshotDataToV6 } from '../migrations/v6';
 import { upgradeSnapshotDataToV7 } from '../migrations/v7';
+import { upgradeSnapshotDataToV8 } from '../migrations/v8';
+import { upgradeSnapshotDataToV9 } from '../migrations/v9';
+import { upgradeSnapshotDataToV10 } from '../migrations/v10';
 import { hydrateAiProviderSettings } from '../llm/state';
 import { emitDatabaseReplaced } from '../databaseEvents';
 import { buildSyncApiUrl } from './config';
@@ -99,8 +103,14 @@ async function fetchRemoteVersion(keyId: string): Promise<number | undefined> {
  * v11: settings.currencies — the configurable currency list.
  * v12: settings.ai — the AI provider configuration, which used to be
  *     device-local. An older snapshot just gets an empty block.
+ * v13: settings.targetAllocation — the intended share per asset category. An
+ *     older snapshot gets an empty allocation, meaning "no policy set".
+ * v14: settings.news — the news provider key. An older snapshot gets an empty
+ *     block, meaning "no news configured".
+ * v15: the `decisions` table — the decision journal. An older snapshot has no
+ *     such key at all, and `bulkPut(undefined)` is not `bulkPut([])`.
  */
-const SNAPSHOT_VERSION = 12;
+const SNAPSHOT_VERSION = 15;
 const OLDEST_SUPPORTED_SNAPSHOT_VERSION = 8;
 
 function getSchemaVersion(): number {
@@ -145,6 +155,15 @@ function upgradeSnapshot(snapshot: Snapshot): Snapshot {
   if (snapshot.schemaVersion < 12) {
     upgradeSnapshotDataToV7(data);
   }
+  if (snapshot.schemaVersion < 13) {
+    upgradeSnapshotDataToV8(data);
+  }
+  if (snapshot.schemaVersion < 14) {
+    upgradeSnapshotDataToV9(data);
+  }
+  if (snapshot.schemaVersion < 15) {
+    upgradeSnapshotDataToV10(data);
+  }
   Logger.info(`Upgraded sync snapshot from v${snapshot.schemaVersion} to v${SNAPSHOT_VERSION}`);
   return { ...snapshot, schemaVersion: SNAPSHOT_VERSION };
 }
@@ -170,6 +189,7 @@ async function exportSnapshot(): Promise<Snapshot> {
     allocations,
     settings,
     currencyRates,
+    decisions,
   ] = await Promise.all([
     db.assets.toArray(),
     db.investments.toArray(),
@@ -182,6 +202,7 @@ async function exportSnapshot(): Promise<Snapshot> {
     db.allocations.toArray(),
     db.settings.toArray(),
     db.currencyRates.toArray(),
+    db.decisions.toArray(),
   ]);
   return {
     schemaVersion: getSchemaVersion(),
@@ -197,6 +218,7 @@ async function exportSnapshot(): Promise<Snapshot> {
       allocations,
       settings,
       currencyRates,
+      decisions,
     },
   };
 }
@@ -218,9 +240,11 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
       db.allocations,
       db.settings,
       db.currencyRates,
+      db.decisions,
     ],
     async () => {
       await Promise.all([
+        db.decisions.clear(),
         db.currencyRates.clear(),
         db.settings.clear(),
         db.allocations.clear(),
@@ -245,6 +269,7 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
         allocations?: IAllocation[];
         settings?: ISettings[];
         currencyRates?: ICurrencyRate[];
+        decisions?: IDecisionEntry[];
       };
       // Order respects dependencies
       await db.assets.bulkPut(d.assets || []);
@@ -258,6 +283,7 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
       await db.allocations.bulkPut(d.allocations || []);
       await db.settings.bulkPut(d.settings || []);
       await db.currencyRates.bulkPut(d.currencyRates || []);
+      await db.decisions.bulkPut(d.decisions || []);
     }
   );
 

@@ -12,6 +12,7 @@ export interface Snapshot {
     allocations: unknown[];
     settings: unknown[];
     currencyRates: unknown[];
+    decisions: unknown[];
   };
 }
 

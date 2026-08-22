@@ -3,6 +3,7 @@ import { IAsset } from '../domain/entities/assets/Asset';
 import { IInvestment } from '../domain/entities/assets/Investment';
 import { ISIP } from '../domain/entities/assets/SIP';
 import { IExpense } from '../domain/entities/expenses/Expense';
+import { IDecisionEntry } from '../domain/entities/journal/DecisionEntry';
 import { IAllocation } from '../domain/entities/goals/Allocation';
 import { IGoal } from '../domain/entities/goals/Goal';
 import { IEMI } from '../domain/entities/loans/EMI';
@@ -17,6 +18,8 @@ import {
 } from './migrations/v4';
 import { upgradeSettingsRowToV6 } from './migrations/v6';
 import { upgradeSettingsRowToV7 } from './migrations/v7';
+import { upgradeSettingsRowToV8 } from './migrations/v8';
+import { upgradeSettingsRowToV9 } from './migrations/v9';
 import { hydrateAiProviderSettings } from './llm/state';
 import { AutoSyncService } from './sync/AutoSyncService';
 
@@ -32,6 +35,7 @@ export class WealthAtlasDB extends Dexie {
   allocations!: Table<IAllocation>;
   settings!: Table<ISettings>;
   currencyRates!: Table<ICurrencyRate>;
+  decisions!: Table<IDecisionEntry>;
 
   constructor() {
     super('WealthAtlasDB');
@@ -124,6 +128,30 @@ export class WealthAtlasDB extends Dexie {
     this.version(7).upgrade(async trans => {
       await trans.table('settings').toCollection().modify(upgradeSettingsRowToV7);
     });
+
+    // Migration: v8 - The target allocation joins the settings singleton: the
+    // share of the portfolio the user intends to hold per asset category. A
+    // field on an existing row, so no new tables, and `db.settings` is already
+    // in the auto-sync hook list.
+    this.version(8).upgrade(async trans => {
+      await trans.table('settings').toCollection().modify(upgradeSettingsRowToV8);
+    });
+
+    // Migration: v9 - The news provider key joins the settings singleton, so
+    // market sentiment comes from a real feed. A field on an existing row, so no
+    // new tables.
+    this.version(9).upgrade(async trans => {
+      await trans.table('settings').toCollection().modify(upgradeSettingsRowToV9);
+    });
+
+    // Migration: v10 - The decision journal. The first new table since v5, so
+    // the first change to also need the auto-sync hook list, the snapshot's
+    // table list and `rehydrateSnapshotDates`. Indexed on the fields the journal
+    // is actually queried by: newest first, and filtered by category.
+    // Dexie creates the store, so there is no row transform to run.
+    this.version(10).stores({
+      decisions: '++id, createdAt, category, action, status',
+    });
   }
 
   private setupAutoSync(): void {
@@ -160,6 +188,7 @@ export const ALL_TABLES = [
   db.allocations,
   db.settings,
   db.currencyRates,
+  db.decisions,
 ];
 
 /**

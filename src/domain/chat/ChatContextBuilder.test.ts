@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { AssetCategory } from '../entities/assets/AssetCategory';
+import { ValueModel } from '../entities/assets/ValueModel';
 import { Currency } from '../entities/shared/Currency';
 import { buildChatSnapshot } from './ChatContextBuilder';
 import { asset, expense, fakeContext, goal, loan, months, sip } from './ChatFixtures';
@@ -139,5 +141,66 @@ describe('buildChatSnapshot', () => {
     const snapshot = await buildChatSnapshot(fakeContext());
 
     expect(snapshot.asOf).toBe('2026-08-20');
+  });
+});
+
+describe('the snapshot allocation drift', () => {
+  function holding(category: string, value: number) {
+    return asset({
+      category,
+      valueModel: ValueModel.FIXED_INCOME,
+      interestRate: 0,
+      invested: value,
+    });
+  }
+
+  it('reports no policy when the user has set none', async () => {
+    const snapshot = await buildChatSnapshot(
+      fakeContext({ assets: [holding(AssetCategory.STOCK, 100000)] })
+    );
+
+    expect(snapshot.allocationDrift).toEqual({ isSet: false, outOfBand: [] });
+  });
+
+  it('carries only the categories outside their band, to stay small', async () => {
+    const snapshot = await buildChatSnapshot(
+      fakeContext({
+        assets: [
+          holding(AssetCategory.STOCK, 700000),
+          holding(AssetCategory.DEBT, 250000),
+          holding(AssetCategory.GOLD, 50000),
+        ],
+        targetAllocation: [
+          // 20 points over: out of band.
+          { category: AssetCategory.STOCK, targetPercent: 50, bandPercent: 5 },
+          // 5 points under, exactly on the band: a hold, so omitted.
+          { category: AssetCategory.DEBT, targetPercent: 30, bandPercent: 5 },
+          { category: AssetCategory.GOLD, targetPercent: 20, bandPercent: 5 },
+        ],
+      })
+    );
+
+    expect(snapshot.allocationDrift.isSet).toBe(true);
+    expect(snapshot.allocationDrift.outOfBand.map(row => row.category)).toEqual([
+      AssetCategory.STOCK,
+      AssetCategory.GOLD,
+    ]);
+    expect(snapshot.allocationDrift.outOfBand[0].action).toBe('sell');
+    expect(snapshot.allocationDrift.outOfBand[1].action).toBe('buy');
+  });
+
+  it('reports a policy that is being met with nothing out of band', async () => {
+    const snapshot = await buildChatSnapshot(
+      fakeContext({
+        assets: [holding(AssetCategory.STOCK, 600000), holding(AssetCategory.DEBT, 400000)],
+        targetAllocation: [
+          { category: AssetCategory.STOCK, targetPercent: 60 },
+          { category: AssetCategory.DEBT, targetPercent: 40 },
+        ],
+      })
+    );
+
+    // Distinct from `isSet: false`: on target, versus no target at all.
+    expect(snapshot.allocationDrift).toEqual({ isSet: true, outOfBand: [] });
   });
 });

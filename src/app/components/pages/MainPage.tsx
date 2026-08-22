@@ -78,6 +78,11 @@ export function MainPage() {
     navigate('/settings');
   };
 
+  const handleJournalClick = () => {
+    handleMenuClose();
+    navigate('/journal');
+  };
+
   const handleImportClick = () => {
     handleMenuClose();
     navigate('/import');
@@ -126,6 +131,7 @@ export function MainPage() {
         onMenuOpen={handleMenuOpen}
         onMenuClose={handleMenuClose}
         onSettingsClick={handleSettingsClick}
+        onJournalClick={handleJournalClick}
         onImportClick={handleImportClick}
         onAssistantClick={handleAssistantClick}
         hasPageFab={TABS_WITH_FAB.includes(currentTab)}

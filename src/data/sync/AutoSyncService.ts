@@ -42,6 +42,10 @@ export class AutoSyncService {
       // rate or AI-provider change has to wake a push like any other edit.
       db.settings,
       db.currencyRates,
+      // Journal entries are the user's own records like any other, so an edit
+      // has to wake a push. A table missing from this list syncs only when
+      // something else happens to change.
+      db.decisions,
     ];
 
     tables.forEach(table => {

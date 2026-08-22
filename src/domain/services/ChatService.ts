@@ -1,12 +1,18 @@
 import { chatJsonTurns, LlmMessage } from '@/data/llm/LlmClient';
 import { getProviderHost, isLlmConfigured } from '@/data/llm/state';
+import { createMarketData } from '@/data/market/MarketData';
+import { createNewsData } from '@/data/news/NewsData';
 import { runInSandbox } from '@/data/sandbox/CodeSandbox';
 import { buildChatSnapshot } from '../chat/ChatContextBuilder';
 import { LinkableEntity } from '../chat/EntityLinks';
 import { ChatAnswer, runChatLoop, TurnsChatFn } from '../chat/ChatLoop';
 import { CodeRunner, createChatToolContext } from '../chat/ChatToolContext';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
+import { MarketDataPort } from '../market/MarketDataPort';
+import { NewsPort } from '../news/NewsPort';
+import { AllocationPolicyService } from './AllocationPolicyService';
 import { AssetService } from './AssetService';
+import { DecisionJournalService } from './DecisionJournalService';
 import { CurrencyService } from './CurrencyService';
 import { ExpenseService } from './ExpenseService';
 import { GoalService } from './GoalService';
@@ -28,6 +34,9 @@ export interface ChatDeps {
   chat?: TurnsChatFn;
   /** Overridden in tests, which have no DOM to host the sandbox iframe. */
   runCode?: CodeRunner;
+  /** Overridden in tests, which must not reach the network. */
+  market?: MarketDataPort;
+  news?: NewsPort;
 }
 
 export interface AskOptions {
@@ -42,8 +51,12 @@ export class ChatService {
   private readonly loanService: LoanService;
   private readonly goalService: GoalService;
   private readonly currencyService: CurrencyService;
+  private readonly allocationPolicyService: AllocationPolicyService;
+  private readonly decisionJournalService: DecisionJournalService;
   private readonly chat: TurnsChatFn;
   private readonly runCode: CodeRunner;
+  private readonly market: MarketDataPort;
+  private readonly news: NewsPort;
 
   constructor(deps: ChatDeps = {}) {
     this.assetService = new AssetService();
@@ -51,8 +64,15 @@ export class ChatService {
     this.loanService = new LoanService();
     this.goalService = new GoalService();
     this.currencyService = new CurrencyService();
+    this.allocationPolicyService = new AllocationPolicyService();
     this.chat = deps.chat ?? chatJsonTurns;
     this.runCode = deps.runCode ?? runInSandbox;
+    this.market = deps.market ?? createMarketData();
+    this.news = deps.news ?? createNewsData();
+    // After `market`, and sharing it: the journal's verdicts are computed from
+    // benchmark levels, so a test that injects a fake market must control these
+    // too rather than reaching the network through the back door.
+    this.decisionJournalService = new DecisionJournalService(this.market);
   }
 
   public isConfigured(): boolean {
@@ -103,9 +123,13 @@ export class ChatService {
         loanService: this.loanService,
         goalService: this.goalService,
         currencyService: this.currencyService,
+        allocationPolicyService: this.allocationPolicyService,
+        decisionJournalService: this.decisionJournalService,
       },
       converter,
-      this.runCode
+      this.runCode,
+      this.market,
+      this.news
     );
 
     return runChatLoop({

@@ -5,6 +5,13 @@ import { Goal } from '../entities/goals/Goal';
 import { Loan } from '../entities/loans/Loan';
 import { CurrencyRate } from '../entities/shared/CurrencyRate';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
+import { ICategoryTarget } from '../entities/shared/Settings';
+import { JournalEntryWithReview } from '../services/DecisionJournalService';
+import { JournalSummary } from '../journal/DecisionReview';
+import { MarketDataPort, unavailableMarketData } from '../market/MarketDataPort';
+import { NewsPort, unavailableNews } from '../news/NewsPort';
+import { AllocationPolicyService } from '../services/AllocationPolicyService';
+import { DecisionJournalService } from '../services/DecisionJournalService';
 import { AssetService } from '../services/AssetService';
 import { CurrencyService } from '../services/CurrencyService';
 import { ExpenseService } from '../services/ExpenseService';
@@ -46,10 +53,28 @@ export interface ChatToolContext {
   monthlyExpenses(): Promise<MonthlyExpense[]>;
   sipsOf(assetId: number): Promise<SIP[]>;
   rates(): Promise<CurrencyRate[]>;
+  /** The user's intended allocation. Empty means no policy has been set. */
+  targetAllocation(): Promise<ICategoryTarget[]>;
+  /**
+   * Past decisions with their verdicts. Read-only, like every other tool: the
+   * assistant may see what was decided and how it turned out, but writing an
+   * entry stays a deliberate act by the user. A model that could write to the
+   * journal on a misparse would corrupt the one record the reviews are scored
+   * from — and an entry the user did not write is not their reasoning.
+   */
+  decisionJournal(): Promise<{ entries: JournalEntryWithReview[]; summary: JournalSummary }>;
   converter: CurrencyConverter;
   /** Passed in rather than read from the clock, so tools stay testable. */
   today: Date;
   runCode: CodeRunner;
+  /**
+   * Outside market data. Injected for the same reason `runCode` is: the real
+   * implementation needs `fetch` and a cache, and no tool test should need a
+   * network to run.
+   */
+  market: MarketDataPort;
+  /** Outside news, injected for the same reason as `market`. */
+  news: NewsPort;
 }
 
 export interface ChatToolServices {
@@ -58,6 +83,8 @@ export interface ChatToolServices {
   loanService: LoanService;
   goalService: GoalService;
   currencyService: CurrencyService;
+  allocationPolicyService: AllocationPolicyService;
+  decisionJournalService: DecisionJournalService;
 }
 
 /** Calls `load` at most once and hands every later caller the same promise. */
@@ -70,6 +97,8 @@ export function createChatToolContext(
   services: ChatToolServices,
   converter: CurrencyConverter,
   runCode: CodeRunner,
+  market: MarketDataPort = unavailableMarketData('market data is not configured'),
+  news: NewsPort = unavailableNews('no news provider is configured'),
   today: Date = new Date()
 ): ChatToolContext {
   const sipCache = new Map<number, Promise<SIP[]>>();
@@ -88,8 +117,12 @@ export function createChatToolContext(
       return pending;
     },
     rates: once(() => services.currencyService.getRates()),
+    targetAllocation: once(() => services.allocationPolicyService.getTargetAllocation()),
+    decisionJournal: once(() => services.decisionJournalService.review(today)),
     converter,
     today,
     runCode,
+    market,
+    news,
   };
 }

@@ -4,6 +4,9 @@ import { upgradeSnapshotDataToV4 } from '@/data/migrations/v4';
 import { upgradeSnapshotDataToV5 } from '@/data/migrations/v5';
 import { upgradeSnapshotDataToV6 } from '@/data/migrations/v6';
 import { upgradeSnapshotDataToV7 } from '@/data/migrations/v7';
+import { upgradeSnapshotDataToV8 } from '@/data/migrations/v8';
+import { upgradeSnapshotDataToV9 } from '@/data/migrations/v9';
+import { upgradeSnapshotDataToV10 } from '@/data/migrations/v10';
 import { emitDatabaseReplaced } from '@/data/databaseEvents';
 import { hydrateAiProviderSettings } from '@/data/llm/state';
 import { IAsset } from '@/domain/entities/assets/Asset';
@@ -15,6 +18,7 @@ import { IGoal } from '@/domain/entities/goals/Goal';
 import { IEMI } from '@/domain/entities/loans/EMI';
 import { ILoan } from '@/domain/entities/loans/Loan';
 import { IPayment } from '@/domain/entities/loans/Payment';
+import { IDecisionEntry } from '@/domain/entities/journal/DecisionEntry';
 import { ICurrencyRate } from '@/domain/entities/shared/CurrencyRate';
 import { ISettings, SETTINGS_ID } from '@/domain/entities/shared/Settings';
 import { Logger } from '../utils/Logger';
@@ -35,6 +39,8 @@ export interface BackupData {
     /** Added in 2.1.0; absent from older files, which restore with defaults. */
     settings?: ISettings[];
     currencyRates?: ICurrencyRate[];
+    /** Added in 2.6.0; absent from older files, which restore an empty journal. */
+    decisions?: IDecisionEntry[];
   };
 }
 
@@ -48,8 +54,16 @@ export class BackupService {
    * v2.3.0: settings.ai — the AI provider configuration. Unlike the sync
    * snapshot, this file is plaintext on the user's disk, so the API key is
    * stripped on export and the key already on the device is kept on restore.
+   * v2.4.0: settings.targetAllocation — the intended share per asset category.
+   * Exported in full: it is the user's own policy, not a credential.
+   * v2.5.0: settings.news — the news provider key. Stripped on export and kept
+   * from the device on restore, exactly like `ai.apiKey`: this file is plaintext
+   * on the user's disk.
+   * v2.6.0: the `decisions` table — the decision journal. Exported in full: it
+   * is the user's own reasoning, and a journal that did not survive a restore
+   * would lose exactly the history that makes it worth keeping.
    */
-  private static readonly BACKUP_VERSION = '2.3.0';
+  private static readonly BACKUP_VERSION = '2.6.0';
 
   /**
    * Export all data from the database as a JSON string
@@ -70,6 +84,7 @@ export class BackupService {
         allocations,
         settings,
         currencyRates,
+        decisions,
       ] = await Promise.all([
         database.assets.toArray(),
         database.investments.toArray(),
@@ -82,6 +97,7 @@ export class BackupService {
         database.allocations.toArray(),
         database.settings.toArray(),
         database.currencyRates.toArray(),
+        database.decisions.toArray(),
       ]);
 
       const backupData: BackupData = {
@@ -99,6 +115,7 @@ export class BackupService {
           allocations,
           settings: settings.map(row => this.withoutApiKey(row)),
           currencyRates,
+          decisions,
         },
       };
 
@@ -130,6 +147,7 @@ export class BackupService {
       // The file carries no API key, so the one on this device is the only one
       // there is. Decided before the wipe, while it can still be read.
       await this.carryOverApiKey(backupData);
+      await this.carryOverNewsApiKey(backupData);
 
       // Clear all existing data
       await this.clearAllData();
@@ -271,6 +289,9 @@ export class BackupService {
     upgradeSnapshotDataToV5(data);
     upgradeSnapshotDataToV6(data);
     upgradeSnapshotDataToV7(data);
+    upgradeSnapshotDataToV8(data);
+    upgradeSnapshotDataToV9(data);
+    upgradeSnapshotDataToV10(data);
 
     rehydrateSnapshotDates(data);
   }
@@ -301,11 +322,29 @@ export class BackupService {
     incoming.ai = { ...incoming.ai, apiKey: key };
   }
 
+  /**
+   * The news key is carried over unconditionally, unlike the AI one. There is no
+   * endpoint to disagree with — the provider and its topic vocabulary are fixed
+   * in code — so the only question is whether the file left a gap for the
+   * device's key to fill.
+   */
+  private static async carryOverNewsApiKey(backupData: BackupData): Promise<void> {
+    const incoming = backupData.data.settings?.find(row => row.id === SETTINGS_ID);
+    if (!incoming || incoming.news?.apiKey) return;
+
+    const key = (await database.settings.get(SETTINGS_ID))?.news?.apiKey;
+    if (!key) return;
+
+    incoming.news = { ...incoming.news, apiKey: key };
+  }
+
   /** Keys never go into the backup file: it is plaintext on the user's disk. */
   private static withoutApiKey(settings: ISettings): ISettings {
     const ai = { ...(settings.ai ?? {}) };
     delete ai.apiKey;
-    return { ...settings, ai };
+    const news = { ...(settings.news ?? {}) };
+    delete news.apiKey;
+    return { ...settings, ai, news };
   }
 
   /**
@@ -326,6 +365,7 @@ export class BackupService {
       database.allocations.clear(),
       database.settings.clear(),
       database.currencyRates.clear(),
+      database.decisions.clear(),
     ]);
 
     Logger.info('Existing data cleared');
@@ -351,6 +391,7 @@ export class BackupService {
       database.allocations.bulkAdd(data.allocations as IAllocation[]),
       database.settings.bulkAdd(data.settings ?? []),
       database.currencyRates.bulkAdd(data.currencyRates ?? []),
+      database.decisions.bulkAdd(data.decisions ?? []),
     ]);
 
     Logger.info('Backup data imported successfully');

@@ -6,6 +6,9 @@ import {
   computeMonthlyInvestmentData,
 } from '../services/DashboardService';
 import { computeExpenseBreakdown } from '../services/ExpenseService';
+import { computeAllocationDrift } from '../market/AllocationDrift';
+import { MIN_REVIEW_DAYS } from '../journal/DecisionReview';
+import { THIN_SAMPLE_BELOW } from '../news/NewsSentiment';
 import { computeGoalPortfolioTotals, computeGoalProgress } from '../services/GoalService';
 import { computeLoanPortfolioTotals } from '../services/LoanService';
 import { isoDate, monthKey } from '../utils/DateUtils';
@@ -395,6 +398,187 @@ export const CHAT_TOOLS: ChatTool[] = [
         // The snippet computed over the same zeroed figures as everything else.
         unratedCurrencies: data.unratedCurrencies,
         ...(data.truncated.length > 0 ? { truncatedInputs: data.truncated } : {}),
+      };
+    },
+  },
+
+  {
+    name: 'getAllocationDrift',
+    description:
+      "The user's intended allocation against what they actually hold: the target share per asset category, the current share, the gap in percentage points, the amount that would close it, and whether that gap is outside the tolerance band. This is what sizes a buy or a sell. Returns hasTargetAllocation:false when the user has not set a policy — then ask them what they were aiming for rather than assuming one.",
+    async run(_args, ctx) {
+      const targets = await ctx.targetAllocation();
+
+      if (targets.length === 0) {
+        return {
+          hasTargetAllocation: false,
+          note: 'No target allocation is set, so there is no drift to report. Ask the user what share of their portfolio they want in each category. Do not invent a target or suggest one as though it were theirs.',
+        };
+      }
+
+      const drift = computeAllocationDrift(await ctx.assets(), targets, ctx.converter);
+
+      return {
+        hasTargetAllocation: true,
+        ...drift,
+        note: 'adjustmentAmount is what to move to return to target: positive means buy, negative means sell. A row with action "hold" is inside its band and needs nothing.',
+      };
+    },
+  },
+
+  {
+    name: 'getMarketTrends',
+    description:
+      "How the market a category sits in has actually moved: the benchmark's latest level, its high over the window, how far below that high it is now, and the return over the window. Use this to tell a fall that is a discount from one that is a trend, and to check an instinct about timing against a real series. Reports a benchmark for the category, not the user's own holding.",
+    argsHint:
+      'categories?: string[] of AssetCategory values, default every category the user holds that has a benchmark; windowDays?: number, default 365',
+    async run(args, ctx) {
+      const requested = Array.isArray(args.categories)
+        ? args.categories.map(asString).filter((value): value is string => value !== undefined)
+        : undefined;
+
+      // Defaulting to what the user actually holds keeps the answer about their
+      // portfolio rather than about the market in general, and costs no extra
+      // fetch: several categories share one benchmark series.
+      const supported = new Set(ctx.market.supportedCategories());
+      const held = Array.from(new Set((await ctx.assets()).map(asset => asset.category)));
+      const categories = (requested ?? held).filter(category => supported.has(category));
+
+      if (categories.length === 0) {
+        return {
+          trends: [],
+          unavailable: (requested ?? held).map(category => ({
+            category,
+            reason: 'no market benchmark describes this category',
+          })),
+          note: 'No benchmark covers these categories. Say so rather than describing the market from memory.',
+        };
+      }
+
+      const windowDays = Math.min(Math.max(asNumber(args.windowDays) ?? 365, 30), 3650);
+      const { trends, unavailable } = await ctx.market.benchmarkTrends(categories, windowDays);
+
+      return {
+        trends: trends.map(entry => ({
+          category: entry.category,
+          benchmark: entry.benchmark,
+          source: entry.source,
+          currency: entry.currency,
+          asOf: entry.asOf,
+          latest: round(entry.trend.latest),
+          windowHigh: round(entry.trend.high),
+          windowHighOn: isoDate(entry.trend.highOn),
+          windowLow: round(entry.trend.low),
+          drawdownFromHighPercent: entry.trend.drawdownPercent,
+          returnOverWindowPercent: entry.trend.returnPercent,
+          windowDays: entry.trend.windowDays,
+        })),
+        unavailable,
+        note: "These are benchmark levels for the category, not the value of the user's own holdings, and they describe the past only. Never turn one into a forecast.",
+      };
+    },
+  },
+
+  {
+    name: 'getNewsSentiment',
+    description:
+      'Measured news sentiment for the categories the user holds: how many recent articles bear on each, their relevance-weighted mean sentiment and its label, how the articles split bullish/neutral/bearish, the window they cover, and the most relevant headlines with sources. Read this together with getMarketTrends — sentiment explains a price move, it does not predict the next one.',
+    argsHint:
+      'categories?: string[] of AssetCategory values, default every category the user holds',
+    async run(args, ctx) {
+      const requested = Array.isArray(args.categories)
+        ? args.categories.map(asString).filter((value): value is string => value !== undefined)
+        : undefined;
+
+      const held = Array.from(new Set((await ctx.assets()).map(asset => asset.category)));
+      const categories = requested ?? held;
+
+      // An empty list would come back as an empty report with no explanation,
+      // which reads as "no news" rather than "nothing was asked about".
+      if (categories.length === 0) {
+        return {
+          categories: [],
+          unavailable: [],
+          note: 'There are no asset categories to look up news for — the portfolio is empty. Say so rather than describing the market from memory.',
+        };
+      }
+
+      const summary = await ctx.news.summarise(categories);
+
+      return {
+        fetchedAt: summary.fetchedAt.getTime() === 0 ? undefined : isoDate(summary.fetchedAt),
+        source: summary.source,
+        articlesConsidered: summary.articlesConsidered,
+        categories: summary.summaries.map(entry => ({
+          category: entry.category,
+          articleCount: entry.articleCount,
+          meanSentiment: entry.meanSentiment,
+          label: entry.label,
+          distribution: entry.distribution,
+          newestArticleAt: entry.newestAt ? isoDate(entry.newestAt) : undefined,
+          oldestArticleAt: entry.oldestAt ? isoDate(entry.oldestAt) : undefined,
+          isThinSample: entry.isThinSample,
+          headlines: entry.topArticles.map(article => ({
+            title: article.title,
+            source: article.source,
+            publishedAt: isoDate(article.publishedAt),
+            sentimentLabel: article.sentimentLabel,
+          })),
+        })),
+        unavailable: summary.unavailable,
+        note:
+          `A category with fewer than ${THIN_SAMPLE_BELOW} articles is marked isThinSample: quote its ` +
+          'figure as a thin sample or not at all. Sentiment describes what has already been written, ' +
+          'so never state or imply where a price will go next. Cite a headline from this list rather ' +
+          'than recalling one.',
+      };
+    },
+  },
+
+  {
+    name: 'getDecisionJournal',
+    description:
+      "The user's own past investment decisions: what they decided, why, the figures they were looking at, and how the benchmark has moved since — with a verdict where one can be earned. Read this before advising on a category they have decided about before, so you can say what they concluded last time and whether it worked.",
+    argsHint: 'category?: string to filter by asset category; limit?: number, default 20',
+    async run(args, ctx) {
+      const { entries, summary } = await ctx.decisionJournal();
+      const category = asString(args.category);
+      const limit = Math.min(Math.max(asNumber(args.limit) ?? 20, 1), LIST_LIMIT);
+
+      const filtered = category
+        ? entries.filter(item => item.entry.category.toLowerCase() === category.toLowerCase())
+        : entries;
+
+      return {
+        summary: {
+          ...summary,
+          // Spelled out because a bare hit rate over three decisions reads as a
+          // track record.
+          note:
+            `hitRatePercent is over scoredCount only, not entryCount. A decision is scored only ` +
+            `once it is at least ${MIN_REVIEW_DAYS} days old, made a directional claim, and the ` +
+            `benchmark moved enough to call. Quote the denominator whenever you quote the rate.`,
+        },
+        // Newest first, as the repository returns them.
+        entries: capped(
+          filtered.map(item => ({
+            id: item.entry.id,
+            decidedOn: isoDate(item.entry.createdAt),
+            category: item.entry.category,
+            action: item.entry.action,
+            status: item.entry.status,
+            amount: round(item.entry.amount),
+            currency: item.entry.currency,
+            rationale: item.entry.rationale,
+            evidenceAtTheTime: item.entry.evidence,
+            daysSince: item.review.daysSince,
+            benchmarkChangeSincePercent: item.review.benchmarkChangePercent,
+            verdict: item.review.verdict,
+            reviewNote: item.entry.reviewNote,
+          })),
+          limit
+        ),
+        note: "A verdict scores whether the reasoning pointed the right way, measured on the category benchmark — not what the user actually earned, which depends on what they bought and when. Never present it as a return. Entries are the user's own words; quote them rather than rewriting what they thought.",
       };
     },
   },

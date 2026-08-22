@@ -100,6 +100,141 @@ whereas a snippet from the model is steerable by asset names and imported statem
 reaches no database, so everything it may compute over is passed in by `buildSandboxData`
 (`SandboxData.ts`) using the same key names the read tools return; only plain JSON comes back.
 
+**Market context (`src/domain/market/`, `src/data/market/`)** — the assistant can see how the
+market a category sits in has actually moved, via `getMarketTrends`. Two rules shape it.
+
+Retrieval is the *app's* job, not the model's: a local Ollama has no network, so the model is only
+the reasoner over a series the app fetched. And the port reports a **benchmark per asset category**,
+never per holding — nothing in `IAsset` records a scheme code or ticker, so matching a user's asset
+to an instrument would be a guess, and a guess there attaches a real price history to the wrong
+holding and reads as fact. `CATEGORY_BENCHMARKS` is a closed table; categories no market series
+describes (Fixed Deposit, Pension, Real Estate, Cash) are deliberately absent and reported as
+`unavailable`, the same honesty `unratedCurrencies` carries.
+
+The sources are the two that are keyless *and* send `Access-Control-Allow-Origin: *`, which is the
+binding constraint from a browser: `api.mfapi.in` (AMFI NAVs — equity via a Nifty index fund's NAV,
+debt, gold) and `api.coingecko.com` (crypto). Yahoo Finance, Stooq and GDELT all fail one of those
+two tests and cannot be called from a page at all. AlphaVantage does send the header and has a
+`NEWS_SENTIMENT` endpoint, but it needs a key and a tight daily quota, so news is a later layer.
+
+`NavSeries.ts` is the pure half and the reason this is worth having: `drawdownPercent` (how far below
+the window's high) and `returnPercent` (change across the window) answer different questions, and
+gold in Aug 2026 shows why — up 59% over a year while sitting 10.5% below the high it set inside it.
+The window is anchored to the series' own last observation, not the clock, or every weekend would
+silently shorten it. Prompt rules 8a/8b hold the line: a drawdown is never a forecast, and a market
+figure never decides a buy on its own.
+
+`AllocationDrift.ts` is the piece that *does* size a decision — actual share against intended share,
+with a tolerance band — and it is what `getAllocationDrift` answers from. News does not decide;
+drift decides, and a drawdown only says whether a gap is a cheaper entry or a thesis that changed.
+
+The policy itself is `ISettings.targetAllocation` (`ICategoryTarget[]`, schema v8), a field on the
+settings singleton rather than a table: the shares only mean anything as a set, so they are read and
+written whole, and living in `settings` means they travel through sync and backup while `db.settings`
+was already in the `AutoSyncService` hook list. `Goal.allocations` is emphatically not this — it is
+asset-to-goal earmarking ("40% of this fund is for the house"), a different question from "what share
+of my portfolio should be equity".
+
+Three rules hold. **No default is shipped**: a plausible 60/40 would be read as advice the app cannot
+give, then measured against and acted on. **Empty is a real state**, distinct from being on target —
+`allocationDrift.isSet: false` in the snapshot and `hasTargetAllocation: false` from the tool both
+mean the user has expressed no policy, and prompt rule 8c makes the assistant ask instead of assuming
+one, because "you hold 70% equity" is a fact while "you hold too much equity" needs a target to be
+too much *of*. And **a 0% target is meaningful** and survives every round trip — it records a
+deliberate decision to hold none of something, which is why `normaliseTargetAllocation` tests for
+`undefined` rather than falsiness.
+
+`validateTargetAllocation` rejects the whole set, not each row: over 100% is unholdable and would
+make every drift figure wrong, while under 100% is allowed and reported as `untargeted` — a policy
+covering part of the portfolio is a choice, not an error. The snapshot carries only the rows *outside*
+their band, because it is resent on every turn.
+
+**News sentiment (`src/domain/news/`, `src/data/news/`)** — `getNewsSentiment` gives the assistant a
+*measurement* over recent articles per category, not a headline dump. The distinction is the whole
+point: a model handed 50 articles writes a story, and it writes an equally fluent one whichever way
+the market moved. A model handed "27 articles, relevance-weighted mean +0.14, Neutral, spanning 40
+hours" has a number it can be held to, with the headlines attached so it cites instead of recalling.
+
+AlphaVantage's `NEWS_SENTIMENT` is the source, on one hard criterion: it is the only news feed found
+that both sends `Access-Control-Allow-Origin: *` and returns structured sentiment. GDELT rate-limits
+anonymous callers and sends no CORS header; publisher RSS is almost universally CORS-blocked. Its
+free tier allows **25 requests a day**, and that quota — not latency — shapes the design:
+
+- **One request per fetch**, for the union of every topic in `NEWS_TOPICS`, partitioned to categories
+  locally by `CATEGORY_TOPICS`. One request per category would burn a day in two questions. A test
+  pins that every mapped topic is one actually fetched: a topic outside `NEWS_TOPICS` would match
+  nothing for ever and look like a quiet news day. Every topic string was *observed in a real
+  response* — the published list is behind a JS-rendered page, and an unrecognised topic risks
+  failing the only request there is.
+- **The cache is load-bearing**, not an optimisation, and lives in `localStorage` rather than Dexie.
+  A cached public feed is not the user's data: it is device-local, has nothing to add to a sync
+  snapshot, and restoring it from a six-month-old backup would hand the assistant six-month-old
+  headlines as current. Session-only caching (the right call for NAVs, where refetching is free)
+  would spend the whole quota on 25 reloads.
+- Concurrent callers collapse onto one in-flight request, because two tools in one turn must not cost
+  two quota units.
+
+Sentiment is **relevance-weighted, not counted** — a passing mention must not weigh as much as a
+dedicated piece, which is how a feed of tangential references comes to look like conviction — and an
+article's weight for a category is the **max** relevance across that category's topics, never the sum,
+or a broadly-tagged article outweighs a focused one. `sentimentLabelFor` reuses the provider's own
+published bands verbatim; note its definition string says `Somewhat_Bullish` while the feed emits
+`Somewhat-Bullish`, and the feed's spelling is the one that matches the data. A rejected key and a
+spent quota both arrive as **HTTP 200 with a prose field**, so `parseNewsResponse` is separated from
+the fetch and tested directly — the status code reveals neither.
+
+Two honest limits, both reported rather than smoothed over. `isThinSample` marks a category with
+fewer than five matching articles; the figure is still returned, because suppressing it invites the
+model to fill the gap from memory. And the provider scores sentiment per *article*, not per category,
+so a macro piece contributes its whole-article tone to every category tagged with that topic —
+relevance weighting mitigates this but does not remove it. Prompt rules 8d/8e carry the reasoning:
+sentiment explains a move that has already happened and never decides a trade, and the useful reading
+is the four-way combination of drift, drawdown and sentiment.
+
+`settings.news.apiKey` (schema v9) follows `settings.ai.apiKey` exactly — it rides the encrypted sync
+snapshot, is stripped from the plaintext backup, and is carried over from the device on restore. No
+endpoint is stored: the topic vocabulary has to match what the aggregation can partition, so a
+configurable one would be a lie.
+
+**Decision journal (`src/domain/entities/journal/`, `src/domain/journal/`, `/journal` route)** — the
+piece that makes everything above falsifiable. Drift, drawdown and sentiment can each build a
+confident case for acting, and without a record there is no way to tell which cases were right. An
+entry freezes the *reasoning in the user's own words* alongside the figures that were on screen, and
+`reviewDecision` later compares the benchmark level frozen in the entry with the level now.
+
+What a verdict measures, stated precisely: **whether the reasoning pointed the right way, not what
+the user earned.** It is blind to what they actually bought, when the money landed and what it cost,
+because a P&L figure confounds the judgement with the execution — and the judgement is the part a
+person can get better at. Prompt rule 8f forbids quoting a verdict as a return.
+
+Every verdict that cannot be *earned* is named rather than defaulted, because a journal that quietly
+scored the unscoreable would produce a hit rate that looks like evidence: `not-directional` for a
+hold, `too-soon` under `MIN_REVIEW_DAYS` (90), `inconclusive` inside `INCONCLUSIVE_WITHIN_PERCENT`
+(1%), `no-evidence` with no recorded level. `summariseJournal` therefore reports `hitRatePercent`
+over `scoredCount`, never `entryCount`, returns `undefined` rather than 0 when nothing is scored —
+"nothing is old enough to judge" must not look like "everything was wrong" — and itemises `unscored`
+so the denominator is legible. A `declined` decision is kept: it is as informative as one taken, and
+dropping it would leave a journal recording only the trades that felt compelling.
+
+`getDecisionJournal` is **read-only, like every other chat tool**. The assistant may see what was
+decided and how it turned out — "you sold gold in March on the same reasoning; the benchmark is down
+8% since" is the most useful sentence it can offer — but writing an entry stays a deliberate act by
+the user. A model that could write on a misparse would corrupt the one record the reviews are scored
+from, and an entry the user did not write is not their reasoning.
+
+`IDecisionEvidence` deliberately **holds no `Date`**. `rehydrateSnapshotDates` walks only a row's
+top-level fields, so a nested Date would return from a sync snapshot or backup as a string and stay
+one. `createdAt`/`reviewedAt` sit at the top level where the rehydration sees them; the provenance
+stamps inside `evidence` are plain `YYYY-MM-DD` strings, which is all they are ever read as.
+
+`decisions` (schema v10) is the **first new table since v5**, and so the first change to need more
+than the four version bumps. Nine places: `database.ts` (`Table` field, `version(10).stores`,
+`ALL_TABLES`), `AutoSyncService.startListening()`, `rehydrateDates` `DATE_FIELDS`, `sync/types.ts`,
+`Syncer` (version, upgrade step, snapshot build, transaction list, `clear`, `bulkPut`) and
+`BackupService` (version, `BackupData`, export, upgrade, `clearAllData`, `bulkAdd`). Missing
+`clearAllData` in particular is silent: a restore would `bulkAdd` onto the existing journal and
+collide on ids.
+
 The assistant has no route of its own. It opens as a 92dvh bottom sheet (`ChatSheetView`) whose
 state lives in `MainPage`, so the tab underneath stays mounted and dismissing returns the user
 where they were with no refetch; the "Ask" FAB in `MainLayout` is the only way in. Replies render

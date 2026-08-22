@@ -32,6 +32,7 @@ interface MainLayoutProps {
   onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
   onMenuClose: () => void;
   onSettingsClick: () => void;
+  onJournalClick: () => void;
   onImportClick: () => void;
   onAssistantClick: () => void;
   /**
@@ -51,6 +52,7 @@ export function MainLayout({
   onMenuOpen,
   onMenuClose,
   onSettingsClick,
+  onJournalClick,
   onImportClick,
   onAssistantClick,
   hasPageFab,
@@ -101,6 +103,7 @@ export function MainLayout({
             }}
           >
             <MenuItem onClick={onImportClick}>Import Statement</MenuItem>
+            <MenuItem onClick={onJournalClick}>Decision Journal</MenuItem>
             <MenuItem onClick={onSettingsClick}>Settings</MenuItem>
           </Menu>
         </Toolbar>
