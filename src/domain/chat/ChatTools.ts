@@ -20,8 +20,10 @@ import { buildSandboxData } from './SandboxData';
  *
  * Two rules hold across all of them:
  *
- * - Amounts are in the base currency, and any aggregate carries the
- *   `unratedCurrencies` it was computed with. An unrated currency converts to 0
+ * - Asset, loan and goal amounts are in the base currency, and any such
+ *   aggregate carries the `unratedCurrencies` it was computed with. Expenses are
+ *   the exception: they are never converted, so every expense figure is reported
+ *   under the currency it was paid in. An unrated currency converts to 0
  *   (see `CurrencyConverter`), so a total is only trustworthy alongside that
  *   list, and the prompt requires the assistant to pass it on.
  * - List results are capped and say so in `truncated`/`totalCount`, so a large
@@ -226,7 +228,7 @@ export const CHAT_TOOLS: ChatTool[] = [
   {
     name: 'getExpenseBreakdown',
     description:
-      'Spending over a period: total, essential versus non-essential, per-category shares and a per-month series.',
+      'Spending over a period: total, essential versus non-essential, per-category shares and a per-month series. Reported once per currency spent in — expenses are never converted, so quote each currency separately and never add them together.',
     argsHint:
       'from?: "YYYY-MM-DD", to?: "YYYY-MM-DD", months?: number (last N months, used when from is absent)',
     async run(args, ctx) {
@@ -234,15 +236,13 @@ export const CHAT_TOOLS: ChatTool[] = [
       const from = asDate(args.from) ?? (months ? monthsBefore(ctx.today, months) : undefined);
       const to = asDate(args.to);
 
-      const breakdown = computeExpenseBreakdown(await ctx.monthlyExpenses(), ctx.converter, {
-        ...(from ? { from } : {}),
-        ...(to ? { to } : {}),
-      });
-
       return {
         from: from ? isoDate(from) : 'earliest recorded expense',
         to: to ? isoDate(to) : 'latest recorded expense',
-        ...breakdown,
+        byCurrency: computeExpenseBreakdown(await ctx.monthlyExpenses(), {
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+        }),
       };
     },
   },
@@ -250,7 +250,7 @@ export const CHAT_TOOLS: ChatTool[] = [
   {
     name: 'listExpenses',
     description:
-      'Individual expense rows, newest first. Use when the totals are not enough and the actual entries matter.',
+      'Individual expense rows, newest first, each in the currency it was paid in. Use when the totals are not enough and the actual entries matter.',
     argsHint:
       'from?: "YYYY-MM-DD", to?: "YYYY-MM-DD", category?: string, months?: number (last N months)',
     async run(args, ctx) {
@@ -266,20 +266,18 @@ export const CHAT_TOOLS: ChatTool[] = [
         .filter(expense => !category || expense.category.toLowerCase() === category.toLowerCase())
         .sort((a, b) => b.date.getTime() - a.date.getTime());
 
-      return {
-        ...capped(
-          expenses.map(expense => ({
-            date: isoDate(expense.date),
-            amount: expense.amount,
-            currency: expense.currency,
-            amountInBase: round(ctx.converter.toBase(expense.amount, expense.currency)),
-            category: expense.category,
-            isEssential: expense.isEssential,
-            description: expense.description,
-          }))
-        ),
-        baseCurrency: ctx.converter.getBaseCurrency(),
-      };
+      // No base-currency column: an expense is reported in the currency it was
+      // paid in and nothing here converts.
+      return capped(
+        expenses.map(expense => ({
+          date: isoDate(expense.date),
+          amount: expense.amount,
+          currency: expense.currency,
+          category: expense.category,
+          isEssential: expense.isEssential,
+          description: expense.description,
+        }))
+      );
     },
   },
 
@@ -373,7 +371,7 @@ export const CHAT_TOOLS: ChatTool[] = [
     description:
       'Run a short JavaScript snippet to work out a figure the other tools do not return — a projection, a what-if, a comparison, or a total over a set you have filtered yourself. Prefer this over doing arithmetic in your head.',
     argsHint:
-      'code: string — the body of an async function. It receives `data` ({today, baseCurrency, unratedCurrencies, assets[], loans[], goals[], monthlyExpenses[]}, all amounts already in the base currency, keys as in listAssets/getLoanSummary/getGoalProgress) and must `return` a number or a plain object. No network and no database access; console.log is echoed back.',
+      'code: string — the body of an async function. It receives `data` ({today, baseCurrency, unratedCurrencies, assets[], loans[], goals[], monthlyExpenses[]}, all amounts already in the base currency, keys as in listAssets/getLoanSummary/getGoalProgress; asset, loan and goal amounts are in the base currency, while monthlyExpenses[].byCurrency keeps each currency apart and unconverted) and must `return` a number or a plain object. No network and no database access; console.log is echoed back.',
     async run(args, ctx) {
       const code = asString(args.code);
       if (code === undefined) return { error: 'code is required.' };

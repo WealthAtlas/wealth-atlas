@@ -33,3 +33,22 @@ export class Expense implements IExpense {
     return this.date.getMonth().toString() + ':' + this.date.getFullYear().toString();
   }
 }
+
+/**
+ * The currencies these expenses were paid in, largest total first, so the
+ * currency the user mostly spends in leads every report. Ties fall back to the
+ * code, so the order never depends on insertion order.
+ *
+ * Sorting by a total across currencies is not a comparison of value — no rate is
+ * involved — only a way to put the biggest column first.
+ */
+export function currenciesByTotal(expenses: Expense[]): Currency[] {
+  const totals = new Map<Currency, number>();
+  for (const expense of expenses) {
+    totals.set(expense.currency, (totals.get(expense.currency) ?? 0) + expense.amount);
+  }
+
+  return Array.from(totals.keys()).sort(
+    (a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0) || a.localeCompare(b)
+  );
+}

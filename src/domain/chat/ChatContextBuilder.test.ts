@@ -11,7 +11,7 @@ describe('buildChatSnapshot', () => {
     expect(snapshot.assetCount).toBe(0);
     expect(snapshot.allocation).toEqual([]);
     expect(snapshot.goals).toEqual([]);
-    expect(snapshot.recentSpending.total).toBe(0);
+    expect(snapshot.recentSpending.byCurrency).toEqual([]);
     expect(snapshot.baseCurrency).toBe(Currency.INR);
   });
 
@@ -56,7 +56,8 @@ describe('buildChatSnapshot', () => {
     );
 
     expect(snapshot.recentSpending.months).toBe(3);
-    expect(snapshot.recentSpending.total).toBe(4000);
+    expect(snapshot.recentSpending.byCurrency).toHaveLength(1);
+    expect(snapshot.recentSpending.byCurrency[0].total).toBe(4000);
   });
 
   it('reports the essential share of recent spending', async () => {
@@ -69,7 +70,7 @@ describe('buildChatSnapshot', () => {
       })
     );
 
-    expect(snapshot.recentSpending.essentialShare).toBe(75);
+    expect(snapshot.recentSpending.byCurrency[0].essentialShare).toBe(75);
   });
 
   it('summarises each goal in one line', async () => {
@@ -82,7 +83,10 @@ describe('buildChatSnapshot', () => {
     expect(snapshot.goals[0].shortfall).toBeGreaterThan(0);
   });
 
-  it('collects unrated currencies from both holdings and spending', async () => {
+  // Spending is reported once per currency and never converted, so a currency
+  // spent in needs no rate and must not be reported as unrated — only holdings,
+  // which do get converted into the base currency, can be.
+  it('names unrated holding currencies, and leaves spending out of it', async () => {
     const snapshot = await buildChatSnapshot(
       fakeContext({
         assets: [asset({ currency: Currency.USD })],
@@ -92,7 +96,23 @@ describe('buildChatSnapshot', () => {
       })
     );
 
-    expect(snapshot.unratedCurrencies.sort()).toEqual([Currency.GBP, Currency.USD]);
+    expect(snapshot.unratedCurrencies).toEqual([Currency.USD]);
+  });
+
+  it('reports each currency spent in separately, largest first', async () => {
+    const snapshot = await buildChatSnapshot(
+      fakeContext({
+        monthlyExpenses: months([
+          expense({ id: 1, amount: 4000, currency: Currency.INR, date: new Date('2026-08-05') }),
+          expense({ id: 2, amount: 300, currency: Currency.GBP, date: new Date('2026-08-06') }),
+        ]),
+      })
+    );
+
+    expect(snapshot.recentSpending.byCurrency.map(spend => [spend.currency, spend.total])).toEqual([
+      [Currency.INR, 4000],
+      [Currency.GBP, 300],
+    ]);
   });
 
   // A model asked what to invest reasons about spare cash without checking what

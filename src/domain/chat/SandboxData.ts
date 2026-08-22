@@ -12,10 +12,15 @@ import { ChatToolContext } from './ChatToolContext';
  * return, so a model that has read a tool result can write a snippet against
  * the same fields without being taught a second vocabulary.
  *
- * Every amount is already converted to the base currency by the same
- * `CurrencyConverter` the pages use, so a snippet never has to know a rate. The
- * per-asset native figures come along too, for a question asked in the asset's
- * own currency.
+ * Asset, loan and goal amounts are already converted to the base currency by the
+ * same `CurrencyConverter` the pages use, so a snippet never has to know a rate.
+ * The per-asset native figures come along too, for a question asked in the
+ * asset's own currency.
+ *
+ * Expenses are the exception and arrive unconverted, split by the currency they
+ * were paid in — the same shape the expense pages show. A snippet that wants one
+ * spending figure has to pick a currency; there is no rate here to blend them
+ * with, deliberately.
  */
 
 /** Enough for arithmetic over a real portfolio; bounded so one call cannot blow the frame. */
@@ -24,7 +29,7 @@ const ROW_LIMIT = 500;
 export interface SandboxDataset {
   today: string;
   baseCurrency: string;
-  /** Holdings in these currencies counted as 0, exactly as elsewhere. */
+  /** Holdings in these currencies counted as 0, exactly as elsewhere. Expenses are unaffected — they are never converted. */
   unratedCurrencies: string[];
   assets: unknown[];
   loans: unknown[];
@@ -108,20 +113,22 @@ export async function buildSandboxData(ctx: ChatToolContext): Promise<SandboxDat
     }),
 
     // Per month rather than per row: a snippet asked about spending trends wants
-    // the series, and the individual rows are what `listExpenses` is for.
-    monthlyExpenses: cap(monthlyExpenses, 'monthlyExpenses').map(month => {
-      const breakdown = computeExpenseBreakdown([month], ctx.converter);
-      return {
-        month: monthKey(month.month),
-        total: round(month.getTotalAmount(ctx.converter)),
-        essential: round(month.getEssentialAmount(ctx.converter)),
-        nonEssential: round(month.getNonEssentialAmount(ctx.converter)),
+    // the series, and the individual rows are what `listExpenses` is for. Split
+    // by currency because nothing converts an expense, so a month spent in two
+    // currencies has two totals and adding them would be meaningless.
+    monthlyExpenses: cap(monthlyExpenses, 'monthlyExpenses').map(month => ({
+      month: monthKey(month.month),
+      byCurrency: computeExpenseBreakdown([month]).map(breakdown => ({
+        currency: breakdown.currency,
+        total: round(breakdown.total),
+        essential: round(breakdown.essentialTotal),
+        nonEssential: round(breakdown.nonEssentialTotal),
         byCategory: breakdown.categories.map(category => ({
           category: category.category,
           amount: round(category.amount),
         })),
-      };
-    }),
+      })),
+    })),
 
     truncated,
   };

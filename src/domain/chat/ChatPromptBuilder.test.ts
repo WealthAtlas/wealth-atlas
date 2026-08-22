@@ -24,10 +24,15 @@ const SNAPSHOT: ChatSnapshot = {
   allocation: [],
   recentSpending: {
     months: 3,
-    total: 12000,
-    averagePerMonth: 4000,
-    essentialShare: 100,
-    topCategories: [],
+    byCurrency: [
+      {
+        currency: 'INR',
+        total: 12000,
+        averagePerMonth: 4000,
+        essentialShare: 100,
+        topCategories: [],
+      },
+    ],
   },
   goals: [],
   committedNextMonth: { sip: 20000, emi: 45000, total: 65000 },

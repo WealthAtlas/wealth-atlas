@@ -20,10 +20,15 @@ const SNAPSHOT: ChatSnapshot = {
   allocation: [{ category: 'Index Fund', percentage: 100 }],
   recentSpending: {
     months: 3,
-    total: 12000,
-    averagePerMonth: 4000,
-    essentialShare: 100,
-    topCategories: [{ category: 'Groceries', amount: 12000 }],
+    byCurrency: [
+      {
+        currency: 'INR',
+        total: 12000,
+        averagePerMonth: 4000,
+        essentialShare: 100,
+        topCategories: [{ category: 'Groceries', amount: 12000 }],
+      },
+    ],
   },
   goals: [],
   committedNextMonth: { sip: 20000, emi: 45000, total: 65000 },

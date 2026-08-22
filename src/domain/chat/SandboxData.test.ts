@@ -88,9 +88,35 @@ describe('buildSandboxData', () => {
     );
 
     expect(data.monthlyExpenses[0]).toMatchObject({
-      total: 5500,
-      essential: 4000,
-      nonEssential: 1500,
+      month: '2026-08',
+      byCurrency: [
+        {
+          currency: 'INR',
+          total: 5500,
+          essential: 4000,
+          nonEssential: 1500,
+        },
+      ],
+    });
+  });
+
+  // A snippet must not be handed a blended spending figure: nothing converts an
+  // expense, so a month spent in two currencies arrives as two entries.
+  it('keeps a month spent in two currencies as two entries', async () => {
+    const data = await buildSandboxData(
+      fakeContext({
+        monthlyExpenses: months([
+          expense({ id: 1, amount: 4000, currency: Currency.INR }),
+          expense({ id: 2, amount: 300, currency: Currency.GBP }),
+        ]),
+      })
+    );
+
+    expect(data.monthlyExpenses[0]).toMatchObject({
+      byCurrency: [
+        { currency: Currency.INR, total: 4000 },
+        { currency: Currency.GBP, total: 300 },
+      ],
     });
   });
 

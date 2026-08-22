@@ -1,5 +1,4 @@
 import { Currency } from '@/domain/entities/shared/Currency';
-import { CurrencyConverter } from '@/domain/entities/shared/CurrencyConverter';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import {
   BarPlot,
@@ -17,18 +16,21 @@ import { UIUtils } from '../../utils/UIUtils';
 export interface ExpenseChartProps {
   monthlyExpenses: MonthlyExpense[];
   /**
-   * Every bar is in the base currency. The chart used to carry one stack per
-   * currency, which made a month's spend impossible to read off at a glance.
+   * The one currency this chart covers. Expenses are never converted, so the
+   * caller renders a chart per currency rather than stacking them together —
+   * a stack per currency in one chart made a month impossible to read.
+   *
+   * A month with no spending in this currency is a real zero, not a gap, so
+   * every month on record still gets a bar.
    */
   currency: Currency;
-  converter: CurrencyConverter;
 }
 
 const ESSENTIAL_KEY = 'essential';
 const NON_ESSENTIAL_KEY = 'nonEssential';
 const AVERAGE_KEY = 'average';
 
-export function ExpenseChart({ monthlyExpenses, currency, converter }: ExpenseChartProps) {
+export function ExpenseChart({ monthlyExpenses, currency }: ExpenseChartProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -44,7 +46,7 @@ export function ExpenseChart({ monthlyExpenses, currency, converter }: ExpenseCh
 
     // The average spans every month on record, not just the displayed window,
     // so a narrow mobile view does not move the reference line.
-    const monthlyTotals = monthlyExpenses.map(monthData => monthData.getTotalAmount(converter));
+    const monthlyTotals = monthlyExpenses.map(monthData => monthData.getTotalAmount(currency));
     const average = monthlyTotals.length
       ? monthlyTotals.reduce((sum, amount) => sum + amount, 0) / monthlyTotals.length
       : 0;
@@ -53,8 +55,8 @@ export function ExpenseChart({ monthlyExpenses, currency, converter }: ExpenseCh
       const monthData = monthlyExpenses.find(expense => monthLabel(expense.month) === month);
       return {
         month,
-        [ESSENTIAL_KEY]: monthData?.getEssentialAmount(converter) ?? 0,
-        [NON_ESSENTIAL_KEY]: monthData?.getNonEssentialAmount(converter) ?? 0,
+        [ESSENTIAL_KEY]: monthData?.getEssentialAmount(currency) ?? 0,
+        [NON_ESSENTIAL_KEY]: monthData?.getNonEssentialAmount(currency) ?? 0,
         [AVERAGE_KEY]: average,
       };
     });
@@ -86,7 +88,7 @@ export function ExpenseChart({ monthlyExpenses, currency, converter }: ExpenseCh
     ];
 
     return { data, barSeries, lineSeries, displayMonths };
-  }, [monthlyExpenses, converter, isMobile, monthLabel, theme.palette]);
+  }, [monthlyExpenses, currency, isMobile, monthLabel, theme.palette]);
 
   const formatMonthLabel = React.useCallback(
     (month: string) => {

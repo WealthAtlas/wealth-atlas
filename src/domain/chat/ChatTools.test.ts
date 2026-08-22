@@ -164,6 +164,8 @@ describe('getAssetDetail', () => {
 });
 
 describe('getExpenseBreakdown', () => {
+  type Breakdown = { from: string; byCurrency: { currency: string; total: number }[] };
+
   it('accepts a months argument as a relative window', async () => {
     const result = (await tool('getExpenseBreakdown').run(
       { months: 1 },
@@ -173,10 +175,10 @@ describe('getExpenseBreakdown', () => {
           expense({ amount: 9000, date: new Date('2024-01-05') }),
         ]),
       })
-    )) as { total: number };
+    )) as Breakdown;
 
     // Only the recent expense falls inside a one-month window from TODAY.
-    expect(result.total).toBe(4000);
+    expect(result.byCurrency[0].total).toBe(4000);
   });
 
   it('honours explicit from and to dates', async () => {
@@ -188,9 +190,9 @@ describe('getExpenseBreakdown', () => {
           expense({ amount: 7000, date: new Date('2026-08-20') }),
         ]),
       })
-    )) as { total: number; from: string };
+    )) as Breakdown;
 
-    expect(result.total).toBe(4000);
+    expect(result.byCurrency[0].total).toBe(4000);
     expect(result.from).toBe('2026-08-01');
   });
 
@@ -198,10 +200,31 @@ describe('getExpenseBreakdown', () => {
     const result = (await tool('getExpenseBreakdown').run(
       { from: 'last March' },
       fakeContext({ monthlyExpenses: months([expense({ amount: 4000 })]) })
-    )) as { total: number; from: string };
+    )) as Breakdown;
 
-    expect(result.total).toBe(4000);
+    expect(result.byCurrency[0].total).toBe(4000);
     expect(result.from).toContain('earliest');
+  });
+
+  // Never one blended total: an expense is reported in the currency it was paid
+  // in, so the assistant is handed the currencies apart and cannot add them.
+  it('reports a currency per entry rather than a converted total', async () => {
+    const result = (await tool('getExpenseBreakdown').run(
+      {},
+      fakeContext({
+        monthlyExpenses: months([
+          expense({ amount: 4000, currency: Currency.INR }),
+          expense({ amount: 300, currency: Currency.GBP }),
+        ]),
+        // A rate exists, and is still not applied to spending.
+        converter: converter({ [Currency.GBP]: 110 }),
+      })
+    )) as Breakdown;
+
+    expect(result.byCurrency.map(entry => [entry.currency, entry.total])).toEqual([
+      [Currency.INR, 4000],
+      [Currency.GBP, 300],
+    ]);
   });
 });
 

@@ -33,12 +33,20 @@ export interface ChatSnapshot {
   loanCount: number;
   goalCount: number;
   allocation: { category: string; percentage: number }[];
+  /**
+   * One entry per currency spent in, largest first. Expenses are never
+   * converted, so there is no single spending total to quote — the assistant has
+   * to name the currency with the figure, and must not add two entries together.
+   */
   recentSpending: {
     months: number;
-    total: number;
-    averagePerMonth: number;
-    essentialShare: number;
-    topCategories: { category: string; amount: number }[];
+    byCurrency: {
+      currency: string;
+      total: number;
+      averagePerMonth: number;
+      essentialShare: number;
+      topCategories: { category: string; amount: number }[];
+    }[];
   };
   goals: {
     name: string;
@@ -58,9 +66,10 @@ export interface ChatSnapshot {
     total: number;
   };
   /**
-   * Currencies in use with no rate configured. Their holdings counted as 0 in
-   * every figure above, so the assistant must disclose this rather than quote a
-   * total that is quietly short.
+   * Currencies held with no rate configured. Those holdings counted as 0 in the
+   * converted figures above, so the assistant must disclose this rather than
+   * quote a total that is quietly short. Spending is unaffected: it is reported
+   * per currency and never converted.
    */
   unratedCurrencies: string[];
 }
@@ -84,9 +93,7 @@ export async function buildChatSnapshot(ctx: ChatToolContext): Promise<ChatSnaps
 
   const spendingFrom = new Date(ctx.today);
   spendingFrom.setMonth(spendingFrom.getMonth() - SNAPSHOT_EXPENSE_MONTHS);
-  const spending = computeExpenseBreakdown(monthlyExpenses, ctx.converter, {
-    from: spendingFrom,
-  });
+  const spending = computeExpenseBreakdown(monthlyExpenses, { from: spendingFrom });
 
   return {
     asOf: isoDate(ctx.today),
@@ -106,13 +113,16 @@ export async function buildChatSnapshot(ctx: ChatToolContext): Promise<ChatSnaps
     })),
     recentSpending: {
       months: SNAPSHOT_EXPENSE_MONTHS,
-      total: round(spending.total),
-      averagePerMonth: round(spending.averageMonthlyTotal),
-      essentialShare:
-        spending.total > 0 ? round((spending.essentialTotal / spending.total) * 100) : 0,
-      topCategories: spending.categories.slice(0, SNAPSHOT_TOP_CATEGORIES).map(category => ({
-        category: category.category,
-        amount: round(category.amount),
+      byCurrency: spending.map(breakdown => ({
+        currency: breakdown.currency,
+        total: round(breakdown.total),
+        averagePerMonth: round(breakdown.averageMonthlyTotal),
+        essentialShare:
+          breakdown.total > 0 ? round((breakdown.essentialTotal / breakdown.total) * 100) : 0,
+        topCategories: breakdown.categories.slice(0, SNAPSHOT_TOP_CATEGORIES).map(category => ({
+          category: category.category,
+          amount: round(category.amount),
+        })),
       })),
     },
     committedNextMonth: {
@@ -129,9 +139,7 @@ export async function buildChatSnapshot(ctx: ChatToolContext): Promise<ChatSnaps
         shortfall: round(progress.shortfall),
       };
     }),
-    unratedCurrencies: Array.from(
-      new Set([...metrics.unratedCurrencies, ...spending.unratedCurrencies])
-    ),
+    unratedCurrencies: Array.from(new Set(metrics.unratedCurrencies)),
   };
 }
 

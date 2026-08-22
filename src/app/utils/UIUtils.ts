@@ -1,28 +1,5 @@
-import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
-
-/** Rupees read naturally in the Indian grouping; everything else does not. */
-function localeFor(currency: Currency): string {
-  return currency === Currency.INR ? 'en-IN' : 'en-US';
-}
-
-const formatterCache = new Map<Currency, Intl.NumberFormat>();
-
-function formatterFor(currency: Currency): Intl.NumberFormat {
-  const cached = formatterCache.get(currency);
-  if (cached) return cached;
-
-  const formatter = new Intl.NumberFormat(localeFor(currency), {
-    style: 'currency',
-    currency,
-    currencyDisplay: 'narrowSymbol',
-    // Whole amounts read better without a trailing ".00", but a converted value
-    // can land on paise, so allow two.
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-  formatterCache.set(currency, formatter);
-  return formatter;
-}
+import { Currency } from '@/domain/entities/shared/Currency';
+import { formatMoney, localeForCurrency } from '@/domain/utils/MoneyFormat';
 
 export class UIUtils {
   static formatMonth(month: Date): string {

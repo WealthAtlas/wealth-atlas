@@ -1,16 +1,17 @@
 import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
-import { Expense, IExpense } from '../entities/expenses/Expense';
+import { currenciesByTotal, Expense, IExpense } from '../entities/expenses/Expense';
 import { MonthlyExpense } from '../entities/expenses/MonthlyExpense';
 import { Currency } from '../entities/shared/Currency';
-import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { monthKey } from '../utils/DateUtils';
 
 /**
- * Spending over a date range, totalled in the base currency.
+ * Spending over a date range, reported once per currency spent in.
  *
- * `MonthlyExpense` already knows how to total one month; this groups a filtered
- * set of expenses back into months and reuses those methods, so there is one
- * definition of what a category total means.
+ * Nothing converts here — see `MonthlyExpense` for why an expense is left in
+ * the currency it was paid in. `MonthlyExpense` already knows how to total one
+ * month in one currency; this groups a filtered set of expenses back into
+ * months and reuses those methods, so there is one definition of what a
+ * category total means.
  */
 export interface ExpenseCategoryTotal {
   category: string;
@@ -29,7 +30,9 @@ export interface ExpenseMonthTotal {
   nonEssential: number;
 }
 
+/** Every figure below is in `currency`, and only counts expenses paid in it. */
 export interface ExpenseBreakdown {
+  currency: Currency;
   total: number;
   essentialTotal: number;
   nonEssentialTotal: number;
@@ -40,9 +43,6 @@ export interface ExpenseBreakdown {
   categories: ExpenseCategoryTotal[];
   /** Most recent month first. */
   monthly: ExpenseMonthTotal[];
-  currency: Currency;
-  /** Currencies with no rate, whose expenses contributed 0 to the figures above. */
-  unratedCurrencies: Currency[];
 }
 
 function inRange(expense: Expense, from?: Date, to?: Date): boolean {
@@ -75,28 +75,25 @@ function rebucket(expenses: Expense[]): MonthlyExpense[] {
   return Array.from(byMonth.values()).sort((a, b) => b.month.getTime() - a.month.getTime());
 }
 
-export function computeExpenseBreakdown(
-  monthlyExpenses: MonthlyExpense[],
-  converter: CurrencyConverter,
-  range: { from?: Date; to?: Date } = {}
-): ExpenseBreakdown {
-  const expenses = monthlyExpenses
-    .flatMap(month => month.expenses)
-    .filter(expense => inRange(expense, range.from, range.to));
+/** The currencies spent in across every month given, largest total first. */
+export function expenseCurrencies(monthlyExpenses: MonthlyExpense[]): Currency[] {
+  return currenciesByTotal(monthlyExpenses.flatMap(month => month.expenses));
+}
 
-  const buckets = rebucket(expenses);
+function breakdownFor(expenses: Expense[], currency: Currency): ExpenseBreakdown {
+  const ofCurrency = expenses.filter(expense => expense.currency === currency);
+  const buckets = rebucket(ofCurrency);
   const sumOver = (read: (bucket: MonthlyExpense) => number): number =>
     buckets.reduce((sum, bucket) => sum + read(bucket), 0);
 
-  const total = sumOver(bucket => bucket.getTotalAmount(converter));
+  const total = sumOver(bucket => bucket.getTotalAmount(currency));
 
-  const allCategories = Array.from(new Set(expenses.map(expense => expense.category)));
+  const allCategories = Array.from(new Set(ofCurrency.map(expense => expense.category)));
   const categories: ExpenseCategoryTotal[] = allCategories
     .map(category => {
-      const ofCategory = expenses.filter(expense => expense.category === category);
-      const categoryBuckets = rebucket(ofCategory);
+      const categoryBuckets = rebucket(ofCurrency.filter(expense => expense.category === category));
       const amount = categoryBuckets.reduce(
-        (sum, bucket) => sum + bucket.getTotalAmount(converter),
+        (sum, bucket) => sum + bucket.getTotalAmount(currency),
         0
       );
       return {
@@ -104,11 +101,11 @@ export function computeExpenseBreakdown(
         amount,
         percentage: total > 0 ? (amount / total) * 100 : 0,
         essentialAmount: categoryBuckets.reduce(
-          (sum, bucket) => sum + bucket.getEssentialAmount(converter),
+          (sum, bucket) => sum + bucket.getEssentialAmount(currency),
           0
         ),
         nonEssentialAmount: categoryBuckets.reduce(
-          (sum, bucket) => sum + bucket.getNonEssentialAmount(converter),
+          (sum, bucket) => sum + bucket.getNonEssentialAmount(currency),
           0
         ),
       };
@@ -116,21 +113,36 @@ export function computeExpenseBreakdown(
     .sort((a, b) => b.amount - a.amount);
 
   return {
+    currency,
     total,
-    essentialTotal: sumOver(bucket => bucket.getEssentialAmount(converter)),
-    nonEssentialTotal: sumOver(bucket => bucket.getNonEssentialAmount(converter)),
+    essentialTotal: sumOver(bucket => bucket.getEssentialAmount(currency)),
+    nonEssentialTotal: sumOver(bucket => bucket.getNonEssentialAmount(currency)),
     averageMonthlyTotal: buckets.length > 0 ? total / buckets.length : 0,
-    expenseCount: expenses.length,
+    expenseCount: ofCurrency.length,
     categories,
     monthly: buckets.map(bucket => ({
       month: monthKey(bucket.month),
-      total: bucket.getTotalAmount(converter),
-      essential: bucket.getEssentialAmount(converter),
-      nonEssential: bucket.getNonEssentialAmount(converter),
+      total: bucket.getTotalAmount(currency),
+      essential: bucket.getEssentialAmount(currency),
+      nonEssential: bucket.getNonEssentialAmount(currency),
     })),
-    currency: converter.getBaseCurrency(),
-    unratedCurrencies: converter.getUnratedCurrencies(expenses.map(expense => expense.currency)),
   };
+}
+
+/**
+ * One breakdown per currency spent in over the range, largest total first. An
+ * empty range yields an empty list rather than a zeroed report in some assumed
+ * currency: there is no currency to name.
+ */
+export function computeExpenseBreakdown(
+  monthlyExpenses: MonthlyExpense[],
+  range: { from?: Date; to?: Date } = {}
+): ExpenseBreakdown[] {
+  const expenses = monthlyExpenses
+    .flatMap(month => month.expenses)
+    .filter(expense => inRange(expense, range.from, range.to));
+
+  return currenciesByTotal(expenses).map(currency => breakdownFor(expenses, currency));
 }
 
 export class ExpenseService {
@@ -182,10 +194,9 @@ export class ExpenseService {
   }
 
   public async getExpenseBreakdown(
-    converter: CurrencyConverter,
     range: { from?: Date; to?: Date } = {}
-  ): Promise<ExpenseBreakdown> {
-    return computeExpenseBreakdown(await this.getMonthlyExpenses(), converter, range);
+  ): Promise<ExpenseBreakdown[]> {
+    return computeExpenseBreakdown(await this.getMonthlyExpenses(), range);
   }
 
   private generateMonthlyExpenseKey(expense: Expense): string {

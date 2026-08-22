@@ -1,5 +1,4 @@
 import {
-  Alert,
   Box,
   FormControl,
   Grid,
@@ -14,14 +13,18 @@ import { PieChart } from '@mui/x-charts';
 import React from 'react';
 import { MonthlyExpense } from '../../../domain/entities/expenses/MonthlyExpense';
 import { Currency } from '../../../domain/entities/shared/Currency';
-import { CurrencyConverter } from '../../../domain/entities/shared/CurrencyConverter';
 import { UIUtils } from '../../utils/UIUtils';
 
+/**
+ * Categories for one month in one currency.
+ *
+ * A pie is a single-currency shape by nature — its slices have to share a unit
+ * to mean anything — and expenses are never converted, so the currency is picked
+ * rather than blended. The selector only appears for a month spent in more than
+ * one, which is the uncommon case.
+ */
 export interface ExpenseCategoryChartProps {
   monthlyExpenses: MonthlyExpense[];
-  /** Categories are totalled in the base currency, not once per currency. */
-  currency: Currency;
-  converter: CurrencyConverter;
 }
 
 interface CategoryData {
@@ -30,11 +33,68 @@ interface CategoryData {
   label: string;
 }
 
-export function ExpenseCategoryChart({
-  monthlyExpenses,
+interface MonthOption {
+  key: string;
+  display: string;
+}
+
+/**
+ * Month, plus currency when the month has more than one. Extracted because the
+ * chart returns early for an empty month and the selectors have to stay put.
+ */
+function ChartSelectors({
+  months,
+  selectedMonth,
+  onSelectMonth,
+  currencies,
   currency,
-  converter,
-}: ExpenseCategoryChartProps) {
+  onSelectCurrency,
+}: {
+  months: MonthOption[];
+  selectedMonth: string;
+  onSelectMonth: (month: string) => void;
+  currencies: Currency[];
+  currency: Currency | '';
+  onSelectCurrency: (currency: Currency) => void;
+}) {
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+      <FormControl sx={{ minWidth: 200 }}>
+        <InputLabel>Select Month</InputLabel>
+        <Select
+          value={selectedMonth}
+          label="Select Month"
+          onChange={e => onSelectMonth(e.target.value)}
+        >
+          {months.map(month => (
+            <MenuItem key={month.key} value={month.key}>
+              {month.display}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {currencies.length > 1 && (
+        <FormControl sx={{ minWidth: 140 }}>
+          <InputLabel>Currency</InputLabel>
+          <Select
+            value={currency}
+            label="Currency"
+            onChange={e => onSelectCurrency(e.target.value)}
+          >
+            {currencies.map(code => (
+              <MenuItem key={code} value={code}>
+                {code}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+    </Box>
+  );
+}
+
+export function ExpenseCategoryChart({ monthlyExpenses }: ExpenseCategoryChartProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -69,24 +129,32 @@ export function ExpenseCategoryChart({
     return monthlyExpenses.find(me => me.month.toISOString().substring(0, 7) === selectedMonth);
   }, [monthlyExpenses, selectedMonth]);
 
+  const availableCurrencies = React.useMemo(
+    () => selectedMonthlyExpense?.getCurrencies() ?? [],
+    [selectedMonthlyExpense]
+  );
+
+  const [selectedCurrency, setSelectedCurrency] = React.useState<Currency | ''>('');
+
+  // Falls back to the month's largest currency whenever the chosen one is not
+  // spent in the selected month — changing month must not blank the chart.
+  const currency = availableCurrencies.includes(selectedCurrency)
+    ? selectedCurrency
+    : (availableCurrencies[0] ?? '');
+
   const categoryData = React.useMemo((): CategoryData[] => {
-    if (!selectedMonthlyExpense) return [];
+    if (!selectedMonthlyExpense || !currency) return [];
 
     return selectedMonthlyExpense
-      .getAllCategories()
+      .getCategories(currency)
       .map(category => ({
         id: category,
-        value: selectedMonthlyExpense.getCategoryTotal(converter, category),
+        value: selectedMonthlyExpense.getCategoryTotal(currency, category),
         label: category,
       }))
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value); // Sort by amount descending
-  }, [selectedMonthlyExpense, converter]);
-
-  const unratedCurrencies = React.useMemo(
-    () => selectedMonthlyExpense?.getUnratedCurrencies(converter) ?? [],
-    [selectedMonthlyExpense, converter]
-  );
+  }, [selectedMonthlyExpense, currency]);
 
   const getCategoryColors = React.useCallback(() => {
     return [
@@ -130,20 +198,14 @@ export function ExpenseCategoryChart({
   if (!selectedMonthlyExpense || categoryData.length === 0) {
     return (
       <Box>
-        <FormControl sx={{ minWidth: 200, mb: 3 }}>
-          <InputLabel>Select Month</InputLabel>
-          <Select
-            value={selectedMonth}
-            label="Select Month"
-            onChange={e => setSelectedMonth(e.target.value)}
-          >
-            {availableMonths.map(month => (
-              <MenuItem key={month.key} value={month.key}>
-                {month.display}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <ChartSelectors
+          months={availableMonths}
+          selectedMonth={selectedMonth}
+          onSelectMonth={setSelectedMonth}
+          currencies={availableCurrencies}
+          currency={currency}
+          onSelectCurrency={setSelectedCurrency}
+        />
         <Box
           sx={{
             height: 300,
@@ -164,32 +226,22 @@ export function ExpenseCategoryChart({
 
   return (
     <Box>
-      <FormControl sx={{ minWidth: 200, mb: 3 }}>
-        <InputLabel>Select Month</InputLabel>
-        <Select
-          value={selectedMonth}
-          label="Select Month"
-          onChange={e => setSelectedMonth(e.target.value)}
-        >
-          {availableMonths.map(month => (
-            <MenuItem key={month.key} value={month.key}>
-              {month.display}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      {unratedCurrencies.length > 0 && (
-        <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
-          Expenses in {unratedCurrencies.join(', ')} are counted as zero — no exchange rate set.
-        </Alert>
-      )}
+      <ChartSelectors
+        months={availableMonths}
+        selectedMonth={selectedMonth}
+        onSelectMonth={setSelectedMonth}
+        currencies={availableCurrencies}
+        currency={currency}
+        onSelectCurrency={setSelectedCurrency}
+      />
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Box>
             <Typography variant="h6" gutterBottom>
-              Expense Categories
+              {availableCurrencies.length > 1
+                ? `Expense Categories (${currency})`
+                : 'Expense Categories'}
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Total: {UIUtils.formatCurrency(totalAmount, currency)}
