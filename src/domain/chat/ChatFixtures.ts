@@ -12,7 +12,12 @@ import { IPayment } from '../entities/loans/Payment';
 import { Currency } from '../entities/shared/Currency';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { CurrencyRate } from '../entities/shared/CurrencyRate';
+import { ICategoryTarget } from '../entities/shared/Settings';
+import { JournalSummary, summariseJournal } from '../journal/DecisionReview';
+import { JournalEntryWithReview } from '../services/DecisionJournalService';
 import { Frequency } from '../entities/shared/Frequency';
+import { MarketDataPort, unavailableMarketData } from '../market/MarketDataPort';
+import { NewsPort, unavailableNews } from '../news/NewsPort';
 import { monthKey } from '../utils/DateUtils';
 import { ChatToolContext, CodeRunner } from './ChatToolContext';
 
@@ -228,10 +233,15 @@ export function fakeContext(
     monthlyExpenses?: MonthlyExpense[];
     sipsByAsset?: Record<number, SIP[]>;
     rates?: CurrencyRate[];
+    targetAllocation?: ICategoryTarget[];
+    decisionJournal?: { entries: JournalEntryWithReview[]; summary: JournalSummary };
     converter?: CurrencyConverter;
     today?: Date;
     /** Defaults to a runner that refuses, so a test opts in to code execution. */
     runCode?: CodeRunner;
+    /** Defaults to reporting everything unavailable, so a test opts in. */
+    market?: MarketDataPort;
+    news?: NewsPort;
   } = {}
 ): FakeChatToolContext {
   const loadCounts: Record<string, number> = {
@@ -241,6 +251,8 @@ export function fakeContext(
     monthlyExpenses: 0,
     sipsOf: 0,
     rates: 0,
+    targetAllocation: 0,
+    decisionJournal: 0,
   };
 
   return {
@@ -269,10 +281,20 @@ export function fakeContext(
       loadCounts.rates++;
       return data.rates ?? [];
     },
+    targetAllocation: async () => {
+      loadCounts.targetAllocation++;
+      return data.targetAllocation ?? [];
+    },
+    decisionJournal: async () => {
+      loadCounts.decisionJournal++;
+      return data.decisionJournal ?? { entries: [], summary: summariseJournal([]) };
+    },
     converter: data.converter ?? converter(),
     today: data.today ?? TODAY,
     runCode:
       data.runCode ??
       (async () => ({ ok: false, error: 'No code runner in this test.', logs: [] })),
+    market: data.market ?? unavailableMarketData('no market data in this test'),
+    news: data.news ?? unavailableNews('no news provider in this test'),
   };
 }

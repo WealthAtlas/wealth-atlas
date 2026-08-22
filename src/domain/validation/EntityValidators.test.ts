@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { IAsset } from '../entities/assets/Asset';
+import { AssetCategory } from '../entities/assets/AssetCategory';
+import { IDecisionEntry } from '../entities/journal/DecisionEntry';
 import { IInvestment, InvestmentType } from '../entities/assets/Investment';
 import { ValueModel } from '../entities/assets/ValueModel';
 import { IExpense } from '../entities/expenses/Expense';
@@ -8,10 +10,12 @@ import { IPayment } from '../entities/loans/Payment';
 import { Currency } from '../entities/shared/Currency';
 import {
   validateAsset,
+  validateDecisionEntry,
   validateExpense,
   validateInvestment,
   validateLoan,
   validatePayment,
+  validateTargetAllocation,
 } from './EntityValidators';
 import { issueFor, isValid } from './ValidationIssue';
 
@@ -187,5 +191,151 @@ describe('validatePayment', () => {
 
   it('rejects a non-positive amount', () => {
     expect(issueFor(validatePayment({ ...PAYMENT, amount: -1 }), 'amount')).toBeDefined();
+  });
+});
+
+describe('validateTargetAllocation', () => {
+  it('accepts an empty allocation, which is the state of having no policy', () => {
+    expect(validateTargetAllocation([])).toEqual([]);
+  });
+
+  it('accepts targets that add up to 100', () => {
+    const issues = validateTargetAllocation([
+      { category: AssetCategory.STOCK, targetPercent: 60, bandPercent: 5 },
+      { category: AssetCategory.DEBT, targetPercent: 40 },
+    ]);
+
+    expect(issues).toEqual([]);
+  });
+
+  it('rejects targets adding up to more than 100, which cannot be held', () => {
+    const issues = validateTargetAllocation([
+      { category: AssetCategory.STOCK, targetPercent: 80 },
+      { category: AssetCategory.DEBT, targetPercent: 50 },
+    ]);
+
+    expect(issues.some(issue => issue.message.includes('more than 100%'))).toBe(true);
+  });
+
+  it('allows an allocation that covers less than the whole portfolio', () => {
+    // A policy over part of the portfolio is a real choice, not an error: the
+    // rest is simply undirected, which `untargeted` reports.
+    const issues = validateTargetAllocation([{ category: AssetCategory.STOCK, targetPercent: 50 }]);
+
+    expect(issues).toEqual([]);
+  });
+
+  it('rejects a category the app does not know', () => {
+    const issues = validateTargetAllocation([{ category: 'Beanie Babies', targetPercent: 10 }]);
+
+    expect(issues).toEqual([
+      { field: 'category', message: '"Beanie Babies" is not an asset category' },
+    ]);
+  });
+
+  it('rejects the same category twice, which would make the drift ambiguous', () => {
+    const issues = validateTargetAllocation([
+      { category: AssetCategory.GOLD, targetPercent: 10 },
+      { category: AssetCategory.GOLD, targetPercent: 20 },
+    ]);
+
+    expect(issues.some(issue => issue.message.includes('more than one target'))).toBe(true);
+  });
+
+  it('rejects a percentage outside 0-100', () => {
+    expect(
+      validateTargetAllocation([{ category: AssetCategory.GOLD, targetPercent: -1 }])
+    ).toHaveLength(1);
+    expect(
+      validateTargetAllocation([{ category: AssetCategory.GOLD, targetPercent: 101 }])
+    ).toHaveLength(2); // out of range, and over the 100% total
+  });
+
+  it('accepts a deliberate zero target', () => {
+    const issues = validateTargetAllocation([
+      { category: AssetCategory.CRYPTOCURRENCY, targetPercent: 0 },
+    ]);
+
+    expect(issues).toEqual([]);
+  });
+
+  it('rejects an unusable band', () => {
+    const issues = validateTargetAllocation([
+      { category: AssetCategory.GOLD, targetPercent: 10, bandPercent: 200 },
+    ]);
+
+    expect(issues.some(issue => issue.field === 'bandPercent')).toBe(true);
+  });
+});
+
+describe('validateDecisionEntry', () => {
+  function entry(overrides: Partial<IDecisionEntry> = {}): IDecisionEntry {
+    return {
+      id: undefined,
+      createdAt: new Date('2026-08-20T00:00:00.000Z'),
+      category: AssetCategory.GOLD,
+      action: 'sell',
+      status: 'acted',
+      amount: 150000,
+      currency: Currency.INR,
+      rationale: 'Well over target after the rally.',
+      evidence: {},
+      reviewedAt: undefined,
+      reviewNote: undefined,
+      ...overrides,
+    };
+  }
+
+  it('accepts a complete entry', () => {
+    expect(validateDecisionEntry(entry())).toEqual([]);
+  });
+
+  it('requires a rationale, which is the whole point of the record', () => {
+    // Without it the row is a trade log line, and a trade log cannot be reviewed
+    // for whether the thinking held up.
+    const issues = validateDecisionEntry(entry({ rationale: '   ' }));
+
+    expect(issueFor(issues, 'rationale')).toContain('Say why');
+  });
+
+  it('rejects a category the app does not know', () => {
+    expect(
+      issueFor(validateDecisionEntry(entry({ category: 'Beanie Babies' })), 'category')
+    ).toContain('not an asset category');
+  });
+
+  it('rejects an unknown action or status', () => {
+    expect(
+      issueFor(validateDecisionEntry(entry({ action: 'yolo' as never })), 'action')
+    ).toBeDefined();
+    expect(
+      issueFor(validateDecisionEntry(entry({ status: 'maybe' as never })), 'status')
+    ).toBeDefined();
+  });
+
+  it('requires an amount once a directional decision was acted on', () => {
+    const issues = validateDecisionEntry(entry({ status: 'acted', amount: undefined }));
+
+    expect(issueFor(issues, 'amount')).toContain('how much was moved');
+  });
+
+  it('does not require an amount for a hold, or for one not acted on', () => {
+    expect(
+      isValid(validateDecisionEntry(entry({ action: 'hold', status: 'acted', amount: undefined })))
+    ).toBe(true);
+    expect(isValid(validateDecisionEntry(entry({ status: 'declined', amount: undefined })))).toBe(
+      true
+    );
+  });
+
+  it('rejects a non-positive amount', () => {
+    expect(issueFor(validateDecisionEntry(entry({ amount: 0 })), 'amount')).toBeDefined();
+    expect(issueFor(validateDecisionEntry(entry({ amount: -5 })), 'amount')).toBeDefined();
+  });
+
+  it('rejects an unusable date', () => {
+    expect(
+      issueFor(validateDecisionEntry(entry({ createdAt: new Date('nope') })), 'createdAt')
+    ).toBeDefined();
   });
 });

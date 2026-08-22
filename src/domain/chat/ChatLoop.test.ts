@@ -32,6 +32,7 @@ const SNAPSHOT: ChatSnapshot = {
   },
   goals: [],
   committedNextMonth: { sip: 20000, emi: 45000, total: 65000 },
+  allocationDrift: { isSet: false, outOfBand: [] },
   unratedCurrencies: [],
 };
 

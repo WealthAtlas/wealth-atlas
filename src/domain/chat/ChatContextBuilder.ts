@@ -1,5 +1,6 @@
 import { computeAssetCategoryData, computeDashboardMetrics } from '../services/DashboardService';
 import { computeExpenseBreakdown } from '../services/ExpenseService';
+import { computeAllocationDrift } from '../market/AllocationDrift';
 import { computeGoalProgress } from '../services/GoalService';
 import { computeLoanPortfolioTotals } from '../services/LoanService';
 import { isoDate } from '../utils/DateUtils';
@@ -66,6 +67,31 @@ export interface ChatSnapshot {
     total: number;
   };
   /**
+   * How far the portfolio sits from the allocation the user intended.
+   *
+   * Present on every turn for the same reason `committedNextMonth` is: a model
+   * asked what to buy reasons from whatever it finds most salient — a market
+   * move, a recent headline — unless the gap it should actually be sizing is in
+   * front of it. `isSet: false` is the important case: it means the user has
+   * expressed no policy, and the assistant must ask rather than assume one.
+   *
+   * Only the rows outside their tolerance band are carried. Those are the
+   * decisions actually open; the full table is one `getAllocationDrift` call
+   * away, and listing every category here would grow the snapshot that gets
+   * resent on every single turn.
+   */
+  allocationDrift: {
+    isSet: boolean;
+    outOfBand: {
+      category: string;
+      targetPercent: number;
+      actualPercent: number;
+      driftPercent: number;
+      adjustmentAmount: number;
+      action: string;
+    }[];
+  };
+  /**
    * Currencies held with no rate configured. Those holdings counted as 0 in the
    * converted figures above, so the assistant must disclose this rather than
    * quote a total that is quietly short. Spending is unaffected: it is reported
@@ -79,17 +105,21 @@ function round(value: number): number {
 }
 
 export async function buildChatSnapshot(ctx: ChatToolContext): Promise<ChatSnapshot> {
-  const [assets, loans, goals, monthlyExpenses] = await Promise.all([
+  const [assets, loans, goals, monthlyExpenses, targets] = await Promise.all([
     ctx.assets(),
     ctx.loans(),
     ctx.goals(),
     ctx.monthlyExpenses(),
+    ctx.targetAllocation(),
   ]);
 
   const metrics = computeDashboardMetrics(assets, loans, ctx.converter);
   const loanTotals = computeLoanPortfolioTotals(loans, ctx.converter);
 
   const commitments = await computeUpcomingCommitments(ctx, SNAPSHOT_COMMITMENT_MONTHS);
+
+  const drift =
+    targets.length > 0 ? computeAllocationDrift(assets, targets, ctx.converter) : undefined;
 
   const spendingFrom = new Date(ctx.today);
   spendingFrom.setMonth(spendingFrom.getMonth() - SNAPSHOT_EXPENSE_MONTHS);
@@ -139,6 +169,19 @@ export async function buildChatSnapshot(ctx: ChatToolContext): Promise<ChatSnaps
         shortfall: round(progress.shortfall),
       };
     }),
+    allocationDrift: {
+      isSet: drift !== undefined,
+      outOfBand: (drift?.rows ?? [])
+        .filter(row => row.action !== 'hold')
+        .map(row => ({
+          category: row.category,
+          targetPercent: row.targetPercent,
+          actualPercent: row.actualPercent,
+          driftPercent: row.driftPercent,
+          adjustmentAmount: row.adjustmentAmount,
+          action: row.action,
+        })),
+    },
     unratedCurrencies: Array.from(new Set(metrics.unratedCurrencies)),
   };
 }

@@ -1,6 +1,7 @@
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { MainContainer } from '../containers/MainContainer';
 import { ImportContainer } from '../containers/import/ImportContainer';
+import { DecisionJournalContainer } from '../containers/journal/DecisionJournalContainer';
 import { SettingsContainer } from '../containers/settings/SettingsContainer';
 
 export function AppRouter() {
@@ -16,6 +17,7 @@ export function AppRouter() {
         <Route path="/expenses" element={<MainContainer />} />
         <Route path="/goals" element={<MainContainer />} />
         <Route path="/import" element={<ImportContainer />} />
+        <Route path="/journal" element={<DecisionJournalContainer />} />
         <Route path="/settings" element={<SettingsContainer />} />
       </Routes>
     </Router>

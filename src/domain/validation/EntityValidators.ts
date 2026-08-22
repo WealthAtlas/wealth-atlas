@@ -1,13 +1,16 @@
 import { IAsset } from '../entities/assets/Asset';
+import { AssetCategory } from '../entities/assets/AssetCategory';
 import { IInvestment, InvestmentType } from '../entities/assets/Investment';
 import { ISIP } from '../entities/assets/SIP';
 import { ValueModel } from '../entities/assets/ValueModel';
 import { IExpense } from '../entities/expenses/Expense';
+import { IDecisionEntry } from '../entities/journal/DecisionEntry';
 import { IEMI } from '../entities/loans/EMI';
 import { ILoan } from '../entities/loans/Loan';
 import { IPayment } from '../entities/loans/Payment';
 import { isCurrencyCode } from '../entities/shared/Currency';
 import { ICurrencyRate } from '../entities/shared/CurrencyRate';
+import { ICategoryTarget } from '../entities/shared/Settings';
 import { Frequency } from '../entities/shared/Frequency';
 import { IScheduleBase } from '../entities/shared/AbstractSchedule';
 import { ValidationIssue } from './ValidationIssue';
@@ -218,6 +221,125 @@ export function validateEMI(emi: IEMI): ValidationIssue[] {
     issues.push({ field: 'loanId', message: 'Schedule must belong to a loan' });
   }
   validateSchedule(emi, issues);
+
+  return issues;
+}
+
+/**
+ * The target allocation, validated as a whole rather than row by row: the
+ * shares only mean anything relative to each other, so "does this add up" is
+ * the rule that matters and it cannot be checked one entry at a time.
+ *
+ * An empty allocation is valid — it is the state of having no policy yet, not a
+ * broken one.
+ */
+export function validateTargetAllocation(targets: ICategoryTarget[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const known = new Set<string>(Object.values(AssetCategory));
+  const seen = new Set<string>();
+
+  targets.forEach(target => {
+    if (!target.category) {
+      issues.push({ field: 'category', message: 'Every target needs a category' });
+      return;
+    }
+    if (!known.has(target.category)) {
+      issues.push({
+        field: 'category',
+        message: `"${target.category}" is not an asset category`,
+      });
+    }
+    if (seen.has(target.category)) {
+      issues.push({
+        field: 'category',
+        message: `"${target.category}" has more than one target`,
+      });
+    }
+    seen.add(target.category);
+
+    if (
+      typeof target.targetPercent !== 'number' ||
+      !Number.isFinite(target.targetPercent) ||
+      target.targetPercent < 0 ||
+      target.targetPercent > 100
+    ) {
+      issues.push({
+        field: 'targetPercent',
+        message: `Target for "${target.category}" must be between 0 and 100`,
+      });
+    }
+
+    if (
+      target.bandPercent !== undefined &&
+      (!Number.isFinite(target.bandPercent) || target.bandPercent < 0 || target.bandPercent > 100)
+    ) {
+      issues.push({
+        field: 'bandPercent',
+        message: `Band for "${target.category}" must be between 0 and 100`,
+      });
+    }
+  });
+
+  const total = targets.reduce(
+    (sum, target) => sum + (Number.isFinite(target.targetPercent) ? target.targetPercent : 0),
+    0
+  );
+
+  // Over 100 is impossible to hold and would make every drift wrong. Under 100
+  // is allowed but flagged: a policy covering 80% of the portfolio leaves the
+  // rest undirected, which is a decision worth seeing rather than an error.
+  if (targets.length > 0 && Math.round(total * 100) / 100 > 100) {
+    issues.push({
+      field: 'targetPercent',
+      message: `Targets add up to ${Math.round(total * 100) / 100}%, which is more than 100%`,
+    });
+  }
+
+  return issues;
+}
+
+const DECISION_ACTIONS = ['buy', 'sell', 'hold'];
+const DECISION_STATUSES = ['proposed', 'acted', 'declined'];
+
+/**
+ * A journal entry is only worth keeping if it records *why*. An entry with an
+ * empty rationale is a trade log line, and a trade log cannot be reviewed for
+ * whether the thinking held up — which is the entire purpose of the journal.
+ */
+export function validateDecisionEntry(entry: IDecisionEntry): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (!isUsableDate(entry.createdAt)) {
+    issues.push({ field: 'createdAt', message: 'A valid date is required' });
+  }
+  if (!entry.category || typeof entry.category !== 'string') {
+    issues.push({ field: 'category', message: 'A category is required' });
+  } else if (!(Object.values(AssetCategory) as string[]).includes(entry.category)) {
+    issues.push({ field: 'category', message: `"${entry.category}" is not an asset category` });
+  }
+  if (!DECISION_ACTIONS.includes(entry.action)) {
+    issues.push({ field: 'action', message: 'Action must be buy, sell or hold' });
+  }
+  if (!DECISION_STATUSES.includes(entry.status)) {
+    issues.push({ field: 'status', message: 'Status must be proposed, acted or declined' });
+  }
+  if (!entry.rationale || entry.rationale.trim() === '') {
+    issues.push({
+      field: 'rationale',
+      message: 'Say why — an entry with no reasoning cannot be reviewed',
+    });
+  }
+
+  validateCurrency(entry.currency, issues);
+
+  if (entry.amount !== undefined && !isPositiveNumber(entry.amount)) {
+    issues.push({ field: 'amount', message: 'Amount must be a positive number when given' });
+  }
+  // A trade that moved money but recorded none leaves the journal unable to say
+  // how much the decision was worth being right about.
+  if (entry.status === 'acted' && entry.action !== 'hold' && entry.amount === undefined) {
+    issues.push({ field: 'amount', message: 'Record how much was moved' });
+  }
 
   return issues;
 }
