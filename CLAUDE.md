@@ -39,9 +39,9 @@ Wealth Atlas is a local-first React 18 PWA for personal wealth tracking. Stack: 
   holding grows and both sides of a ratio move at the same rate. An expense is a settled outflow: it
   does not grow, no ratio spans two of them, and restating last year's spend at today's rate invents
   a figure the user never paid. So spending is reported once per currency it was paid in —
-  `MonthlyExpense` and `computeExpenseBreakdown` take a `Currency`, not a `CurrencyConverter`, the
-  page draws a trend chart per currency, and `getExpenseBreakdown` hands the assistant a `byCurrency`
-  array. A missing rate therefore cannot understate spending, so no expense figure carries
+  `MonthlyExpense` and `computeExpenseBreakdown` take a `Currency`, not a `CurrencyConverter`,
+  `ExpenseChartsView` puts both charts behind one currency picker (hidden when there is only one),
+  and `getExpenseBreakdown` hands the assistant a `byCurrency` array. A missing rate therefore cannot understate spending, so no expense figure carries
   `unratedCurrencies`. Passing an expense total through `CurrencyConverter` is the regression to
   watch for.
 - Use existing domain classes; don't create new ones unless the domain model requires it.

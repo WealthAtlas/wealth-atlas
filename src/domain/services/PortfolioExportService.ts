@@ -1,6 +1,9 @@
 import { AssetCategory } from '../entities/assets/AssetCategory';
+import { Currency } from '../entities/shared/Currency';
+import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { Frequency } from '../entities/shared/Frequency';
-import { AssetService } from './AssetService';
+import { formatMoney } from '../utils/MoneyFormat';
+import { AssetService, computeAssetPortfolioTotals } from './AssetService';
 
 export interface PortfolioExportOptions {
   categories: string[]; // Filter by these categories (empty = all)
@@ -11,6 +14,7 @@ export interface SIPExportData {
   frequency: string;
 }
 
+/** One holding, in the currency it is held in — never converted. */
 export interface AssetExportData {
   name: string;
   category: string;
@@ -20,22 +24,32 @@ export interface AssetExportData {
   profitLoss: number | undefined;
   profitLossPercentage: number | undefined;
   irr: number | undefined;
-  currency: string;
+  currency: Currency;
   activeSIPs: SIPExportData[];
 }
 
+/** `value` is in the base currency: a share of the portfolio spans assets. */
 export interface CategoryBreakdown {
   category: string;
   value: number;
   percentage: number;
 }
 
+/**
+ * Every total here is in `baseCurrency`. That is not decoration: these figures
+ * sum across assets that may each be held in a different currency, and until
+ * they were converted this export added dollars to rupees and labelled the
+ * result with a rupee sign.
+ */
 export interface PortfolioExportData {
   exportDate: string;
+  baseCurrency: Currency;
   totalInvested: number;
   totalValue: number;
   totalProfitLoss: number;
   totalProfitLossPercentage: number;
+  /** Currencies with no rate, whose holdings contributed 0 to the totals. */
+  unratedCurrencies: Currency[];
   categoryBreakdown: CategoryBreakdown[];
   assets: AssetExportData[];
 }
@@ -47,7 +61,10 @@ export class PortfolioExportService {
     this.assetService = new AssetService();
   }
 
-  public async generateExportData(options: PortfolioExportOptions): Promise<PortfolioExportData> {
+  public async generateExportData(
+    options: PortfolioExportOptions,
+    converter: CurrencyConverter
+  ): Promise<PortfolioExportData> {
     const allAssets = await this.assetService.getAssets();
 
     // Filter by categories if specified
@@ -56,9 +73,9 @@ export class PortfolioExportService {
         ? allAssets.filter(asset => options.categories.includes(asset.category))
         : allAssets;
 
-    // Calculate totals
-    let totalInvested = 0;
-    let totalValue = 0;
+    // Totals come from the same function the Assets page uses, so a copied
+    // summary cannot disagree with the screen it was copied from.
+    const totals = computeAssetPortfolioTotals(filteredAssets, converter);
 
     const categoryValueMap = new Map<string, number>();
 
@@ -71,12 +88,14 @@ export class PortfolioExportService {
           invested > 0 && profitLoss !== undefined ? (profitLoss / invested) * 100 : undefined;
         const irr = asset.getIRR();
 
-        totalInvested += invested;
-        totalValue += currentValue ?? 0;
-
-        // Track category values
+        // A category's value spans assets, so it converts. The per-asset amounts
+        // returned below deliberately do not — a holding is reported in the
+        // currency the user actually holds it in, as the asset page shows it.
         const categoryValue = categoryValueMap.get(asset.category) ?? 0;
-        categoryValueMap.set(asset.category, categoryValue + (currentValue ?? 0));
+        categoryValueMap.set(
+          asset.category,
+          categoryValue + converter.toBase(currentValue ?? 0, asset.currency)
+        );
 
         // Get SIPs for this asset
         const sips = await this.assetService.getSIPsByAssetId(asset.id!);
@@ -107,20 +126,18 @@ export class PortfolioExportService {
       .map(([category, value]) => ({
         category,
         value,
-        percentage: totalValue > 0 ? (value / totalValue) * 100 : 0,
+        percentage: totals.totalValue > 0 ? (value / totals.totalValue) * 100 : 0,
       }))
       .sort((a, b) => b.value - a.value);
 
-    const totalProfitLoss = totalValue - totalInvested;
-    const totalProfitLossPercentage =
-      totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
-
     return {
       exportDate: new Date().toISOString().split('T')[0],
-      totalInvested,
-      totalValue,
-      totalProfitLoss,
-      totalProfitLossPercentage,
+      baseCurrency: totals.currency,
+      totalInvested: totals.totalInvested,
+      totalValue: totals.totalValue,
+      totalProfitLoss: totals.totalProfitLoss,
+      totalProfitLossPercentage: totals.totalProfitLossPercentage,
+      unratedCurrencies: totals.unratedCurrencies,
       categoryBreakdown,
       assets: assetsData,
     };
@@ -138,12 +155,29 @@ export class PortfolioExportService {
     lines.push('## Overview');
     lines.push('| Metric | Value |');
     lines.push('|--------|-------|');
-    lines.push(`| Total Invested | ${this.formatCurrency(data.totalInvested)} |`);
-    lines.push(`| Current Value | ${this.formatCurrency(data.totalValue)} |`);
+    lines.push(`| Total Invested | ${formatMoney(data.totalInvested, data.baseCurrency)} |`);
+    lines.push(`| Current Value | ${formatMoney(data.totalValue, data.baseCurrency)} |`);
     lines.push(
-      `| Total P&L | ${this.formatCurrency(data.totalProfitLoss)} (${this.formatPercentage(data.totalProfitLossPercentage)}) |`
+      `| Total P&L | ${formatMoney(data.totalProfitLoss, data.baseCurrency)} (${this.formatPercentage(data.totalProfitLossPercentage)}) |`
     );
     lines.push('');
+
+    // Whoever reads this next is often an LLM, so say plainly which figures were
+    // converted and which were not, rather than leaving it to be inferred from
+    // the symbols.
+    if (new Set(data.assets.map(asset => asset.currency)).size > 1) {
+      lines.push(
+        `*Totals and category shares are converted to ${data.baseCurrency} at today's rates. Each holding below is listed in the currency it is held in.*`
+      );
+      lines.push('');
+    }
+    if (data.unratedCurrencies.length > 0) {
+      const plural = data.unratedCurrencies.length > 1 ? 'those currencies' : 'that currency';
+      lines.push(
+        `*No exchange rate for ${data.unratedCurrencies.join(', ')} — holdings in ${plural} count as zero in the totals above.*`
+      );
+      lines.push('');
+    }
 
     // Category Allocation
     if (data.categoryBreakdown.length > 0) {
@@ -152,7 +186,7 @@ export class PortfolioExportService {
       lines.push('|----------|-------|----------------|');
       for (const cat of data.categoryBreakdown) {
         lines.push(
-          `| ${cat.category} | ${this.formatCurrency(cat.value)} | ${cat.percentage.toFixed(1)}% |`
+          `| ${cat.category} | ${formatMoney(cat.value, data.baseCurrency)} | ${cat.percentage.toFixed(1)}% |`
         );
       }
       lines.push('');
@@ -169,14 +203,16 @@ export class PortfolioExportService {
       for (const asset of assets) {
         const plDisplay =
           asset.profitLoss !== undefined
-            ? `${this.formatCurrency(asset.profitLoss)} (${this.formatPercentage(asset.profitLossPercentage)})`
+            ? `${formatMoney(asset.profitLoss, asset.currency)} (${this.formatPercentage(asset.profitLossPercentage)})`
             : 'N/A';
         const irrDisplay = asset.irr !== undefined ? `${asset.irr.toFixed(1)}%` : 'N/A';
         const valueDisplay =
-          asset.currentValue !== undefined ? this.formatCurrency(asset.currentValue) : 'N/A';
+          asset.currentValue !== undefined
+            ? formatMoney(asset.currentValue, asset.currency)
+            : 'N/A';
         const descDisplay = asset.description || '-';
         lines.push(
-          `| ${asset.name} | ${descDisplay} | ${this.formatCurrency(asset.invested)} | ${valueDisplay} | ${plDisplay} | ${irrDisplay} |`
+          `| ${asset.name} | ${descDisplay} | ${formatMoney(asset.invested, asset.currency)} | ${valueDisplay} | ${plDisplay} | ${irrDisplay} |`
         );
       }
       lines.push('');
@@ -190,7 +226,9 @@ export class PortfolioExportService {
       lines.push('|-------|--------|-----------|');
       for (const asset of assetsWithSIPs) {
         for (const sip of asset.activeSIPs) {
-          lines.push(`| ${asset.name} | ${this.formatCurrency(sip.amount)} | ${sip.frequency} |`);
+          lines.push(
+            `| ${asset.name} | ${formatMoney(sip.amount, asset.currency)} | ${sip.frequency} |`
+          );
         }
       }
       lines.push('');
@@ -264,10 +302,6 @@ export class PortfolioExportService {
       [Frequency.ANNUALLY]: 'Annually',
     };
     return labels[frequency] ?? frequency;
-  }
-
-  private formatCurrency(amount: number): string {
-    return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
   }
 
   private formatPercentage(percentage: number | undefined): string {

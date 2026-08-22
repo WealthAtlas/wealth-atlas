@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Logger } from '../../../domain/utils/Logger';
+import { UIUtils } from '../../utils/UIUtils';
 
 export interface GoalFormDialogProps {
   goal?: Goal;
@@ -256,13 +257,8 @@ export function GoalFormDialog({
     }
   };
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  /** The goal's own currency, not the base one: this form authors one goal. */
+  const formatCurrency = (amount: number): string => UIUtils.formatCurrency(amount, currency);
 
   const renderBasicDetails = () => (
     <Grid container spacing={3}>

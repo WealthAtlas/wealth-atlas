@@ -1,6 +1,7 @@
 import { PortfolioExportService } from '@/domain/services/PortfolioExportService';
 import { useState } from 'react';
 import { ExportPortfolioDialog } from '../../components/dialogs/ExportPortfolioDialog';
+import { useCurrency } from '../../components/providers/CurrencyContext';
 
 export interface ExportPortfolioContainerProps {
   open: boolean;
@@ -9,12 +10,13 @@ export interface ExportPortfolioContainerProps {
 
 export function ExportPortfolioContainer({ open, onClose }: ExportPortfolioContainerProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const { converter } = useCurrency();
   const exportService = new PortfolioExportService();
 
   const handleExportClipboard = async (categories: string[]) => {
     setIsExporting(true);
     try {
-      const data = await exportService.generateExportData({ categories });
+      const data = await exportService.generateExportData({ categories }, converter);
       const markdown = exportService.toMarkdown(data);
       await navigator.clipboard.writeText(markdown);
     } finally {
@@ -25,7 +27,7 @@ export function ExportPortfolioContainer({ open, onClose }: ExportPortfolioConta
   const handleExportTxt = async (categories: string[]) => {
     setIsExporting(true);
     try {
-      const data = await exportService.generateExportData({ categories });
+      const data = await exportService.generateExportData({ categories }, converter);
       const markdown = exportService.toMarkdown(data);
       downloadFile(markdown, 'portfolio-summary.txt', 'text/plain');
     } finally {
@@ -36,7 +38,7 @@ export function ExportPortfolioContainer({ open, onClose }: ExportPortfolioConta
   const handleExportJson = async (categories: string[]) => {
     setIsExporting(true);
     try {
-      const data = await exportService.generateExportData({ categories });
+      const data = await exportService.generateExportData({ categories }, converter);
       const json = exportService.toJSON(data);
       downloadFile(json, 'portfolio-data.json', 'application/json');
     } finally {
@@ -47,7 +49,7 @@ export function ExportPortfolioContainer({ open, onClose }: ExportPortfolioConta
   const handleExportCsv = async (categories: string[]) => {
     setIsExporting(true);
     try {
-      const data = await exportService.generateExportData({ categories });
+      const data = await exportService.generateExportData({ categories }, converter);
       const csv = exportService.toCSV(data);
       downloadFile(csv, 'portfolio-data.csv', 'text/csv');
     } finally {

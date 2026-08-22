@@ -11,20 +11,12 @@ export class UIUtils {
    * the rupee symbol, which is how cross-currency totals ended up rendered as
    * INR — an amount whose currency the caller cannot name should not compile.
    *
-   * Formatting comes from Intl, so a newly configured currency gets its correct
-   * symbol and grouping without anything being added here.
+   * The formatting itself lives in `domain/utils/MoneyFormat` so the exports can
+   * share it; this adds only the `undefined` handling the UI needs.
    */
   public static formatCurrency(amount: number | undefined, currency: Currency): string {
     if (amount === undefined) return 'N/A';
-
-    try {
-      return formatterFor(currency).format(amount);
-    } catch {
-      // An unrecognised code still has to render as something.
-      return `${getCurrencySymbol(currency)}${amount.toLocaleString(localeFor(currency), {
-        maximumFractionDigits: 2,
-      })}`;
-    }
+    return formatMoney(amount, currency);
   }
 
   public static formatPercentage(percentage: number | undefined): string {
@@ -42,7 +34,7 @@ export class UIUtils {
       return '';
     }
 
-    return numericValue.toLocaleString(localeFor(currency));
+    return numericValue.toLocaleString(localeForCurrency(currency));
   }
 
   public static parseFormattedNumber(formattedValue: string): number {
