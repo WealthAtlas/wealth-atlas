@@ -1,4 +1,5 @@
 import { LlmMessage } from '@/data/llm/LlmClient';
+import { ReasoningEffort } from '@/data/llm/presets';
 import { Logger } from '../utils/Logger';
 import { ChatSnapshot } from './ChatContextBuilder';
 import {
@@ -27,6 +28,7 @@ import { ChatToolCall, parseAssistantTurn } from './ChatTurn';
 export type TurnsChatFn = (args: {
   messages: LlmMessage[];
   signal?: AbortSignal;
+  reasoning?: ReasoningEffort;
 }) => Promise<unknown>;
 
 /**
@@ -233,7 +235,17 @@ export async function runChatLoop({
   for (let step = 0; step <= MAX_TOOL_STEPS; step++) {
     signal?.throwIfAborted();
 
-    const raw = await chat({ messages, signal });
+    // The first turn has no tool results in front of it, so the model's job is
+    // to pick tools — a shallow choice from a catalogue. From the second turn on
+    // it is holding figures from several sources and has to combine them: which
+    // way a drift points, whether a drawdown is a discount or a broken thesis,
+    // what the journal says it concluded last time. That is where reasoning
+    // earns its cost, and where a provider that thinks hard by default is
+    // actually doing the right thing.
+    //
+    // A question answerable from the snapshot alone is therefore answered at low
+    // effort. That is the intended trade: those are the simple ones.
+    const raw = await chat({ messages, signal, reasoning: step === 0 ? 'low' : 'high' });
     const { turn, warnings: turnWarnings } = parseAssistantTurn(raw, CHAT_TOOL_NAMES);
     warnings.push(...turnWarnings);
 
