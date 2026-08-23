@@ -67,6 +67,7 @@ function ask(
     chat,
     context,
     snapshot: SNAPSHOT,
+    memories: [],
     history,
     question: 'what is my net worth?',
   });
@@ -143,6 +144,7 @@ describe('runChatLoop', () => {
       chat,
       context: fakeContext(),
       snapshot: SNAPSHOT,
+      memories: [],
       history: [],
       question: 'q',
       onToolCall: name => started.push(name),
@@ -222,6 +224,7 @@ describe('runChatLoop', () => {
       chat,
       context: broken,
       snapshot: SNAPSHOT,
+      memories: [],
       history: [],
       question: 'q',
     });
@@ -317,6 +320,7 @@ describe('runChatLoop', () => {
       chat,
       context: fakeContext(),
       snapshot: SNAPSHOT,
+      memories: [],
       history: first.transcript,
       question: 'where is it concentrated?',
     });
@@ -351,6 +355,7 @@ describe('runChatLoop', () => {
         chat,
         context: fakeContext(),
         snapshot: SNAPSHOT,
+        memories: [],
         history: [],
         question: 'q',
         signal: controller.signal,

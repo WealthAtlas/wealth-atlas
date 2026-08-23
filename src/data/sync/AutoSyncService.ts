@@ -46,6 +46,11 @@ export class AutoSyncService {
       // has to wake a push. A table missing from this list syncs only when
       // something else happens to change.
       db.decisions,
+      // Written by the assistant's background curator rather than by a form, and
+      // deliberately not wrapped in `withoutScheduling`: what the user told the
+      // assistant about themselves is their data like any other, so it should
+      // wake a push.
+      db.memories,
     ];
 
     tables.forEach(table => {

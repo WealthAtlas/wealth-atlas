@@ -2,6 +2,7 @@ import { LlmMessage } from '@/data/llm/LlmClient';
 import { ReasoningEffort } from '@/data/llm/presets';
 import { Logger } from '../utils/Logger';
 import { ChatSnapshot } from './ChatContextBuilder';
+import { Memory } from '../entities/memory/Memory';
 import {
   buildChatSystemPrompt,
   buildChatUserPrompt,
@@ -76,6 +77,16 @@ export interface ChatLoopArgs {
    */
   history: LlmMessage[];
   question: string;
+  /**
+   * What the assistant knows about the user, from `MemoryService`. Empty when
+   * the user has switched memory off.
+   *
+   * Passed in alongside the snapshot rather than fetched here, and rendered into
+   * the *system* prompt rather than the transcript — see `memorySection`. That
+   * is what lets an edited memory take effect on the very next turn instead of
+   * lingering in a stored turn the model can still read.
+   */
+  memories: readonly Memory[];
   signal?: AbortSignal;
   /** Fires as each tool starts, to caption the spinner with what is running. */
   onToolCall?: (name: string) => void;
@@ -202,13 +213,14 @@ export async function runChatLoop({
   snapshot,
   history,
   question,
+  memories,
   signal,
   onToolCall,
 }: ChatLoopArgs): Promise<ChatAnswer> {
   const carried = trimTranscript(toProtocolHistory(history));
 
   const messages: LlmMessage[] = [
-    { role: 'system', content: buildChatSystemPrompt() },
+    { role: 'system', content: buildChatSystemPrompt(memories) },
     ...carried,
     { role: 'user', content: buildChatUserPrompt(snapshot, question) },
   ];

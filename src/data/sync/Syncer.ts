@@ -20,6 +20,8 @@ import { upgradeSnapshotDataToV7 } from '../migrations/v7';
 import { upgradeSnapshotDataToV8 } from '../migrations/v8';
 import { upgradeSnapshotDataToV9 } from '../migrations/v9';
 import { upgradeSnapshotDataToV10 } from '../migrations/v10';
+import { upgradeSnapshotDataToV11 } from '../migrations/v11';
+import { IMemory } from '@/domain/entities/memory/Memory';
 import { hydrateAiProviderSettings } from '../llm/state';
 import { emitDatabaseReplaced } from '../databaseEvents';
 import { buildSyncApiUrl } from './config';
@@ -109,8 +111,11 @@ async function fetchRemoteVersion(keyId: string): Promise<number | undefined> {
  *     block, meaning "no news configured".
  * v15: the `decisions` table — the decision journal. An older snapshot has no
  *     such key at all, and `bulkPut(undefined)` is not `bulkPut([])`.
+ * v16: the `memories` table — what the assistant remembers about the user — plus
+ *     settings.memory, the switch that governs it. An older snapshot has no such
+ *     key, and gains an empty memory with the feature on.
  */
-const SNAPSHOT_VERSION = 15;
+const SNAPSHOT_VERSION = 16;
 const OLDEST_SUPPORTED_SNAPSHOT_VERSION = 8;
 
 function getSchemaVersion(): number {
@@ -164,6 +169,9 @@ function upgradeSnapshot(snapshot: Snapshot): Snapshot {
   if (snapshot.schemaVersion < 15) {
     upgradeSnapshotDataToV10(data);
   }
+  if (snapshot.schemaVersion < 16) {
+    upgradeSnapshotDataToV11(data);
+  }
   Logger.info(`Upgraded sync snapshot from v${snapshot.schemaVersion} to v${SNAPSHOT_VERSION}`);
   return { ...snapshot, schemaVersion: SNAPSHOT_VERSION };
 }
@@ -190,6 +198,7 @@ async function exportSnapshot(): Promise<Snapshot> {
     settings,
     currencyRates,
     decisions,
+    memories,
   ] = await Promise.all([
     db.assets.toArray(),
     db.investments.toArray(),
@@ -203,6 +212,7 @@ async function exportSnapshot(): Promise<Snapshot> {
     db.settings.toArray(),
     db.currencyRates.toArray(),
     db.decisions.toArray(),
+    db.memories.toArray(),
   ]);
   return {
     schemaVersion: getSchemaVersion(),
@@ -219,6 +229,7 @@ async function exportSnapshot(): Promise<Snapshot> {
       settings,
       currencyRates,
       decisions,
+      memories,
     },
   };
 }
@@ -241,9 +252,11 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
       db.settings,
       db.currencyRates,
       db.decisions,
+      db.memories,
     ],
     async () => {
       await Promise.all([
+        db.memories.clear(),
         db.decisions.clear(),
         db.currencyRates.clear(),
         db.settings.clear(),
@@ -270,6 +283,7 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
         settings?: ISettings[];
         currencyRates?: ICurrencyRate[];
         decisions?: IDecisionEntry[];
+        memories?: IMemory[];
       };
       // Order respects dependencies
       await db.assets.bulkPut(d.assets || []);
@@ -284,6 +298,7 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
       await db.settings.bulkPut(d.settings || []);
       await db.currencyRates.bulkPut(d.currencyRates || []);
       await db.decisions.bulkPut(d.decisions || []);
+      await db.memories.bulkPut(d.memories || []);
     }
   );
 

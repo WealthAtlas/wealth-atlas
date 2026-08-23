@@ -7,6 +7,8 @@ import { upgradeSnapshotDataToV7 } from '@/data/migrations/v7';
 import { upgradeSnapshotDataToV8 } from '@/data/migrations/v8';
 import { upgradeSnapshotDataToV9 } from '@/data/migrations/v9';
 import { upgradeSnapshotDataToV10 } from '@/data/migrations/v10';
+import { upgradeSnapshotDataToV11 } from '@/data/migrations/v11';
+import { IMemory } from '@/domain/entities/memory/Memory';
 import { emitDatabaseReplaced } from '@/data/databaseEvents';
 import { hydrateAiProviderSettings } from '@/data/llm/state';
 import { IAsset } from '@/domain/entities/assets/Asset';
@@ -41,6 +43,7 @@ export interface BackupData {
     currencyRates?: ICurrencyRate[];
     /** Added in 2.6.0; absent from older files, which restore an empty journal. */
     decisions?: IDecisionEntry[];
+    memories?: IMemory[];
   };
 }
 
@@ -62,8 +65,13 @@ export class BackupService {
    * v2.6.0: the `decisions` table — the decision journal. Exported in full: it
    * is the user's own reasoning, and a journal that did not survive a restore
    * would lose exactly the history that makes it worth keeping.
+   * v2.7.0: the `memories` table — what the assistant remembers about the user.
+   * Exported in full. It is the user's own words rather than a credential, and a
+   * memory that did not survive a restore would have the assistant start asking
+   * what it already knew. The Settings section says so where the user reads
+   * them, because these are personal statements landing in a plaintext file.
    */
-  private static readonly BACKUP_VERSION = '2.6.0';
+  private static readonly BACKUP_VERSION = '2.7.0';
 
   /**
    * Export all data from the database as a JSON string
@@ -85,6 +93,7 @@ export class BackupService {
         settings,
         currencyRates,
         decisions,
+        memories,
       ] = await Promise.all([
         database.assets.toArray(),
         database.investments.toArray(),
@@ -98,6 +107,7 @@ export class BackupService {
         database.settings.toArray(),
         database.currencyRates.toArray(),
         database.decisions.toArray(),
+        database.memories.toArray(),
       ]);
 
       const backupData: BackupData = {
@@ -116,6 +126,7 @@ export class BackupService {
           settings: settings.map(row => this.withoutApiKey(row)),
           currencyRates,
           decisions,
+          memories,
         },
       };
 
@@ -292,6 +303,7 @@ export class BackupService {
     upgradeSnapshotDataToV8(data);
     upgradeSnapshotDataToV9(data);
     upgradeSnapshotDataToV10(data);
+    upgradeSnapshotDataToV11(data);
 
     rehydrateSnapshotDates(data);
   }
@@ -366,6 +378,7 @@ export class BackupService {
       database.settings.clear(),
       database.currencyRates.clear(),
       database.decisions.clear(),
+      database.memories.clear(),
     ]);
 
     Logger.info('Existing data cleared');
@@ -392,6 +405,7 @@ export class BackupService {
       database.settings.bulkAdd(data.settings ?? []),
       database.currencyRates.bulkAdd(data.currencyRates ?? []),
       database.decisions.bulkAdd(data.decisions ?? []),
+      database.memories.bulkAdd(data.memories ?? []),
     ]);
 
     Logger.info('Backup data imported successfully');

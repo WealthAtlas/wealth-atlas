@@ -46,6 +46,13 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
   const [entities, setEntities] = useState<LinkableEntity[]>([]);
 
   const abortRef = useRef<AbortController | undefined>(undefined);
+  /**
+   * Separate from `abortRef` on purpose. Stopping or clearing the conversation
+   * must not discard a memory the exchange already earned — the reply has landed
+   * and what the user said about themselves is still true. Only unmounting
+   * cancels it.
+   */
+  const rememberRef = useRef<AbortController | undefined>(undefined);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const nextId = useRef(1);
 
@@ -67,8 +74,14 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isThinking]);
 
-  // Abandon an in-flight request if the page goes away mid-answer.
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // Abandon in-flight work if the page goes away mid-answer.
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      rememberRef.current?.abort();
+    },
+    []
+  );
 
   // Reloaded each time the sheet opens: an asset added since the last look
   // should be linkable without a refresh.
@@ -85,6 +98,41 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
       cancelled = true;
     };
   }, [open, configured, chatService]);
+
+  /**
+   * Asks the service what is worth remembering from the exchange that just
+   * finished, and labels the reply with whatever it wrote. `remember` swallows
+   * its own failures, so there is nothing to catch: a memory that could not be
+   * written is a log line, not a broken conversation.
+   */
+  const rememberFromExchange = useCallback(
+    async (question: string, reply: string, replyId: number) => {
+      const controller = new AbortController();
+      rememberRef.current = controller;
+      try {
+        const changes = await chatService.remember(question, reply, controller.signal);
+        if (changes.length === 0 || controller.signal.aborted) return;
+
+        const remembered = changes
+          .filter(change => change.op !== 'delete')
+          .map(change => change.text);
+        const forgotten = changes.filter(change => change.op === 'delete').length;
+
+        // The thread may have been cleared while this was in flight, in which
+        // case there is no longer a message to label.
+        setMessages(current =>
+          current.some(message => message.id === replyId)
+            ? current.map(message =>
+                message.id === replyId ? { ...message, remembered, forgotten } : message
+              )
+            : current
+        );
+      } finally {
+        if (rememberRef.current === controller) rememberRef.current = undefined;
+      }
+    },
+    [chatService]
+  );
 
   const send = useCallback(
     async (question: string) => {
@@ -107,16 +155,22 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
 
         history.current = answer.transcript;
 
+        const replyId = nextId.current++;
         setMessages(current => [
           ...current,
           {
-            id: nextId.current++,
+            id: replyId,
             role: 'assistant',
             text: answer.reply,
             toolTrace: answer.toolTrace.map(entry => entry.name),
             warnings: answer.warnings,
           },
         ]);
+
+        // Fired after the reply is on screen, never awaited before it. Curating
+        // memory costs a request, and making the user wait for it would spend
+        // that time on something they did not ask for.
+        void rememberFromExchange(trimmed, answer.reply, replyId);
       } catch (error) {
         if (controller.signal.aborted) return;
 
@@ -131,7 +185,7 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
         setActiveTool(undefined);
       }
     },
-    [chatService, converter, isThinking, notify]
+    [chatService, converter, isThinking, notify, rememberFromExchange]
   );
 
   /**

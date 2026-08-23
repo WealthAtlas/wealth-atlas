@@ -5,6 +5,7 @@ import { ISIP } from '../entities/assets/SIP';
 import { ValueModel } from '../entities/assets/ValueModel';
 import { IExpense } from '../entities/expenses/Expense';
 import { IDecisionEntry } from '../entities/journal/DecisionEntry';
+import { IMemory, isMemoryKind, MEMORY_TEXT_LIMIT } from '../entities/memory/Memory';
 import { IEMI } from '../entities/loans/EMI';
 import { ILoan } from '../entities/loans/Loan';
 import { IPayment } from '../entities/loans/Payment';
@@ -339,6 +340,48 @@ export function validateDecisionEntry(entry: IDecisionEntry): ValidationIssue[] 
   // how much the decision was worth being right about.
   if (entry.status === 'acted' && entry.action !== 'hold' && entry.amount === undefined) {
     issues.push({ field: 'amount', message: 'Record how much was moved' });
+  }
+
+  return issues;
+}
+
+/**
+ * A memory reaches this from two directions: the Settings editor, and the
+ * background curator, whose output is untrusted model text in exactly the way an
+ * import plan is. Both go through here, which is the whole reason validation
+ * lives in this file rather than in a dialog.
+ *
+ * Length is a real rule, not a formality. A memory is one statement, and the
+ * entire set is pasted into every system prompt — a model that writes a
+ * paragraph is both storing two facts in one row and crowding out the rules
+ * around it.
+ */
+export function validateMemory(memory: IMemory): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (!isMemoryKind(memory.kind)) {
+    issues.push({ field: 'kind', message: 'Pick what kind of memory this is' });
+  }
+
+  const text = typeof memory.text === 'string' ? memory.text.trim() : '';
+  if (text === '') {
+    issues.push({ field: 'text', message: 'Say what should be remembered' });
+  } else if (text.length > MEMORY_TEXT_LIMIT) {
+    issues.push({
+      field: 'text',
+      message: `Keep it to one statement of ${MEMORY_TEXT_LIMIT} characters or fewer`,
+    });
+  }
+
+  if (memory.source !== 'assistant' && memory.source !== 'user') {
+    issues.push({ field: 'source', message: 'Source must be assistant or user' });
+  }
+
+  if (!isUsableDate(memory.createdAt)) {
+    issues.push({ field: 'createdAt', message: 'A valid created date is required' });
+  }
+  if (!isUsableDate(memory.updatedAt)) {
+    issues.push({ field: 'updatedAt', message: 'A valid updated date is required' });
   }
 
   return issues;

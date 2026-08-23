@@ -22,6 +22,7 @@ const DATE_FIELDS: Record<string, readonly string[]> = {
   // `evidence` deliberately holds no Date: only top-level fields are walked, so
   // a nested one would arrive from a snapshot as a string and stay a string.
   decisions: ['createdAt', 'reviewedAt'],
+  memories: ['createdAt', 'updatedAt'],
 };
 
 type LooseRow = Record<string, unknown>;

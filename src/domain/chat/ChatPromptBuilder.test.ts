@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AssetCategory } from '../entities/assets/AssetCategory';
 import { ExpenseCategory } from '../entities/expenses/ExpenseCategory';
+import { Memory, MemoryKind } from '../entities/memory/Memory';
 import {
   buildChatSystemPrompt,
   buildChatUserPrompt,
@@ -162,5 +163,63 @@ describe('buildToolResultPrompt', () => {
 
     expect(prompt).toContain('### getPortfolioSummary\n');
     expect(prompt).not.toContain('{}');
+  });
+});
+
+describe('the memory block', () => {
+  const now = new Date('2026-08-23T00:00:00Z');
+  const remembered = new Memory({
+    id: 3,
+    kind: MemoryKind.Context,
+    text: 'Can invest about 50,000 a month.',
+    source: 'user',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  // An empty heading is an invitation: a model shown a blank section fills it,
+  // and starts asserting preferences the user never stated. A rule describing a
+  // section that is not there does the same thing, so the two travel together.
+  it('is absent entirely when nothing is remembered', () => {
+    const prompt = buildChatSystemPrompt([]);
+
+    expect(prompt).not.toContain('What you remember about this user');
+    expect(prompt).not.toContain('\n12.');
+  });
+
+  it('appears with rule 12 once there is something to remember', () => {
+    const prompt = buildChatSystemPrompt([remembered]);
+
+    expect(prompt).toContain('## What you remember about this user');
+    expect(prompt).toContain('[3] (context) Can invest about 50,000 a month.');
+    expect(prompt).toContain('\n12.');
+  });
+
+  // Rule 11 is referred to by number from the Conversation section, so the
+  // memory rule had to be appended rather than slotted in.
+  it('leaves rule 11 reachable by that number', () => {
+    for (const prompt of [buildChatSystemPrompt([]), buildChatSystemPrompt([remembered])]) {
+      expect(prompt).toContain('\n11. If the user asks something unrelated');
+      expect(prompt).toContain('Rule 11 is for a genuinely unrelated topic');
+    }
+  });
+
+  // Rule 6 tells the assistant to ask what the user has available. A memory that
+  // already records it is the one thing that overrides that.
+  it('says the remembered amount overrides asking again', () => {
+    const prompt = buildChatSystemPrompt([remembered]);
+
+    expect(prompt).toContain('overrides rule 6');
+  });
+
+  it('never lets memory outrank a measured figure', () => {
+    const prompt = buildChatSystemPrompt([remembered]);
+
+    expect(prompt).toContain('The snapshot and the tools outrank them on every figure');
+    expect(prompt).toContain('Never quote a portfolio figure from memory');
+  });
+
+  it('defaults to no memory, so an unmigrated caller cannot leak a stale block', () => {
+    expect(buildChatSystemPrompt()).toBe(buildChatSystemPrompt([]));
   });
 });

@@ -4,6 +4,7 @@ import { IInvestment } from '../domain/entities/assets/Investment';
 import { ISIP } from '../domain/entities/assets/SIP';
 import { IExpense } from '../domain/entities/expenses/Expense';
 import { IDecisionEntry } from '../domain/entities/journal/DecisionEntry';
+import { IMemory } from '../domain/entities/memory/Memory';
 import { IAllocation } from '../domain/entities/goals/Allocation';
 import { IGoal } from '../domain/entities/goals/Goal';
 import { IEMI } from '../domain/entities/loans/EMI';
@@ -20,6 +21,7 @@ import { upgradeSettingsRowToV6 } from './migrations/v6';
 import { upgradeSettingsRowToV7 } from './migrations/v7';
 import { upgradeSettingsRowToV8 } from './migrations/v8';
 import { upgradeSettingsRowToV9 } from './migrations/v9';
+import { upgradeSettingsRowToV11 } from './migrations/v11';
 import { hydrateAiProviderSettings } from './llm/state';
 import { AutoSyncService } from './sync/AutoSyncService';
 
@@ -36,6 +38,7 @@ export class WealthAtlasDB extends Dexie {
   settings!: Table<ISettings>;
   currencyRates!: Table<ICurrencyRate>;
   decisions!: Table<IDecisionEntry>;
+  memories!: Table<IMemory>;
 
   constructor() {
     super('WealthAtlasDB');
@@ -152,6 +155,20 @@ export class WealthAtlasDB extends Dexie {
     this.version(10).stores({
       decisions: '++id, createdAt, category, action, status',
     });
+
+    // Migration: v11 - The assistant's memory: durable facts about the user,
+    // kept between conversations. A new table, so the auto-sync hook list, the
+    // snapshot's table list and `rehydrateSnapshotDates` all move with it. No
+    // secondary index: the whole set is read on every turn to build the prompt
+    // and is capped at `MEMORY_LIMIT`, so there is nothing to query by. The row
+    // transform is for the settings singleton, which gains the on/off switch.
+    this.version(11)
+      .stores({
+        memories: '++id',
+      })
+      .upgrade(async trans => {
+        await trans.table('settings').toCollection().modify(upgradeSettingsRowToV11);
+      });
   }
 
   private setupAutoSync(): void {
@@ -189,6 +206,7 @@ export const ALL_TABLES = [
   db.settings,
   db.currencyRates,
   db.decisions,
+  db.memories,
 ];
 
 /**

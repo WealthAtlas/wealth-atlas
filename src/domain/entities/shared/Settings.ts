@@ -30,8 +30,8 @@ export interface ICategoryTarget {
 /**
  * App-level preferences that belong to the user's data rather than to a device,
  * so they travel through sync and backup: the base currency, the currency list
- * (rates themselves live in `currencyRates`), the AI provider configuration and the
- * target allocation.
+ * (rates themselves live in `currencyRates`), the AI provider configuration, the
+ * target allocation and whether the assistant may keep notes about the user.
  *
  * What stays device-local is the sync identity itself — key id, passphrase,
  * auto-sync toggle (see `src/data/sync/state.ts`). It cannot live here: it is
@@ -54,6 +54,8 @@ export interface ISettings {
   ai: IAiProviderSettings;
   /** The news provider the assistant reads market sentiment from. */
   news: INewsProviderSettings;
+  /** Whether the assistant may keep durable notes about the user. */
+  memory: IMemorySettings;
   /**
    * The intended allocation, empty until the user sets one. Empty is a real
    * state, not a missing value: with no policy there is no drift to report, and
@@ -99,6 +101,19 @@ export interface INewsProviderSettings {
   apiKey?: string;
 }
 
+/**
+ * Whether the assistant keeps durable notes about the user (see `Memory`).
+ *
+ * A block rather than a bare boolean so a later knob — a smaller cap, a
+ * redaction rule — does not need its own schema version. Defaults to on: the
+ * feature is the point, and the protection against it is that every write is
+ * shown under the reply that caused it and listed in Settings, not that it is
+ * off until discovered.
+ */
+export interface IMemorySettings {
+  enabled: boolean;
+}
+
 export const SETTINGS_ID = 1;
 
 export const DEFAULT_BASE_CURRENCY = Currency.INR;
@@ -116,6 +131,7 @@ export function defaultSettings(): ISettings {
     currencies: [...DEFAULT_CURRENCIES],
     ai: {},
     news: {},
+    memory: { enabled: true },
     targetAllocation: [],
   };
 }
@@ -133,6 +149,16 @@ export function normaliseNewsProviderSettings(
   if (typeof value !== 'string') return {};
   const trimmed = value.trim();
   return trimmed === '' ? {} : { apiKey: trimmed };
+}
+
+/**
+ * Same contract as the other normalisers: used on every write and by the v11
+ * migration, so a row from either path has the same shape. A missing or
+ * non-boolean flag reads as enabled, matching `defaultSettings`.
+ */
+export function normaliseMemorySettings(memory: IMemorySettings | undefined): IMemorySettings {
+  const source = (memory ?? {}) as Record<string, unknown>;
+  return { enabled: source.enabled !== false };
 }
 
 /** Percent fields are stored to two decimals; anything finer is noise. */

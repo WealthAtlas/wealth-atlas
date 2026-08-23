@@ -2,6 +2,8 @@ import { AssetCategory } from '../entities/assets/AssetCategory';
 import { ExpenseCategory } from '../entities/expenses/ExpenseCategory';
 import { ChatSnapshot, toSnapshotPrompt } from './ChatContextBuilder';
 import { CHAT_TOOLS } from './ChatTools';
+import { Memory } from '../entities/memory/Memory';
+import { toMemoryPrompt } from '../memory/MemoryPromptBuilder';
 
 /**
  * The tool catalogue and the allowed enum values are generated from the real
@@ -21,7 +23,36 @@ function toolCatalogue(): string {
   }).join('\n');
 }
 
-export function buildChatSystemPrompt(): string {
+/**
+ * Rule 12 and the memory block are emitted together or not at all. An empty
+ * "what you remember" heading is an invitation — a model shown a blank section
+ * fills it, and starts asserting preferences the user never stated — and a rule
+ * describing a section that is not there does the same thing. With no memories
+ * the prompt simply ends at rule 11, and rule 6 stands unqualified.
+ *
+ * Appended as 12 rather than slotted in, because rule 11 is referred to by
+ * number from the Conversation section above and 8a-8f already carry the
+ * mid-list additions.
+ *
+ * This belongs in the *system* prompt rather than the snapshot, for a structural
+ * reason. `runChatLoop`'s stored transcript is `carried + question + durable` and
+ * the system message is never in it, so the block is rebuilt from the table on
+ * every turn and a memory the user has since edited cannot survive in an earlier
+ * turn. The snapshot would have been wrong for a second reason: it is announced
+ * as "current position, superseding any figure quoted earlier", and memory is
+ * explicitly not a source of figures.
+ */
+function memorySection(memories: readonly Memory[]): string {
+  if (memories.length === 0) return '';
+  return `
+12. The section below holds standing facts this user has told you over time — what they prefer, what they will not do, what is coming up in their life, what they asked you to stop doing. Use them so they do not have to repeat themselves: where one records what they can invest each month, reason from it instead of asking again, which is the one case that overrides rule 6. They are the user's words, not measurements. The snapshot and the tools outrank them on every figure, and where the records contradict one, trust the records and say so plainly. Never quote a portfolio figure from memory, and never treat a remembered preference as a fact about the market.
+
+## What you remember about this user
+
+${toMemoryPrompt(memories)}`;
+}
+
+export function buildChatSystemPrompt(memories: readonly Memory[] = []): string {
   return `You are the assistant inside Wealth Atlas, a personal wealth tracking app. You answer questions about the user's own financial records and help them think about what to do next.
 
 Return ONLY a JSON object. It must be one of these two shapes.
@@ -80,7 +111,7 @@ Dates in arguments are always "YYYY-MM-DD".
 | Nifty Index Fund | 400,000 | 512,400 | 112,400 |
 | Sovereign Gold Bond | 150,000 | 168,200 | 18,200 |
 10. Beyond tables you may use "-" bullet lists, numbered lists, **bold** for a key figure, and ## for a section heading when an answer genuinely has sections. Nothing else is rendered: no links, no images, no HTML, no blockquotes.
-11. If the user asks something unrelated to their finances or this app, say briefly that it is outside what you can help with here.`;
+11. If the user asks something unrelated to their finances or this app, say briefly that it is outside what you can help with here.${memorySection(memories)}`;
 }
 
 export function buildChatUserPrompt(snapshot: ChatSnapshot, question: string): string {

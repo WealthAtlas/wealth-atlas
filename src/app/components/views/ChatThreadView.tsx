@@ -1,4 +1,4 @@
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import { ExpandLess, ExpandMore, Psychology } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -24,6 +24,10 @@ export interface ChatMessageView {
   text: string;
   toolTrace?: string[];
   warnings?: string[];
+  /** Memories written from this exchange, shown so a write is never silent. */
+  remembered?: string[];
+  /** How many memories this exchange superseded or dropped. */
+  forgotten?: number;
 }
 
 export interface ChatThreadViewProps {
@@ -46,6 +50,36 @@ function humanise(toolName: string): string {
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .toLowerCase()
     .trim();
+}
+
+/**
+ * Shown whenever the background curator wrote something. The whole reason the
+ * curator is allowed to write without asking is that the write is visible here:
+ * silent notes about the user would be the wrong trade, and asking permission
+ * every time would be nagging.
+ */
+function MemoryNote({ remembered, forgotten }: { remembered?: string[]; forgotten?: number }) {
+  const written = remembered ?? [];
+  const dropped = forgotten ?? 0;
+  if (written.length === 0 && dropped === 0) return null;
+
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ mt: 1 }} alignItems="flex-start">
+      <Psychology sx={{ fontSize: '1rem', color: 'text.secondary', mt: '2px' }} />
+      <Stack sx={{ minWidth: 0 }}>
+        {written.map(text => (
+          <Typography key={text} variant="caption" color="text.secondary">
+            Remembered: {text}
+          </Typography>
+        ))}
+        {dropped > 0 && (
+          <Typography variant="caption" color="text.secondary">
+            {dropped === 1 ? 'Forgot 1 earlier note' : `Forgot ${dropped} earlier notes`}
+          </Typography>
+        )}
+      </Stack>
+    </Stack>
+  );
 }
 
 function ToolTrace({ tools }: { tools: string[] }) {
@@ -120,6 +154,8 @@ function Message({
         {message.toolTrace && message.toolTrace.length > 0 && (
           <ToolTrace tools={message.toolTrace} />
         )}
+
+        <MemoryNote remembered={message.remembered} forgotten={message.forgotten} />
 
         {message.warnings?.map(warning => (
           <Alert key={warning} severity="warning" sx={{ mt: 1 }}>

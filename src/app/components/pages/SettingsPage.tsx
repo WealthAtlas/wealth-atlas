@@ -32,6 +32,7 @@ import {
 } from '@mui/material';
 import { AiProviderSettingsContainer } from '@/app/containers/settings/AiProviderSettingsContainer';
 import { CurrencySettingsContainer } from '@/app/containers/settings/CurrencySettingsContainer';
+import { MemorySettingsContainer } from '@/app/containers/settings/MemorySettingsContainer';
 import { NewsProviderSettingsContainer } from '@/app/containers/settings/NewsProviderSettingsContainer';
 import { TargetAllocationSettingsContainer } from '@/app/containers/settings/TargetAllocationSettingsContainer';
 import { useState } from 'react';
@@ -365,6 +366,8 @@ export function SettingsPage(props: SettingsPageProps) {
         <AiProviderSettingsContainer />
 
         <NewsProviderSettingsContainer />
+
+        <MemorySettingsContainer />
 
         {/* Local Backup Section */}
         <Paper elevation={2} sx={{ p: 2, mb: 2 }}>

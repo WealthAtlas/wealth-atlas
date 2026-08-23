@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { IAsset } from '../entities/assets/Asset';
 import { AssetCategory } from '../entities/assets/AssetCategory';
 import { IDecisionEntry } from '../entities/journal/DecisionEntry';
+import { IMemory, MemoryKind, MEMORY_TEXT_LIMIT } from '../entities/memory/Memory';
 import { IInvestment, InvestmentType } from '../entities/assets/Investment';
 import { ValueModel } from '../entities/assets/ValueModel';
 import { IExpense } from '../entities/expenses/Expense';
@@ -14,6 +15,7 @@ import {
   validateExpense,
   validateInvestment,
   validateLoan,
+  validateMemory,
   validatePayment,
   validateTargetAllocation,
 } from './EntityValidators';
@@ -337,5 +339,51 @@ describe('validateDecisionEntry', () => {
     expect(
       issueFor(validateDecisionEntry(entry({ createdAt: new Date('nope') })), 'createdAt')
     ).toBeDefined();
+  });
+});
+
+describe('validateMemory', () => {
+  const now = new Date('2026-08-23T00:00:00Z');
+  const valid: IMemory = {
+    id: 1,
+    kind: MemoryKind.Context,
+    text: 'Can invest about 50,000 a month.',
+    source: 'assistant',
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  it('accepts a well-formed memory', () => {
+    expect(validateMemory(valid)).toEqual([]);
+  });
+
+  it('rejects an empty statement', () => {
+    expect(issueFor(validateMemory({ ...valid, text: '   ' }), 'text')).toBeDefined();
+  });
+
+  // A memory is one statement, and the whole set is pasted into every system
+  // prompt: a paragraph both stores two facts in one row and crowds out the
+  // rules around it.
+  it('rejects a statement longer than the limit but accepts one at it', () => {
+    expect(
+      issueFor(validateMemory({ ...valid, text: 'x'.repeat(MEMORY_TEXT_LIMIT + 1) }), 'text')
+    ).toBeDefined();
+    expect(validateMemory({ ...valid, text: 'x'.repeat(MEMORY_TEXT_LIMIT) })).toEqual([]);
+  });
+
+  it('rejects a kind the app does not know', () => {
+    const memory = { ...valid, kind: 'risk' as unknown as MemoryKind };
+    expect(issueFor(validateMemory(memory), 'kind')).toBeDefined();
+  });
+
+  it('rejects an unrecognised source', () => {
+    const memory = { ...valid, source: 'model' as unknown as IMemory['source'] };
+    expect(issueFor(validateMemory(memory), 'source')).toBeDefined();
+  });
+
+  it('rejects dates that did not survive the trip', () => {
+    const broken = new Date('nonsense');
+    expect(issueFor(validateMemory({ ...valid, createdAt: broken }), 'createdAt')).toBeDefined();
+    expect(issueFor(validateMemory({ ...valid, updatedAt: broken }), 'updatedAt')).toBeDefined();
   });
 });

@@ -13,6 +13,7 @@ export interface Snapshot {
     settings: unknown[];
     currencyRates: unknown[];
     decisions: unknown[];
+    memories: unknown[];
   };
 }
 
