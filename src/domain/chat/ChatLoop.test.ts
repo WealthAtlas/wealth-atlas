@@ -40,18 +40,22 @@ const SNAPSHOT: ChatSnapshot = {
  * A transport that replies with each scripted turn in order, and records the
  * message array it was handed so a test can inspect what the model would see.
  */
-function scripted(turns: unknown[]): TurnsChatFn & { calls: LlmMessage[][] } {
+function scripted(
+  turns: unknown[]
+): TurnsChatFn & { calls: LlmMessage[][]; efforts: (string | undefined)[] } {
   const calls: LlmMessage[][] = [];
+  const efforts: (string | undefined)[] = [];
   let index = 0;
 
-  const chat = async ({ messages }: { messages: LlmMessage[] }) => {
+  const chat = async ({ messages, reasoning }: { messages: LlmMessage[]; reasoning?: string }) => {
     calls.push(messages.map(message => ({ ...message })));
+    efforts.push(reasoning);
     const turn = turns[Math.min(index, turns.length - 1)];
     index++;
     return turn;
   };
 
-  return Object.assign(chat, { calls });
+  return Object.assign(chat, { calls, efforts });
 }
 
 function ask(
@@ -410,5 +414,40 @@ describe('trimTranscript', () => {
     );
 
     expect(twice.filter(message => message.content.includes('Earlier messages'))).toHaveLength(1);
+  });
+});
+
+describe('reasoning effort per turn', () => {
+  it('asks for little on the routing turn and more once results are in hand', async () => {
+    // The first turn picks tools from a catalogue; the second has to combine
+    // what they returned. Only the second is worth paying to think about.
+    const chat = scripted([
+      { toolCalls: [{ name: 'getPortfolioSummary', args: {} }] },
+      { reply: 'Your net worth is 250,000 INR.' },
+    ]);
+
+    await ask(chat);
+
+    expect(chat.efforts).toEqual(['low', 'high']);
+  });
+
+  it('keeps asking for more on every turn after the first', async () => {
+    const chat = scripted([
+      { toolCalls: [{ name: 'getPortfolioSummary', args: {} }] },
+      { toolCalls: [{ name: 'getAssetAllocation', args: {} }] },
+      { reply: 'Mostly index funds.' },
+    ]);
+
+    await ask(chat);
+
+    expect(chat.efforts).toEqual(['low', 'high', 'high']);
+  });
+
+  it('answers a snapshot-only question at low effort, which is the intended trade', async () => {
+    const chat = scripted([{ reply: 'Your net worth is 250,000 INR.' }]);
+
+    await ask(chat);
+
+    expect(chat.efforts).toEqual(['low']);
   });
 });

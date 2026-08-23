@@ -1,4 +1,5 @@
 import { Logger } from '@/domain/utils/Logger';
+import { ReasoningEffort, reasoningBodyFor } from './presets';
 import { getLlmSettings, isLocalEndpoint, LlmSettings, normalizeBaseUrl } from './state';
 
 /**
@@ -50,6 +51,12 @@ interface ChatArgs {
   system: string;
   user: string;
   signal?: AbortSignal;
+  /**
+   * How hard the model should think about this turn. Stated by the caller
+   * because only the caller knows what the turn is for: routing to a tool is
+   * shallow, synthesising an answer from several numeric sources is not.
+   */
+  reasoning?: ReasoningEffort;
   /** Some providers cap this; left undefined to use the provider default. */
   maxTokens?: number;
 }
@@ -57,6 +64,8 @@ interface ChatArgs {
 interface ChatTurnsArgs {
   messages: LlmMessage[];
   signal?: AbortSignal;
+  /** See `ChatArgs.reasoning`. */
+  reasoning?: ReasoningEffort;
   /** Some providers cap this; left undefined to use the provider default. */
   maxTokens?: number;
 }
@@ -223,6 +232,7 @@ async function post(
 export async function chatJsonTurns({
   messages,
   signal,
+  reasoning = 'high',
   maxTokens,
 }: ChatTurnsArgs): Promise<unknown> {
   const settings = requireSettings();
@@ -236,6 +246,9 @@ export async function chatJsonTurns({
       response_format: { type: 'json_object' },
       max_tokens: maxTokens,
       messages,
+      // Spread last, and empty for every provider without such a control: an
+      // unknown top-level parameter is a 400 on most compatible endpoints.
+      ...reasoningBodyFor(settings.presetId, reasoning),
     },
     signal
   );
@@ -263,13 +276,24 @@ export async function chatJsonTurns({
  * Sends one system + user pair. The statement importer's whole interaction fits
  * this shape, so it stays the simpler call.
  */
-export async function chatJson({ system, user, signal, maxTokens }: ChatArgs): Promise<unknown> {
+export async function chatJson({
+  system,
+  user,
+  signal,
+  reasoning = 'low',
+  maxTokens,
+}: ChatArgs): Promise<unknown> {
   return chatJsonTurns({
     messages: [
       { role: 'system', content: system },
       { role: 'user', content: user },
     ],
     signal,
+    // Low by default because the one caller is the statement importer, and that
+    // is extraction rather than judgement: the operations it emits are read off
+    // the document. Reasoning tokens would also compete with a long operations
+    // array against the same output ceiling that `finish_reason` guards.
+    reasoning,
     maxTokens,
   });
 }
