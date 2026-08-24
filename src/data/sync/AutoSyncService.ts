@@ -1,7 +1,8 @@
 import { Logger } from '@/domain/utils/Logger';
 import { db } from '../database';
+import { getSyncConflict } from './conflict';
 import { SyncService } from './Syncer';
-import { getAutoSyncEnabled, getKeyId } from './state';
+import { getAutoSyncEnabled, getKeyId, markPendingChange } from './state';
 
 export class AutoSyncService {
   private static syncTimeout: NodeJS.Timeout | null = null;
@@ -51,6 +52,11 @@ export class AutoSyncService {
       // assistant about themselves is their data like any other, so it should
       // wake a push.
       db.memories,
+      // A deletion is a change like any other, and the only record that it
+      // happened. Missing from this list, a delete would reach other devices
+      // only if something else happened to be edited afterwards — and until then
+      // every merge would hand the row back.
+      db.deletions,
     ];
 
     tables.forEach(table => {
@@ -90,6 +96,17 @@ export class AutoSyncService {
    * won would silently decide which device's settings survived. They reach the
    * cloud with the next real edit instead.
    */
+  /**
+   * Whether a write happening right now is an automatic one.
+   *
+   * Read by the sync-metadata hooks: the same flag that says "do not push this"
+   * also says "do not date this as the latest change", because both questions
+   * are the same question — is this the user changing their mind?
+   */
+  static isSuppressed(): boolean {
+    return AutoSyncService.suppressionDepth > 0;
+  }
+
   static async withoutScheduling<T>(fn: () => Promise<T>): Promise<T> {
     AutoSyncService.suppressionDepth++;
     try {
@@ -113,10 +130,29 @@ export class AutoSyncService {
     const keyId = getKeyId();
     const autoSyncEnabled = getAutoSyncEnabled();
 
-    if (!keyId || !autoSyncEnabled) {
+    if (!keyId) {
       Logger.log(
         `AutoSyncService: Skipping sync for ${operation} on ${tableName} - not configured`
       );
+      return;
+    }
+
+    // Recorded before the debounce and regardless of whether auto-sync is on:
+    // the edit has diverged from the cloud either way, and this mark is what
+    // stops a later pull from silently replacing it. Cleared only by a push or
+    // an import that completes.
+    markPendingChange();
+
+    if (!autoSyncEnabled) {
+      Logger.log(`AutoSyncService: Not pushing ${operation} on ${tableName} - auto-sync is off`);
+      return;
+    }
+
+    // A refused sync is waiting on the user. Retrying on every keystroke would
+    // spend a request per batch of edits to reach the same answer, and the mark
+    // above already holds the divergence.
+    if (getSyncConflict()) {
+      Logger.log(`AutoSyncService: Not pushing ${operation} on ${tableName} - conflict unresolved`);
       return;
     }
 
@@ -131,9 +167,14 @@ export class AutoSyncService {
     AutoSyncService.syncTimeout = setTimeout(async () => {
       try {
         Logger.info('AutoSyncService: Performing automatic sync');
-        const result = await SyncService.push();
+        // Reconcile, not push: if another device has changed something in the
+        // meantime, this merges the two and publishes the result instead of
+        // stopping to ask which copy to keep.
+        const result = await SyncService.reconcile();
         Logger.info(`AutoSyncService: Sync completed successfully, version: ${result.version}`);
       } catch (error) {
+        // A conflict is recorded by the push itself and shown by the banner, so
+        // there is nothing to retry and nothing to raise here.
         Logger.warn('AutoSyncService: Auto-sync failed:', error);
         // Don't throw - auto-sync should be non-intrusive
       } finally {
@@ -198,7 +239,7 @@ export class AutoSyncService {
   /**
    * Force an immediate sync (ignores debouncing)
    */
-  static async forceSyncNow(): Promise<{ version: number } | null> {
+  static async forceSyncNow(): Promise<{ version: number | null } | null> {
     const keyId = getKeyId();
     const autoSyncEnabled = getAutoSyncEnabled();
 
@@ -216,7 +257,7 @@ export class AutoSyncService {
         AutoSyncService.syncTimeout = null;
       }
 
-      const result = await SyncService.push();
+      const result = await SyncService.reconcile();
       Logger.info(`AutoSyncService: Force sync completed successfully, version: ${result.version}`);
       return result;
     } catch (error) {

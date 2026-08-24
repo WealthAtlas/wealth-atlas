@@ -22,6 +22,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { SyncConflictBannerContainer } from '@/app/containers/sync/SyncConflictBannerContainer';
 import { ReactNode } from 'react';
 
 interface MainLayoutProps {
@@ -118,6 +119,11 @@ export function MainLayout({
           pb: isTablet ? 0 : 7, // Add padding bottom on mobile for bottom nav
         }}
       >
+        {/*
+          A refused sync is raised by a background push nobody is watching, so
+          the only place it can reach the user is wherever they already are.
+        */}
+        <SyncConflictBannerContainer />
         {children}
       </Box>
 

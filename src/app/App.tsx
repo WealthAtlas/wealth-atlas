@@ -14,13 +14,22 @@ export default function App() {
     // Auto-convert scheduled transactions and auto-sync on app startup
     const initializeApp = async () => {
       try {
-        // Auto-convert scheduled transactions
-        const investmentService = new AssetService();
-        await investmentService.createSIPInvestments();
-        await investmentService.updateValues();
+        // Auto-convert scheduled transactions.
+        //
+        // Suppressed for the same reason a migration is: none of these rows is
+        // the user changing their mind. They are derived from the schedules the
+        // snapshot already carries, they are regenerated on the next startup if
+        // a pull replaces them, and marking them as unpushed work would make
+        // every launch look like a conflict against a cloud that had moved on.
+        // They reach the cloud with the next real edit.
+        await AutoSyncService.withoutScheduling(async () => {
+          const investmentService = new AssetService();
+          await investmentService.createSIPInvestments();
+          await investmentService.updateValues();
 
-        const loanService = new LoanService();
-        await loanService.createEMIPayments();
+          const loanService = new LoanService();
+          await loanService.createEMIPayments();
+        });
 
         // Auto-sync if enabled
         const syncResult = await SyncService.autoSync();

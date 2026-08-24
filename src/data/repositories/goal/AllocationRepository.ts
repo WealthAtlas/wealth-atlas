@@ -1,5 +1,6 @@
 import { IAllocation } from '../../../domain/entities/goals/Allocation';
 import { db } from '../../database';
+import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class AllocationRepository {
   async create(allocation: IAllocation): Promise<IAllocation> {
@@ -25,11 +26,16 @@ export class AllocationRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await db.allocations.delete(id);
+    await deleteSynced('allocations', [id]);
   }
 
   async deleteByGoal(goalId: number): Promise<void> {
     const allocations = await db.allocations.where('goalId').equals(goalId).toArray();
-    await Promise.all(allocations.map(allocation => db.allocations.delete(allocation.id)));
+    // One call rather than a delete each: the rows and their tombstones then
+    // land in a single transaction.
+    await deleteSynced(
+      'allocations',
+      allocations.map(allocation => allocation.id)
+    );
   }
 }

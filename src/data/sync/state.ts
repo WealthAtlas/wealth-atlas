@@ -50,3 +50,49 @@ export function getAutoSyncEnabled(): boolean {
 export function setAutoSyncEnabled(enabled: boolean): void {
   localStorage.setItem(AUTO_SYNC_ENABLED, String(enabled));
 }
+
+/**
+ * When this device first changed something it has not successfully pushed.
+ *
+ * The cheapest honest answer to "would a pull delete anything?". Set by the
+ * change hooks, cleared only by a completed push or a completed import — a
+ * failed push leaves it standing, which is exactly the state that used to let
+ * the next pull wipe the edit.
+ *
+ * The *oldest* unpushed change, not the newest: it is what the user is told they
+ * would lose, so it must not creep forward as they keep typing.
+ */
+const PENDING_CHANGE_SINCE = 'sync.pendingChangeSince';
+
+export function getPendingChangeSince(): string | undefined {
+  return localStorage.getItem(PENDING_CHANGE_SINCE) || undefined;
+}
+
+export function markPendingChange(): void {
+  if (localStorage.getItem(PENDING_CHANGE_SINCE)) return;
+  localStorage.setItem(PENDING_CHANGE_SINCE, new Date().toISOString());
+}
+
+export function clearPendingChange(): void {
+  localStorage.removeItem(PENDING_CHANGE_SINCE);
+}
+
+/**
+ * The uid lineage this device has adopted, and may therefore merge against.
+ *
+ * Device-local like the rest of the sync identity: it is a fact about what this
+ * store holds, not about the user's data, so it neither syncs nor rides a
+ * backup. Restoring a backup onto a device leaves the lineage of whatever it was
+ * already linked to, which is right — the ids in the restored file are the ones
+ * that file was written with.
+ */
+const MERGE_LINEAGE = 'sync.mergeLineage';
+
+export function getMergeLineage(): string | undefined {
+  return localStorage.getItem(MERGE_LINEAGE) || undefined;
+}
+
+export function setMergeLineage(lineage: string | undefined): void {
+  if (lineage) localStorage.setItem(MERGE_LINEAGE, lineage);
+  else localStorage.removeItem(MERGE_LINEAGE);
+}

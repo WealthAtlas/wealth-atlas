@@ -8,9 +8,11 @@ import { upgradeSnapshotDataToV8 } from '@/data/migrations/v8';
 import { upgradeSnapshotDataToV9 } from '@/data/migrations/v9';
 import { upgradeSnapshotDataToV10 } from '@/data/migrations/v10';
 import { upgradeSnapshotDataToV11 } from '@/data/migrations/v11';
+import { upgradeSnapshotDataToV12 } from '@/data/migrations/v12';
 import { IMemory } from '@/domain/entities/memory/Memory';
 import { emitDatabaseReplaced } from '@/data/databaseEvents';
 import { hydrateAiProviderSettings } from '@/data/llm/state';
+import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { IAsset } from '@/domain/entities/assets/Asset';
 import { IInvestment } from '@/domain/entities/assets/Investment';
 import { ISIP } from '@/domain/entities/assets/SIP';
@@ -21,6 +23,7 @@ import { IEMI } from '@/domain/entities/loans/EMI';
 import { ILoan } from '@/domain/entities/loans/Loan';
 import { IPayment } from '@/domain/entities/loans/Payment';
 import { IDecisionEntry } from '@/domain/entities/journal/DecisionEntry';
+import type { IDeletion } from '@/data/sync/merge/SyncMeta';
 import { ICurrencyRate } from '@/domain/entities/shared/CurrencyRate';
 import { ISettings, SETTINGS_ID } from '@/domain/entities/shared/Settings';
 import { Logger } from '../utils/Logger';
@@ -44,6 +47,12 @@ export interface BackupData {
     /** Added in 2.6.0; absent from older files, which restore an empty journal. */
     decisions?: IDecisionEntry[];
     memories?: IMemory[];
+    /**
+     * Tombstones, added in 2.8.0. Exported because a restore is followed by a
+     * merge with the cloud: without them, everything the user had deleted up to
+     * the export would be handed straight back by the first sync.
+     */
+    deletions?: IDeletion[];
   };
 }
 
@@ -70,8 +79,13 @@ export class BackupService {
    * memory that did not survive a restore would have the assistant start asking
    * what it already knew. The Settings section says so where the user reads
    * them, because these are personal statements landing in a plaintext file.
+   * v2.8.0: every row gains `uid` and `updatedAt`, and the `deletions` table
+   * joins the file — the metadata that lets two devices merge rather than
+   * overwrite each other. An older file is stamped on restore, which mints uids
+   * on this device; the restored store is therefore in no shared lineage and
+   * reconciles by replacing once before it can merge.
    */
-  private static readonly BACKUP_VERSION = '2.7.0';
+  private static readonly BACKUP_VERSION = '2.8.0';
 
   /**
    * Export all data from the database as a JSON string
@@ -94,6 +108,7 @@ export class BackupService {
         currencyRates,
         decisions,
         memories,
+        deletions,
       ] = await Promise.all([
         database.assets.toArray(),
         database.investments.toArray(),
@@ -108,29 +123,25 @@ export class BackupService {
         database.currencyRates.toArray(),
         database.decisions.toArray(),
         database.memories.toArray(),
+        database.deletions.toArray(),
       ]);
 
-      const backupData: BackupData = {
-        version: this.BACKUP_VERSION,
-        timestamp: new Date().toISOString(),
-        data: {
-          assets,
-          investments,
-          sips,
-          expenses,
-          loans,
-          emis,
-          payments,
-          goals,
-          allocations,
-          settings: settings.map(row => this.withoutApiKey(row)),
-          currencyRates,
-          decisions,
-          memories,
-        },
-      };
-
-      const jsonString = JSON.stringify(backupData, null, 2);
+      const jsonString = this.toBackupFile({
+        assets,
+        investments,
+        sips,
+        expenses,
+        loans,
+        emis,
+        payments,
+        goals,
+        allocations,
+        settings,
+        currencyRates,
+        decisions,
+        memories,
+        deletions,
+      });
       Logger.info('Data export completed successfully');
       return jsonString;
     } catch (error) {
@@ -160,11 +171,20 @@ export class BackupService {
       await this.carryOverApiKey(backupData);
       await this.carryOverNewsApiKey(backupData);
 
-      // Clear all existing data
-      await this.clearAllData();
+      // Suppressed, and it matters twice over. `bulkAdd` fires the `creating`
+      // hook, so without this every restored row would be stamped with the time
+      // of the restore — and a device that had just recovered a backup would
+      // then outrank every other device on every row, silently overwriting newer
+      // edits with older ones on the next merge. It also stops the restore
+      // arming a push per row; the restored rows still reach the cloud, because
+      // the next reconcile finds them and publishes them.
+      await AutoSyncService.withoutScheduling(async () => {
+        // Clear all existing data
+        await this.clearAllData();
 
-      // Import the new data
-      await this.importBackupData(backupData);
+        // Import the new data
+        await this.importBackupData(backupData);
+      });
 
       // The restored row is read from a synchronous cache; refill it so AI
       // import and the assistant see the endpoint that was just restored.
@@ -304,6 +324,9 @@ export class BackupService {
     upgradeSnapshotDataToV9(data);
     upgradeSnapshotDataToV10(data);
     upgradeSnapshotDataToV11(data);
+    // Stamps `uid`/`updatedAt` on any row that predates merging, and supplies an
+    // empty tombstone list.
+    upgradeSnapshotDataToV12(data);
 
     rehydrateSnapshotDates(data);
   }
@@ -350,6 +373,27 @@ export class BackupService {
     incoming.news = { ...incoming.news, apiKey: key };
   }
 
+  /**
+   * Writes rows as a restorable backup file.
+   *
+   * Public because the rows are not always this device's own: sync keeps a
+   * recovery copy of whatever a pull or a conflict resolution is about to
+   * discard, and that copy is only worth having if the user can feed it back
+   * through Import Data. One writer means the version stamp and the key
+   * stripping cannot drift between the two callers.
+   */
+  static toBackupFile(data: BackupData['data']): string {
+    const backupData: BackupData = {
+      version: this.BACKUP_VERSION,
+      timestamp: new Date().toISOString(),
+      data: {
+        ...data,
+        settings: data.settings?.map(row => this.withoutApiKey(row)),
+      },
+    };
+    return JSON.stringify(backupData, null, 2);
+  }
+
   /** Keys never go into the backup file: it is plaintext on the user's disk. */
   private static withoutApiKey(settings: ISettings): ISettings {
     const ai = { ...(settings.ai ?? {}) };
@@ -379,6 +423,7 @@ export class BackupService {
       database.currencyRates.clear(),
       database.decisions.clear(),
       database.memories.clear(),
+      database.deletions.clear(),
     ]);
 
     Logger.info('Existing data cleared');
@@ -406,6 +451,7 @@ export class BackupService {
       database.currencyRates.bulkAdd(data.currencyRates ?? []),
       database.decisions.bulkAdd(data.decisions ?? []),
       database.memories.bulkAdd(data.memories ?? []),
+      database.deletions.bulkAdd(data.deletions ?? []),
     ]);
 
     Logger.info('Backup data imported successfully');

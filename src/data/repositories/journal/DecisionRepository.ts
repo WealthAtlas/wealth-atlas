@@ -1,4 +1,5 @@
 import { db } from '@/data/database';
+import { deleteSynced } from '@/data/sync/merge/Tombstones';
 import { DecisionEntry, IDecisionEntry } from '@/domain/entities/journal/DecisionEntry';
 
 /**
@@ -24,6 +25,6 @@ export class DecisionRepository {
   }
 
   public async delete(id: number): Promise<void> {
-    await db.decisions.delete(id);
+    await deleteSynced('decisions', [id]);
   }
 }
