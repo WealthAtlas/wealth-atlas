@@ -28,9 +28,11 @@ export class SIP extends AbstractSchedule<Investment> implements ISIP {
     this.price = price;
   }
 
+  /** See EMI.createDataForOccurrence: `sipId` is what `deleteBySipId` matches on. */
   protected createDataForOccurrence(date: Date): Investment {
     return new Investment({
       id: undefined,
+      sipId: this.id,
       assetId: this.assetId,
       date: date,
       type: InvestmentType.BUY,
