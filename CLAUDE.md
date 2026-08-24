@@ -53,14 +53,162 @@ Wealth Atlas is a local-first React 18 PWA for personal wealth tracking. Stack: 
 **Persistence invariants:**
 - `Currency` is stored as an ISO code (`INR`), never a symbol. Symbols come from `CURRENCY_SYMBOLS`/`getCurrencySymbol`.
 - `IInvestment.totalAmount` is the **total** transaction value and is always positive; buy/sell direction lives in `type` (see `Investment.getSignedAmount`).
-- Any change to a persisted row shape needs a Dexie `version()` bump in `src/data/database.ts`, a transform in `src/data/migrations/`, a `SNAPSHOT_VERSION` bump in `src/data/sync/Syncer.ts`, and a `BACKUP_VERSION` bump in `BackupService` — all four, or a sync/restore will corrupt data. A new *table* needs nine (see `decisions`/`memories` below).
+- Any change to a persisted row shape needs a Dexie `version()` bump in `src/data/database.ts`, a transform in `src/data/migrations/`, a `SNAPSHOT_VERSION` bump in `src/data/sync/Syncer.ts`, and a `BACKUP_VERSION` bump in `BackupService` — all four, or a sync/restore will corrupt data. A new *table* needs nine (see `decisions`/`memories` below), and a new *synced entity* table also needs a row in `SYNCED_TABLES` — without it the table is never merged, so every edit to it is settled by whichever device pushes last.
+- A synced row is deleted through `deleteSynced`, never `table.delete` or a collection delete. The delete and its tombstone have to land in one transaction, or the row comes back on the next merge.
 - Rows arriving via JSON (backup, sync snapshot) must go through `rehydrateSnapshotDates` before being written; otherwise Date columns land as strings.
 - Every preference the Settings page edits lives in the `settings` singleton (`ISettings`), so it travels through sync and backup: base currency, the currency list (rates in `currencyRates`), and the AI provider config (`settings.ai`). Only the sync identity itself is device-local — key id, passphrase, auto-sync toggle in `src/data/sync/state.ts`. `settings.ai.apiKey` is the one exception to symmetry: it rides the encrypted sync snapshot but `BackupService` strips it from the export, because that file is plaintext on the user's disk.
 - `src/data/llm/state.ts` reads `settings.ai` from a synchronous in-memory cache filled in Dexie's `ready` handler. Any code path that replaces the settings row (sync pull, backup restore) must call `hydrateAiProviderSettings()` afterwards.
 - `AutoSyncService.startListening()` hooks a hardcoded table list. A new table has to be added there too, or edits to it never wake a push. Wrap a write that is a migration rather than a user decision in `AutoSyncService.withoutScheduling` so it does not race the device's own first pull.
 - A sync pull and a backup restore replace every table at once, but containers hold what they read on mount. Both paths call `emitDatabaseReplaced()`; anything holding synced state subscribes with `useDatabaseReplaced` (or `useDatabaseVersion` when it reads live during render). A container whose loader depends on `converter` from `useCurrency` already re-runs, because `CurrencyProvider` subscribes. A container with an editable draft must not clobber unsaved input — adopt the new value only when the draft is clean.
 
+**Sync conflicts (`src/data/sync/conflict.ts`, `recovery.ts`)** — sync is whole-snapshot
+replacement in both directions, because the backend holds one opaque encrypted blob behind a version
+counter and cannot merge what it cannot decrypt. That makes every sync operation a potential deletion
+of a whole database, and the client is the only place it can be caught. It once was not caught at
+all: `push` PUT the snapshot with no precondition, so a device that had been offline for a day needed
+one edit to replace the cloud with its stale copy, and the device that had done the work then pulled
+that copy over itself — two silent whole-database deletions from one edit.
+
+Four rules hold the line, and they are the whole design:
+
+- **A push may only overwrite the version it was based on.** The API's PUT takes no expected version,
+  so `decidePush` is a compare-and-swap the client performs itself: read the remote version, compare
+  against `lastRemoteVersion`, write only if they match. What is left is a race of one request
+  between two devices pushing in the same breath — not the multi-day staleness window that actually
+  loses data. An unknown base is a conflict, not a push: a device that cannot say what it is based on
+  cannot claim to be current. `requireRemoteVersion` falls back to a full GET on backends predating
+  `/version`, because for a push "could not tell" must never mean "go ahead".
+- **A pull may only replace rows the cloud already has.** `markPendingChange` records when this
+  device first changed something it has not pushed; only a *completed* push or import clears it, so a
+  failed push leaves the guard standing. `decidePull` refuses the import while it stands. Writes that
+  are not the user changing their mind — the startup SIP/EMI conversions, a migration — go through
+  `AutoSyncService.withoutScheduling` so they neither push nor set the mark; otherwise the device
+  that opens second would conflict on every launch.
+- **Nothing destructive runs without a recovery copy.** `recovery.ts` files the losing copy before
+  every wipe, and `preserveDevice` *throws* rather than logging — no net, no wipe. Each copy is
+  exactly a backup file (`BackupService.toBackupFile`, the one writer for the format), so recovery is
+  the Import Data flow the user already has rather than a rescue path nobody has run. It lives in its
+  own IndexedDB database, not a Dexie table: it is device-local wreckage rather than the user's
+  records, so it belongs in no sync snapshot, and staying out of Dexie's schema means it needs none
+  of the nine touch points a real table does.
+- **Pull and push never interleave.** `runExclusive` serialises every remote operation. The poll
+  fires on a timer, on `visibilitychange` and on `online`, any of which could land inside the 2s push
+  debounce — and compare-and-swap cannot help there, because both halves are the same device.
+  `importSnapshot` also runs under `withoutScheduling`, because `bulkPut` fires the `creating` hooks:
+  without it every pull armed a push of what it had just imported.
+
+A refused sync is a `SyncConflictError` and a persisted `SyncConflict` record, never a silent stop:
+the background push swallows the throw, so the banner in `MainLayout` and the card in Settings are
+what stop "sync quietly stopped working" from being the new failure. Resolution is the user's
+decision between two named copies (`resolveConflict`), because without row-level `updatedAt` and
+tombstones the app cannot merge and must not pretend to. That merge is the obvious next layer; until
+it exists, a conflict is a question, not an inference.
+
+
+**Row-level merge (`src/data/sync/merge/`)** — what makes two devices editing at once a non-event
+rather than a question. Refusing a destructive sync (above) stopped the silent deletions, but it could
+not *resolve* the common case: two devices adding different expenses do not contradict each other, and
+a user asked to pick a copy loses one of them either way. Merging is that case handled properly.
+
+The rule, in the two halves the user asked for. **Not overlapping: keep both** — a row only one side
+has survives, whichever side that is. **Overlapping: the latest change wins** — both edited one row,
+so there is no answer to derive, only a policy, and the later `updatedAt` is it. `MergeRows.ts` is
+that rule, pure and tested; everything else in the directory is plumbing.
+
+Row-level, not field-level, and deliberately: per-field timestamps would let two edits to *different
+fields of one asset* both survive, at the cost of a stamp per column on every table. Two people
+editing one record within moments is the rarest case here, and the cost would be paid on every row
+for ever.
+
+A delete is an **event with a time**, not a special case — which is the whole reason
+delete-versus-edit needs no rule of its own. `sideOf` reduces each side to "alive at T" or "deleted at
+T" and the same comparison settles it: a tombstone newer than the incoming row removes it, an edit
+newer than the tombstone brings the row back. `deleteSynced` is therefore the only way a synced row is
+deleted, and the tombstone is written in the delete's own transaction — a tombstone that a crash can
+lose is exactly the case that resurrects a row, and "it came back on its own" is a worse bug than the
+one merging fixes, because the user cannot tell it happened. `TOMBSTONE_RETENTION_DAYS` is a
+judgement, not a derivation: a tombstone is only safely droppable once every device has seen it, and
+the devices are anonymous to each other.
+
+Three things had to exist before any of it could work, and each is load-bearing:
+
+- **`uid`.** Dexie's `++id` counters are per-device, so two devices editing offline both mint asset
+  `7`, for different assets. Whole-snapshot replacement hid this because only one device's rows ever
+  survived; a merge keyed on `id` would silently fuse unrelated records. `uid` is the cross-device
+  identity — except for the two tables that have a real one already: `settings` is a singleton at a
+  fixed id (and therefore *always* overlapping, so only ever last-write-wins), and `currencyRates` is
+  keyed by `code`, where merging on uid would try to write two INR rows and abort the transaction on
+  the `&code` index.
+- **Foreign-key remapping.** An incoming `assetId: 7` means "the asset that is 7 *over there*". Every
+  reference is translated through the parent's identity, which is why `SYNCED_TABLES` is ordered
+  parents-first. A required reference that resolves to nothing means the parent was deleted elsewhere,
+  and the row is dropped rather than written pointing at nothing; an optional one is cleared, because
+  a transaction outlives the SIP that generated it.
+- **The lineage (`Snapshot.lineage`).** The one precondition for merging, and it cannot be inferred
+  from versions or timestamps: uids are minted per device, so two devices that upgraded independently
+  call the same asset by different uids. Merging across that would insert every one of the other
+  device's rows alongside this device's own — a *doubled* database, which is harder to recover from
+  than a replaced one. So a device merges only against the lineage it has adopted; a new one is minted
+  by whoever declares their rows canonical (`setupSync`, or resolving a conflict in this device's
+  favour), and everyone else replaces once before they can merge. Existing multi-device users
+  therefore see exactly one conflict prompt after upgrading, and the card says so.
+
+Sync metadata is **not on the domain interfaces**. `IAsset` describes an asset; when it was last
+written and what a second device calls it are facts about *syncing* one. The tables are typed
+`Synced<T>`, the Dexie hooks in `database.ts` maintain the columns so no repository can forget them,
+and nothing above the data layer knows they exist. Those hooks also read
+`AutoSyncService.isSuppressed()`, and that is not a convenience: the flag already means "not the user
+changing their mind", and such a write must not claim to be the latest change either. `updateValues()`
+runs on every launch, so bumping every asset's `updatedAt` would let *merely opening the app* outrank
+a real edit made on another device an hour earlier. It is also why `applyMerge` runs suppressed — an
+incoming row has to keep the time the other device wrote it, or it arrives dated "now" and wins for
+ever.
+
+`reconcile()` replaces push-on-change as what everything automatic calls: merge, then publish the
+result if the merge left this device ahead. That publish is still a compare-and-swap, so another
+device pushing mid-merge is answered by merging again (`MAX_RECONCILE_ATTEMPTS`) rather than by asking
+the user — simultaneous edits are precisely what merging exists to not ask about. Push and Pull remain
+as explicit overrides that replace one side wholesale, and the Settings caption says so.
+
+Three things a merge deliberately does *not* do, each because the simpler behaviour is also the
+better one. It files no recovery copy: the only rows it removes are ones another device deleted on
+purpose, and the app files no copy when the user deletes an asset on this device either — which is
+also what keeps `recovery.ts` to one retention number instead of a per-operation quota. It does not
+retry its own publishing push: that push is still a compare-and-swap, but a device that pushed during
+the merge has raised the same mergeable divergence again, so it is logged and left for the next
+reconcile rather than put in front of the user as a choice of copies (`recordConflict: false`). And it
+does not sweep local rows left pointing at a parent it removed — the case where this device added a
+transaction to an asset another device deleted. Such a row is unreachable through every query that
+goes via its parent, so it is dead weight rather than corruption, and scanning several tables for it
+on every merge cost more than the row does. Only *incoming* rows with an unresolvable required
+reference are dropped, because there is no local id to point them at.
+
+The one limit worth stating plainly: `updatedAt` comes from each device's own clock, so "latest" is
+only as good as the skew between them. A Lamport counter would fix the ordering and lose the ability
+to say *when*.
+
 **Testing:** Only complex domain logic (Vitest). Skip UI and repository tests. Schema migrations are covered too — they are pure and high-risk.
+
+Sync is the one exception, and deliberately: `MergeIntegration.test.ts` and `SyncE2E.test.ts` drive the
+real Dexie store (through `fake-indexeddb`) and the real `SyncService` against a fake backend as dumb
+as the real one. The rule is unit-testable and is unit-tested, but the failures that actually lose data
+live in the wiring — a hook that re-dates a row, a delete that leaves no tombstone, a foreign key
+trusted instead of translated — and none of them are visible to `tsc`, to the build, or to a test of a
+pure function. `SyncE2E` simulates two devices by capturing and restoring the store *and* the local
+sync state, which is all a device is as far as sync is concerned. It already earned its place: it
+caught `BackupService` restoring rows through an unsuppressed `bulkAdd`, which stamped every one with
+the time of the restore and would have had a just-recovered device silently overwrite newer edits on
+every other device.
+
+Note the trap it found, because it applies to every write that is not a user's edit. The metadata
+hooks fire for `bulkAdd`/`bulkPut` *and* for the `Collection.modify` calls that schema upgrades are
+made of, so any path replaying rows that already carry their own `updatedAt` must run inside
+`AutoSyncService.withoutScheduling` — a backup restore, a sync import, a merge, and every
+`version().upgrade()` handler, which is what the `migration()` wrapper in `database.ts` is for.
+Unwrapped, an upgrade dates every row with the moment the new build was installed, so *merely
+installing it* makes that device outrank every real edit on every other one, and `stampRowToV12`'s
+deliberate epoch never survives the write. `v12.upgrade.test.ts` opens a real v3 and a real v11 store
+and pins the whole chain, because the pure migration test cannot see what Dexie does to its output.
 
 ## Domain Model Summary
 

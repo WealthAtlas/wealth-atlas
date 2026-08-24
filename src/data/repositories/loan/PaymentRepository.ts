@@ -1,5 +1,6 @@
 import { IPayment } from '../../../domain/entities/loans/Payment';
 import { db } from '../../database';
+import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class PaymentRepository {
   async create(loanPayment: IPayment): Promise<IPayment> {
@@ -25,14 +26,24 @@ export class PaymentRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await db.payments.delete(id);
+    await deleteSynced('payments', [id]);
   }
 
   async deleteByLoanId(loanId: number): Promise<void> {
-    await db.payments.where({ loanId }).delete();
+    // Read then delete, rather than a collection delete: a tombstone needs each
+    // row's identity, which is only knowable before the row is gone.
+    const rows = await db.payments.where({ loanId }).toArray();
+    await deleteSynced(
+      'payments',
+      rows.map(row => row.id)
+    );
   }
 
   async deleteByEMIId(emiId: number): Promise<void> {
-    await db.payments.where({ emiId }).delete();
+    const rows = await db.payments.where({ emiId }).toArray();
+    await deleteSynced(
+      'payments',
+      rows.map(row => row.id)
+    );
   }
 }

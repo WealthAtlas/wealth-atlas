@@ -1,5 +1,6 @@
 import { IEMI } from '../../../domain/entities/loans/EMI';
 import { db } from '../../database';
+import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class EMIRepository {
   public async create(emi: IEMI): Promise<IEMI> {
@@ -19,10 +20,14 @@ export class EMIRepository {
   }
 
   public async delete(id: number): Promise<void> {
-    return db.emis.delete(id);
+    await deleteSynced('emis', [id]);
   }
 
   public async deleteByLoanId(loanId: number): Promise<void> {
-    await db.emis.where('loanId').equals(loanId).delete();
+    const rows = await db.emis.where('loanId').equals(loanId).toArray();
+    await deleteSynced(
+      'emis',
+      rows.map(row => row.id)
+    );
   }
 }

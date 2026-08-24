@@ -34,6 +34,7 @@ import { AiProviderSettingsContainer } from '@/app/containers/settings/AiProvide
 import { CurrencySettingsContainer } from '@/app/containers/settings/CurrencySettingsContainer';
 import { MemorySettingsContainer } from '@/app/containers/settings/MemorySettingsContainer';
 import { NewsProviderSettingsContainer } from '@/app/containers/settings/NewsProviderSettingsContainer';
+import { SyncConflictContainer } from '@/app/containers/sync/SyncConflictContainer';
 import { TargetAllocationSettingsContainer } from '@/app/containers/settings/TargetAllocationSettingsContainer';
 import { useState } from 'react';
 import { Logger } from '../../../domain/utils/Logger';
@@ -113,6 +114,12 @@ export function SettingsPage(props: SettingsPageProps) {
           Configure your preferences and sync.
         </Typography>
 
+        {/*
+          Above the sync controls, not below them: while a conflict stands, Push
+          and Pull are the two buttons the user must not reach for first.
+        */}
+        <SyncConflictContainer />
+
         <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
           <Stack spacing={2}>
             <Typography variant="h6">
@@ -191,15 +198,21 @@ export function SettingsPage(props: SettingsPageProps) {
                           </Stack>
 
                           {props.autoSyncStatus.syncConfigured && props.onForceSync && (
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<Sync />}
-                              onClick={props.onForceSync}
-                              sx={{ alignSelf: 'flex-start' }}
-                            >
-                              Force Sync Now
-                            </Button>
+                            <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<Sync />}
+                                onClick={props.onForceSync}
+                              >
+                                Sync Now
+                              </Button>
+                              <Typography variant="caption" color="text.secondary">
+                                Merges this device with the cloud: changes made in different places
+                                are kept, and where both changed the same record the more recent
+                                edit wins.
+                              </Typography>
+                            </Stack>
                           )}
                         </Stack>
                       )}
@@ -213,23 +226,29 @@ export function SettingsPage(props: SettingsPageProps) {
                   </Alert>
                 )}
 
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button
-                    variant="contained"
-                    startIcon={<CloudUpload />}
-                    onClick={() => props.onPush()}
-                    fullWidth
-                  >
-                    Push to Cloud
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<CloudDownload />}
-                    onClick={() => props.onPull()}
-                    fullWidth
-                  >
-                    Pull from Cloud
-                  </Button>
+                <Stack spacing={0.5}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <Button
+                      variant="contained"
+                      startIcon={<CloudUpload />}
+                      onClick={() => props.onPush()}
+                      fullWidth
+                    >
+                      Push to Cloud
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<CloudDownload />}
+                      onClick={() => props.onPull()}
+                      fullWidth
+                    >
+                      Pull from Cloud
+                    </Button>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    These replace one side with the other rather than merging, and stop to ask if
+                    that would discard anything. Sync Now above is the everyday action.
+                  </Typography>
                 </Stack>
 
                 {!props.hasStoredPassphrase && (
@@ -342,6 +361,11 @@ export function SettingsPage(props: SettingsPageProps) {
                       onChange={e => setPass(e.target.value)}
                       helperText="Enter the passphrase for your existing setup"
                     />
+                    <Alert severity="warning">
+                      Connecting replaces everything on this device with the data from that sync
+                      key. A recovery copy of this device is saved first, and you can download it
+                      from Settings afterwards.
+                    </Alert>
                     <Button
                       variant="contained"
                       startIcon={<Link />}

@@ -21,21 +21,42 @@ import { upgradeSnapshotDataToV8 } from '../migrations/v8';
 import { upgradeSnapshotDataToV9 } from '../migrations/v9';
 import { upgradeSnapshotDataToV10 } from '../migrations/v10';
 import { upgradeSnapshotDataToV11 } from '../migrations/v11';
+import { upgradeSnapshotDataToV12 } from '../migrations/v12';
 import { IMemory } from '@/domain/entities/memory/Memory';
+import type { IDeletion } from './merge/SyncMeta';
 import { hydrateAiProviderSettings } from '../llm/state';
 import { emitDatabaseReplaced } from '../databaseEvents';
+import { BackupData } from '@/domain/services/BackupService';
 import { buildSyncApiUrl } from './config';
-import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import {
+  clearSyncConflict,
+  decidePull,
+  decidePush,
+  getSyncConflict,
+  setSyncConflict,
+  SyncConflict,
+  SyncConflictError,
+  SyncDirection,
+} from './conflict';
+import { CryptoMeta, decryptJson, encryptJson } from './crypto';
+import { applyMerge } from './merge/ApplyMerge';
+import type { MergeableRow } from './merge/MergeRows';
+import { newUid } from './merge/SyncMeta';
+import { preserveCloud, preserveDevice } from './recovery';
+import {
+  clearPendingChange,
   getAutoSyncEnabled,
   getKeyId,
   getLastRemoteVersion,
   getLastSyncAt,
+  getMergeLineage,
   getPassphrase,
+  getPendingChangeSince,
   setAutoSyncEnabled,
   setKeyId,
   setLastRemoteVersion,
   setLastSyncAt,
+  setMergeLineage,
   setPassphrase,
 } from './state';
 import { RemoteDataResponse, Snapshot, SyncStatus } from './types';
@@ -114,8 +135,13 @@ async function fetchRemoteVersion(keyId: string): Promise<number | undefined> {
  * v16: the `memories` table — what the assistant remembers about the user — plus
  *     settings.memory, the switch that governs it. An older snapshot has no such
  *     key, and gains an empty memory with the feature on.
+ * v17: row-level merge. Every row carries `uid` and `updatedAt`, the `deletions`
+ *     table carries tombstones, and the snapshot carries a `lineage`. An older
+ *     snapshot is stamped on the way in — with uids minted *here*, which is
+ *     exactly why it has no lineage and cannot be merged against until some
+ *     device has published one.
  */
-const SNAPSHOT_VERSION = 16;
+const SNAPSHOT_VERSION = 17;
 const OLDEST_SUPPORTED_SNAPSHOT_VERSION = 8;
 
 function getSchemaVersion(): number {
@@ -172,6 +198,9 @@ function upgradeSnapshot(snapshot: Snapshot): Snapshot {
   if (snapshot.schemaVersion < 16) {
     upgradeSnapshotDataToV11(data);
   }
+  if (snapshot.schemaVersion < 17) {
+    upgradeSnapshotDataToV12(data);
+  }
   Logger.info(`Upgraded sync snapshot from v${snapshot.schemaVersion} to v${SNAPSHOT_VERSION}`);
   return { ...snapshot, schemaVersion: SNAPSHOT_VERSION };
 }
@@ -199,6 +228,7 @@ async function exportSnapshot(): Promise<Snapshot> {
     currencyRates,
     decisions,
     memories,
+    deletions,
   ] = await Promise.all([
     db.assets.toArray(),
     db.investments.toArray(),
@@ -213,9 +243,14 @@ async function exportSnapshot(): Promise<Snapshot> {
     db.currencyRates.toArray(),
     db.decisions.toArray(),
     db.memories.toArray(),
+    db.deletions.toArray(),
   ]);
   return {
     schemaVersion: getSchemaVersion(),
+    // Carried forward, not minted: a push that is publishing this device's
+    // merged result must stay in the lineage it merged against, or every other
+    // device would drop back to replacing.
+    lineage: getMergeLineage(),
     data: {
       assets,
       investments,
@@ -230,77 +265,182 @@ async function exportSnapshot(): Promise<Snapshot> {
       currencyRates,
       decisions,
       memories,
+      deletions,
     },
   };
+}
+
+/**
+ * Whether this device holds records of its own.
+ *
+ * `settings` and `currencyRates` are deliberately not counted: a migration
+ * creates them on first run, so counting them would make every device look
+ * occupied and the check would never say no.
+ */
+async function hasLocalData(): Promise<boolean> {
+  const counts = await Promise.all([
+    db.assets.count(),
+    db.investments.count(),
+    db.sips.count(),
+    db.expenses.count(),
+    db.loans.count(),
+    db.goals.count(),
+    db.decisions.count(),
+    db.memories.count(),
+  ]);
+  return counts.some(count => count > 0);
+}
+
+/**
+ * Reads the remote version, whatever the backend supports.
+ *
+ * A push must know what it is overwriting, and `fetchRemoteVersion` answers
+ * `undefined` for "could not tell" — which for a poll means "check the slow way"
+ * and for a push must never mean "go ahead". Downloading the blob to read one
+ * number beside it is the price of not overwriting blindly, and it is only paid
+ * on backends predating the /version route.
+ */
+async function requireRemoteVersion(keyId: string): Promise<number> {
+  const probed = await fetchRemoteVersion(keyId);
+  if (probed !== undefined) return probed;
+  const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+  return resp.version;
+}
+
+/**
+ * Runs remote operations one at a time.
+ *
+ * Pull and push were free to interleave, and did: the periodic poll fires on a
+ * timer, on `visibilitychange` and on `online`, any of which could land inside
+ * the push debounce. A pull would clear every table and the push already in
+ * flight would then upload what the pull had just written — or worse, upload the
+ * pre-pull export over the newer remote. Compare-and-swap cannot help there,
+ * because both halves are this same device. Serialising is what settles it.
+ */
+let sequence: Promise<unknown> = Promise.resolve();
+
+function runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+  const result = sequence.then(() => operation());
+  // The chain itself must never carry a rejection forward, or one failed sync
+  // would fail every later one.
+  sequence = result.then(
+    () => undefined,
+    () => undefined
+  );
+  return result;
+}
+
+function raiseConflict(
+  direction: SyncDirection,
+  baseVersion: number | undefined,
+  remoteVersion: number
+): never {
+  const conflict: SyncConflict = {
+    direction,
+    baseVersion,
+    remoteVersion,
+    pendingSince: getPendingChangeSince(),
+    detectedAt: new Date().toISOString(),
+  };
+  setSyncConflict(conflict);
+  Logger.warn(
+    `Sync ${direction} refused: local base v${baseVersion ?? '?'} against remote v${remoteVersion}`
+  );
+  throw new SyncConflictError(conflict);
 }
 
 async function importSnapshot(incoming: Snapshot): Promise<void> {
   const snapshot = upgradeSnapshot(incoming);
   rehydrateSnapshot(snapshot);
-  await db.transaction(
-    'rw',
-    [
-      db.assets,
-      db.investments,
-      db.sips,
-      db.expenses,
-      db.loans,
-      db.emis,
-      db.payments,
-      db.goals,
-      db.allocations,
-      db.settings,
-      db.currencyRates,
-      db.decisions,
-      db.memories,
-    ],
-    async () => {
-      await Promise.all([
-        db.memories.clear(),
-        db.decisions.clear(),
-        db.currencyRates.clear(),
-        db.settings.clear(),
-        db.allocations.clear(),
-        db.goals.clear(),
-        db.payments.clear(),
-        db.emis.clear(),
-        db.loans.clear(),
-        db.expenses.clear(),
-        db.sips.clear(),
-        db.investments.clear(),
-        db.assets.clear(),
-      ]);
-      const d = snapshot.data as {
-        assets?: IAsset[];
-        investments?: IInvestment[];
-        sips?: ISIP[];
-        expenses?: IExpense[];
-        loans?: ILoan[];
-        emis?: IEMI[];
-        payments?: IPayment[];
-        goals?: IGoal[];
-        allocations?: IAllocation[];
-        settings?: ISettings[];
-        currencyRates?: ICurrencyRate[];
-        decisions?: IDecisionEntry[];
-        memories?: IMemory[];
-      };
-      // Order respects dependencies
-      await db.assets.bulkPut(d.assets || []);
-      await db.investments.bulkPut(d.investments || []);
-      await db.sips.bulkPut(d.sips || []);
-      await db.expenses.bulkPut(d.expenses || []);
-      await db.loans.bulkPut(d.loans || []);
-      await db.emis.bulkPut(d.emis || []);
-      await db.payments.bulkPut(d.payments || []);
-      await db.goals.bulkPut(d.goals || []);
-      await db.allocations.bulkPut(d.allocations || []);
-      await db.settings.bulkPut(d.settings || []);
-      await db.currencyRates.bulkPut(d.currencyRates || []);
-      await db.decisions.bulkPut(d.decisions || []);
-      await db.memories.bulkPut(d.memories || []);
-    }
+
+  // Suppressed, because `bulkPut` fires the `creating` hooks: without this every
+  // pull armed a push of what it had just imported, and left the device looking
+  // as though it had unpushed edits of its own.
+  const { AutoSyncService } = await import('./AutoSyncService');
+  await AutoSyncService.withoutScheduling(() =>
+    db.transaction(
+      'rw',
+      [
+        db.assets,
+        db.investments,
+        db.sips,
+        db.expenses,
+        db.loans,
+        db.emis,
+        db.payments,
+        db.goals,
+        db.allocations,
+        db.settings,
+        db.currencyRates,
+        db.decisions,
+        db.memories,
+        db.deletions,
+      ],
+      async () => {
+        await Promise.all([
+          db.deletions.clear(),
+          db.memories.clear(),
+          db.decisions.clear(),
+          db.currencyRates.clear(),
+          db.settings.clear(),
+          db.allocations.clear(),
+          db.goals.clear(),
+          db.payments.clear(),
+          db.emis.clear(),
+          db.loans.clear(),
+          db.expenses.clear(),
+          db.sips.clear(),
+          db.investments.clear(),
+          db.assets.clear(),
+        ]);
+        const d = snapshot.data as {
+          assets?: IAsset[];
+          investments?: IInvestment[];
+          sips?: ISIP[];
+          expenses?: IExpense[];
+          loans?: ILoan[];
+          emis?: IEMI[];
+          payments?: IPayment[];
+          goals?: IGoal[];
+          allocations?: IAllocation[];
+          settings?: ISettings[];
+          currencyRates?: ICurrencyRate[];
+          decisions?: IDecisionEntry[];
+          memories?: IMemory[];
+          deletions?: IDeletion[];
+        };
+        // Order respects dependencies
+        await db.assets.bulkPut(d.assets || []);
+        await db.investments.bulkPut(d.investments || []);
+        await db.sips.bulkPut(d.sips || []);
+        await db.expenses.bulkPut(d.expenses || []);
+        await db.loans.bulkPut(d.loans || []);
+        await db.emis.bulkPut(d.emis || []);
+        await db.payments.bulkPut(d.payments || []);
+        await db.goals.bulkPut(d.goals || []);
+        await db.allocations.bulkPut(d.allocations || []);
+        await db.settings.bulkPut(d.settings || []);
+        await db.currencyRates.bulkPut(d.currencyRates || []);
+        await db.decisions.bulkPut(d.decisions || []);
+        await db.memories.bulkPut(d.memories || []);
+        await db.deletions.bulkPut(d.deletions || []);
+      }
+    )
   );
+
+  // Every local row is now the remote's, so there is nothing unpushed and
+  // nothing left to disagree about.
+  clearPendingChange();
+  clearSyncConflict();
+
+  // This device now holds the snapshot's rows, so it is in the snapshot's uid
+  // space and may merge against it. A snapshot from before merging existed has
+  // no lineage to adopt: its uids were minted here a moment ago by
+  // `upgradeSnapshot`, so a second device doing the same would mint different
+  // ones. One is recorded anyway, and published by this device's next push —
+  // whoever publishes first defines the lineage and the others replace once
+  // more before they can merge.
+  setMergeLineage(snapshot.lineage ?? newUid());
 
   // The pulled row carries the AI provider configuration, and it is read from a
   // synchronous cache — refill it or this device keeps talking to the provider
@@ -312,6 +452,235 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
   emitDatabaseReplaced();
 }
 
+/**
+ * Presents a snapshot's rows as a backup file's rows, for filing a copy of
+ * whatever is about to be discarded.
+ */
+function backupRowsFromSnapshot(snapshot: Snapshot): BackupData['data'] {
+  let data = snapshot.data;
+  try {
+    data = upgradeSnapshot(snapshot).data;
+  } catch (error) {
+    // A snapshot written by a newer build cannot be brought to this shape. It is
+    // filed unmodified anyway: a rescue file this app cannot restore still holds
+    // the rows, and discarding it is the one outcome that leaves nothing.
+    Logger.warn('Filing the cloud snapshot without upgrading it:', error);
+  }
+  return data as unknown as BackupData['data'];
+}
+
+async function pushSnapshot(
+  passphrase: string | undefined,
+  options: { force: boolean; recordConflict?: boolean }
+): Promise<{ version: number }> {
+  const keyId = getKeyId();
+  if (!keyId) throw new Error('Sync not set up');
+
+  const actualPassphrase = passphrase || getPassphrase();
+  if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
+
+  const baseVersion = getLastRemoteVersion();
+
+  // The compare-and-swap the API cannot do for us: its PUT takes no expected
+  // version, so the check is made here, as late as possible before the write.
+  // Forced only by a conflict the user has resolved in this device's favour.
+  if (!options.force) {
+    const remoteVersion = await requireRemoteVersion(keyId);
+    if (decidePush({ baseVersion, remoteVersion }) === 'conflict') {
+      if (options.recordConflict === false) {
+        throw new Error(
+          'The cloud changed while this device was syncing. Nothing was written; ' +
+            'the next sync will merge it.'
+        );
+      }
+      raiseConflict('push', baseVersion, remoteVersion);
+    }
+  }
+
+  const snapshot = await exportSnapshot();
+  const { payload, meta } = await encryptJson(snapshot, actualPassphrase, snapshot.schemaVersion);
+  const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ payload, meta }),
+  });
+  setLastRemoteVersion(resp.version);
+  setLastSyncAt(new Date().toISOString());
+  // Only a completed push clears this. A failed one leaves the device marked as
+  // holding work the cloud has not seen, which is what stops the next pull.
+  clearPendingChange();
+  clearSyncConflict();
+
+  // Store passphrase if auto-sync is enabled and passphrase was provided manually
+  if (getAutoSyncEnabled() && passphrase && !getPassphrase()) {
+    setPassphrase(passphrase);
+  }
+
+  return { version: resp.version };
+}
+
+/**
+ * Replaces every local table with a snapshot's rows.
+ *
+ * The pre-merge behaviour, still needed for the cases a merge cannot cover: a
+ * snapshot from another uid lineage, and a conflict the user has settled in the
+ * cloud's favour. It is refused outright while this device holds work the cloud
+ * has never seen, because the import is a whole-database wipe.
+ */
+async function replaceFromSnapshot(
+  snapshot: Snapshot,
+  version: number,
+  baseVersion: number | undefined,
+  options: { force: boolean; reason: 'pull' | 'take-remote' | 'link' }
+): Promise<{ version: number | null }> {
+  if (!options.force) {
+    const decision = decidePull({
+      baseVersion,
+      remoteVersion: version,
+      hasUnpushedChanges: Boolean(getPendingChangeSince()),
+    });
+    if (decision === 'skip') return { version: null };
+    if (decision === 'conflict') raiseConflict('pull', baseVersion, version);
+  }
+
+  // The copy that is losing, kept before the wipe. Throws rather than proceeding
+  // if it cannot be written — a wipe with no net is the thing this exists to
+  // prevent. Skipped only when there is provably nothing to keep, so a fresh
+  // device's first pull cannot fill the store with empty files.
+  if (await hasLocalData()) await preserveDevice(options.reason);
+
+  await importSnapshot(snapshot);
+  setLastRemoteVersion(version);
+  setLastSyncAt(new Date().toISOString());
+  return { version };
+}
+
+async function pullSnapshot(
+  passphrase: string | undefined,
+  options: { force: boolean }
+): Promise<{ version: number | null }> {
+  const keyId = getKeyId();
+  if (!keyId) throw new Error('Sync not set up');
+
+  const actualPassphrase = passphrase || getPassphrase();
+  if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
+
+  const baseVersion = getLastRemoteVersion();
+  const last = baseVersion ?? 0;
+
+  // The overwhelmingly common outcome of a poll is "nothing changed", so settle
+  // that against a few bytes instead of downloading the whole snapshot.
+  const remoteVersion = await fetchRemoteVersion(keyId);
+  if (remoteVersion !== undefined && remoteVersion <= last) return { version: null };
+
+  const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+  // Re-checked against the payload's own version: the pointer can sit one
+  // ahead of the blob after an interrupted push.
+  if (resp.version <= last) return { version: null };
+
+  // Decrypted before anything is filed or cleared: a wrong passphrase must cost
+  // nothing but the request.
+  const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
+
+  const result = await replaceFromSnapshot(snapshot, resp.version, baseVersion, {
+    force: options.force,
+    reason: options.force ? 'take-remote' : 'pull',
+  });
+
+  // Store passphrase if auto-sync is enabled and passphrase was provided manually
+  if (getAutoSyncEnabled() && passphrase && !getPassphrase()) {
+    setPassphrase(passphrase);
+  }
+
+  return result;
+}
+
+/**
+ * Whether an incoming snapshot's rows are in the same uid space as this
+ * device's.
+ *
+ * The one precondition for merging, and it cannot be inferred from timestamps or
+ * versions: uids are minted per device, so a snapshot from a lineage this device
+ * has not adopted names the same asset by a different uid. Merging that would
+ * insert every one of the other device's rows alongside this device's own — a
+ * duplicated database, which is harder to recover from than a replaced one.
+ */
+function mergeAllowed(snapshot: Snapshot): boolean {
+  const lineage = getMergeLineage();
+  return Boolean(lineage) && snapshot.lineage === lineage;
+}
+
+/**
+ * One pass of: take what the cloud has, keep both sides where they do not
+ * overlap, take the later change where they do, then publish the result.
+ */
+async function reconcileOnce(passphrase: string | undefined): Promise<{ version: number | null }> {
+  const keyId = getKeyId();
+  if (!keyId) throw new Error('Sync not set up');
+
+  const actualPassphrase = passphrase || getPassphrase();
+  if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
+
+  const baseVersion = getLastRemoteVersion();
+  const last = baseVersion ?? 0;
+  const pending = Boolean(getPendingChangeSince());
+
+  // Nothing has changed on either side: settle it against a few bytes.
+  const probed = await fetchRemoteVersion(keyId);
+  if (probed !== undefined && probed <= last && !pending) return { version: null };
+
+  const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+
+  if (resp.version <= last) {
+    // The cloud is where we left it, so there is nothing to merge — only our own
+    // work to publish, under the usual compare-and-swap.
+    if (!pending) return { version: null };
+    return pushSnapshot(actualPassphrase, { force: false });
+  }
+
+  const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
+
+  if (!mergeAllowed(snapshot)) {
+    // Not the same uid space. Fall back to replacing, which is refused outright
+    // if this device holds work the cloud has never seen — the user picks a copy,
+    // and that choice is what establishes a shared lineage to merge against from
+    // then on.
+    Logger.info('Snapshot is from another lineage; replacing rather than merging');
+    return replaceFromSnapshot(snapshot, resp.version, baseVersion, {
+      force: false,
+      reason: 'pull',
+    });
+  }
+
+  const upgraded = upgradeSnapshot(snapshot);
+  rehydrateSnapshot(upgraded);
+
+  const report = await applyMerge(upgraded.data as unknown as Record<string, MergeableRow[]>);
+
+  setLastRemoteVersion(resp.version);
+  setLastSyncAt(new Date().toISOString());
+  await hydrateAiProviderSettings();
+  emitDatabaseReplaced();
+
+  // Store passphrase if auto-sync is enabled and passphrase was provided manually
+  if (getAutoSyncEnabled() && passphrase && !getPassphrase()) {
+    setPassphrase(passphrase);
+  }
+
+  if (!report.localAhead) {
+    // The cloud already holds everything this device does.
+    clearPendingChange();
+    clearSyncConflict();
+    return { version: resp.version };
+  }
+
+  // Publishing the merged result. `recordConflict: false` because a device that
+  // pushed while we were merging has not created a question: its changes are the
+  // same mergeable divergence again, and the next reconcile settles them. Raising
+  // a conflict here would put a banner in front of the user asking them to choose
+  // a copy, for something that resolves itself.
+  return pushSnapshot(actualPassphrase, { force: false, recordConflict: false });
+}
+
 export class SyncService {
   static getStatus(): SyncStatus {
     return {
@@ -321,6 +690,8 @@ export class SyncService {
       lastSyncAt: getLastSyncAt(),
       autoSyncEnabled: getAutoSyncEnabled(),
       hasStoredPassphrase: Boolean(getPassphrase()),
+      pendingChangeSince: getPendingChangeSince(),
+      conflict: getSyncConflict(),
     };
   }
 
@@ -328,109 +699,165 @@ export class SyncService {
     passphrase: string,
     enableAutoSync = false
   ): Promise<{ keyId: string; version: number }> {
-    const snapshot = await exportSnapshot();
-    const { payload, meta } = await encryptJson(snapshot, passphrase, snapshot.schemaVersion);
-    const resp = await api<RemoteDataResponse<CryptoMeta>>('/data', {
-      method: 'POST',
-      body: JSON.stringify({ payload, meta }),
+    return runExclusive(async () => {
+      // A new lineage: this device's uids are the ones every other device will
+      // adopt, and it has to be minted before the snapshot is built so the
+      // snapshot carries it.
+      setMergeLineage(newUid());
+      const snapshot = await exportSnapshot();
+      const { payload, meta } = await encryptJson(snapshot, passphrase, snapshot.schemaVersion);
+      const resp = await api<RemoteDataResponse<CryptoMeta>>('/data', {
+        method: 'POST',
+        body: JSON.stringify({ payload, meta }),
+      });
+      setKeyId(resp.keyId);
+      setLastRemoteVersion(resp.version);
+      setLastSyncAt(new Date().toISOString());
+      // The cloud now holds exactly this device, whatever it was marked as
+      // owing before it was linked.
+      clearPendingChange();
+      clearSyncConflict();
+
+      if (enableAutoSync) {
+        setPassphrase(passphrase);
+        setAutoSyncEnabled(true);
+      }
+
+      return { keyId: resp.keyId, version: resp.version };
     });
-    setKeyId(resp.keyId);
-    setLastRemoteVersion(resp.version);
-    setLastSyncAt(new Date().toISOString());
-
-    if (enableAutoSync) {
-      setPassphrase(passphrase);
-      setAutoSyncEnabled(true);
-    }
-
-    return { keyId: resp.keyId, version: resp.version };
   }
 
+  /**
+   * Adopts an existing sync key, replacing this device with the cloud's copy.
+   *
+   * Unconditionally destructive by design — that is what linking means — so the
+   * device is filed first when it holds records of its own. `SettingsPage` says
+   * so before calling this; the recovery copy is what makes the sentence true.
+   */
   static async linkSync(keyId: string, passphrase: string, enableAutoSync = false): Promise<void> {
-    const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
-    const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, passphrase);
-    await importSnapshot(snapshot);
-    setKeyId(resp.keyId);
-    setLastRemoteVersion(resp.version);
-    setLastSyncAt(new Date().toISOString());
+    return runExclusive(async () => {
+      const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+      const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, passphrase);
+      // Forced: adopting someone else's key is a deliberate replacement, and the
+      // recovery copy is what makes that recoverable.
+      await replaceFromSnapshot(snapshot, resp.version, undefined, {
+        force: true,
+        reason: 'link',
+      });
+      setKeyId(resp.keyId);
 
-    if (enableAutoSync) {
-      setPassphrase(passphrase);
-      setAutoSyncEnabled(true);
-    }
+      if (enableAutoSync) {
+        setPassphrase(passphrase);
+        setAutoSyncEnabled(true);
+      }
+    });
   }
 
+  /**
+   * Brings this device and the cloud into step, merging where it can.
+   *
+   * The operation everything automatic now uses. Where the two sides changed
+   * different rows both survive; where they changed the same row the later change
+   * wins; and only what a merge genuinely cannot settle — a snapshot from another
+   * uid lineage — still comes back to the user as a question.
+   */
+  static async reconcile(passphrase?: string): Promise<{ version: number | null }> {
+    return runExclusive(() => reconcileOnce(passphrase));
+  }
+
+  /**
+   * Replaces this device with the cloud's copy, refusing while this device holds
+   * anything unpushed. Kept as an explicit override; `reconcile` is what runs by
+   * itself.
+   */
   static async pull(passphrase?: string): Promise<{ version: number | null }> {
-    const keyId = getKeyId();
-    if (!keyId) throw new Error('Sync not set up');
-
-    const actualPassphrase = passphrase || getPassphrase();
-    if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
-
-    const last = getLastRemoteVersion() ?? 0;
-
-    // The overwhelmingly common outcome of a poll is "nothing changed", so settle
-    // that against a few bytes instead of downloading the whole snapshot.
-    const remoteVersion = await fetchRemoteVersion(keyId);
-    if (remoteVersion !== undefined && remoteVersion <= last) return { version: null };
-
-    const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
-    // Re-checked against the payload's own version: the pointer can sit one
-    // ahead of the blob after an interrupted push.
-    if (resp.version <= last) return { version: null };
-    const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
-    await importSnapshot(snapshot);
-    setLastRemoteVersion(resp.version);
-    setLastSyncAt(new Date().toISOString());
-
-    // Store passphrase if auto-sync is enabled and passphrase was provided manually
-    if (getAutoSyncEnabled() && passphrase && !getPassphrase()) {
-      setPassphrase(passphrase);
-    }
-
-    return { version: resp.version };
+    return runExclusive(() => pullSnapshot(passphrase, { force: false }));
   }
 
   static async push(passphrase?: string): Promise<{ version: number }> {
-    const keyId = getKeyId();
-    if (!keyId) throw new Error('Sync not set up');
+    return runExclusive(() => pushSnapshot(passphrase, { force: false }));
+  }
 
-    const actualPassphrase = passphrase || getPassphrase();
-    if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
+  /**
+   * Settles a refused sync the only way it can be settled without row-level
+   * merge metadata: the user says which copy is the one to keep, and the other
+   * is filed as a recovery copy rather than dropped.
+   */
+  static async resolveConflict(
+    resolution: 'keep-local' | 'take-remote',
+    passphrase?: string
+  ): Promise<void> {
+    return runExclusive(async () => {
+      const conflict = getSyncConflict();
+      if (!conflict) return;
 
-    const snapshot = await exportSnapshot();
-    const { payload, meta } = await encryptJson(snapshot, actualPassphrase, snapshot.schemaVersion);
-    const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`, {
-      method: 'PUT',
-      body: JSON.stringify({ payload, meta }),
+      if (resolution === 'take-remote') {
+        await pullSnapshot(passphrase, { force: true });
+        return;
+      }
+
+      const keyId = getKeyId();
+      if (!keyId) throw new Error('Sync not set up');
+      const actualPassphrase = passphrase || getPassphrase();
+      if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
+
+      // The cloud copy is about to be overwritten, and it is the other device's
+      // work. Best effort: that device still holds it, and a failure here must
+      // not leave this one unable to sync at all.
+      try {
+        const resp = await api<RemoteDataResponse<CryptoMeta>>(
+          `/data/${encodeURIComponent(keyId)}`
+        );
+        const remote = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
+        await preserveCloud(backupRowsFromSnapshot(remote));
+      } catch (error) {
+        Logger.warn('Could not read the cloud snapshot before overwriting it:', error);
+      }
+
+      // A new lineage, because this device's rows are being declared canonical
+      // and its uids are not the cloud's. Every other device will see a lineage
+      // it has not adopted and replace once, rather than merging two uid spaces
+      // into a doubled database.
+      setMergeLineage(newUid());
+      await pushSnapshot(actualPassphrase, { force: true });
     });
-    setLastRemoteVersion(resp.version);
-    setLastSyncAt(new Date().toISOString());
+  }
 
-    // Store passphrase if auto-sync is enabled and passphrase was provided manually
-    if (getAutoSyncEnabled() && passphrase && !getPassphrase()) {
-      setPassphrase(passphrase);
-    }
-
-    return { version: resp.version };
+  /** Drops the conflict without syncing, leaving both copies where they are. */
+  static dismissConflict(): void {
+    clearSyncConflict();
   }
 
   static async changePassphrase(oldPass: string, newPass: string): Promise<void> {
-    const keyId = getKeyId();
-    if (!keyId) throw new Error('Sync not set up');
-    const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
-    const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, oldPass);
-    const { payload, meta } = await encryptJson(snapshot, newPass, snapshot.schemaVersion);
-    await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`, {
-      method: 'PUT',
-      body: JSON.stringify({ payload, meta }),
-    });
-    setLastSyncAt(new Date().toISOString());
+    return runExclusive(async () => {
+      const keyId = getKeyId();
+      if (!keyId) throw new Error('Sync not set up');
+      const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+      const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, oldPass);
+      const { payload, meta } = await encryptJson(snapshot, newPass, snapshot.schemaVersion);
 
-    // Update stored passphrase if auto-sync is enabled
-    if (getAutoSyncEnabled()) {
-      setPassphrase(newPass);
-    }
+      // Re-encrypting writes the snapshot back, so a device that pushed while we
+      // were working would be overwritten by its own older data. Checked as late
+      // as possible; the residual window is the request itself.
+      const current = await requireRemoteVersion(keyId);
+      if (current !== resp.version) {
+        throw new Error(
+          'Another device changed the cloud data while the passphrase was being changed. ' +
+            'Nothing was written — try again.'
+        );
+      }
+
+      await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ payload, meta }),
+      });
+      setLastSyncAt(new Date().toISOString());
+
+      // Update stored passphrase if auto-sync is enabled
+      if (getAutoSyncEnabled()) {
+        setPassphrase(newPass);
+      }
+    });
   }
 
   static async unlink(): Promise<void> {
@@ -439,6 +866,13 @@ export class SyncService {
     setLastSyncAt(undefined);
     setPassphrase(undefined);
     setAutoSyncEnabled(false);
+    // Nothing to be out of step with any more, and a stale conflict would keep
+    // asking the user to resolve against a key this device no longer has.
+    clearPendingChange();
+    clearSyncConflict();
+    // The lineage belonged to that key. Kept, it would authorise merging against
+    // whatever the next key happens to hold.
+    setMergeLineage(undefined);
   }
 
   static setAutoSyncEnabled(enabled: boolean): void {
@@ -467,8 +901,14 @@ export class SyncService {
     }
 
     try {
-      return await this.pull();
+      return await this.reconcile();
     } catch (error) {
+      // A conflict is not a failure to retry: it is recorded, the banner is
+      // showing it, and the user's answer is the only thing that clears it.
+      if (error instanceof SyncConflictError) {
+        Logger.warn('Auto-sync stopped: this device and the cloud have both changed');
+        return { version: null };
+      }
       // Log error but don't throw - auto-sync should be non-intrusive
       Logger.warn('Auto-sync failed:', error);
       return { version: null };

@@ -1,4 +1,5 @@
 import { db } from '@/data/database';
+import { deleteSynced } from '@/data/sync/merge/Tombstones';
 import { Currency } from '@/domain/entities/shared/Currency';
 import { ICurrencyRate } from '@/domain/entities/shared/CurrencyRate';
 
@@ -20,11 +21,17 @@ export class CurrencyRateRepository {
   }
 
   public async delete(id: number): Promise<void> {
-    await db.currencyRates.delete(id);
+    await deleteSynced('currencyRates', [id]);
   }
 
   /** Used when the base currency changes and every stored rate loses its meaning. */
   public async clearAll(): Promise<void> {
-    await db.currencyRates.clear();
+    // Not `clear()`: a wholesale wipe records nothing, so every other device
+    // would merge its own rates straight back in.
+    const rows = await db.currencyRates.toArray();
+    await deleteSynced(
+      'currencyRates',
+      rows.map(row => row.id)
+    );
   }
 }
