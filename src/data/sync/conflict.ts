@@ -21,8 +21,22 @@ import { Logger } from '@/domain/utils/Logger';
 
 export type SyncDirection = 'push' | 'pull';
 
+/**
+ * What kind of refused sync this is, and therefore whether the user has a
+ * decision to make at all.
+ *
+ * `diverged` is the original: both copies moved, neither can be inferred away,
+ * and the user picks one. `downgrade` is not a divergence and has no such
+ * choice — the cloud blob was overwritten by a device running an earlier build,
+ * and both destructive answers are wrong. Absent on records written before this
+ * existed, which are all `diverged`.
+ */
+export type SyncConflictKind = 'diverged' | 'downgrade';
+
 /** A divergence that was refused. Held until the user resolves it. */
 export interface SyncConflict {
+  /** Absent on records persisted before the kind existed; read as `diverged`. */
+  kind?: SyncConflictKind;
   /** The operation that was refused. */
   direction: SyncDirection;
   /** The remote version this device's data is based on. */
@@ -32,6 +46,15 @@ export interface SyncConflict {
   /** When this device first changed something it has not pushed. */
   pendingSince?: string;
   detectedAt: string;
+  /** `downgrade` only: the snapshot schema version the cloud now holds. */
+  snapshotVersion?: number;
+  /** `downgrade` only: the version this device had already read from this key. */
+  expectedSnapshotVersion?: number;
+}
+
+/** A conflict record's kind, defaulted for records written before it existed. */
+export function conflictKind(conflict: SyncConflict): SyncConflictKind {
+  return conflict.kind ?? 'diverged';
 }
 
 export type PushDecision = 'push' | 'conflict';
@@ -87,6 +110,29 @@ export class SyncConflictError extends Error {
             'Resolve the conflict in Settings.'
     );
     this.name = 'SyncConflictError';
+  }
+}
+
+/**
+ * Raised when the cloud blob has been replaced by an older build of the app.
+ *
+ * Not a conflict to resolve, which is why it is its own error: neither answer
+ * the conflict card offers is right. Taking the cloud copy absorbs a snapshot
+ * that has already lost everything the older build does not know about — every
+ * tombstone, so deleted rows come back, and the lineage, so every device drops
+ * from merging to replacing. Overwriting it from here leaves the older device
+ * unable to read what it finds and pushing the same downgrade again on its next
+ * edit. The only fix is on the other device, so the app says so and stops.
+ */
+export class SyncDowngradeError extends Error {
+  constructor(readonly conflict: SyncConflict) {
+    super(
+      'The cloud copy was last written by an older version of Wealth Atlas ' +
+        `(snapshot v${conflict.snapshotVersion} where this device has already read ` +
+        `v${conflict.expectedSnapshotVersion}). Sync is paused until that device is updated. ` +
+        'Nothing on this device has been changed or deleted.'
+    );
+    this.name = 'SyncDowngradeError';
   }
 }
 

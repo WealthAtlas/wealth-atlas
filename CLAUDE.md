@@ -58,7 +58,7 @@ Wealth Atlas is a local-first React 18 PWA for personal wealth tracking. Stack: 
 - Rows arriving via JSON (backup, sync snapshot) must go through `rehydrateSnapshotDates` before being written; otherwise Date columns land as strings.
 - Every preference the Settings page edits lives in the `settings` singleton (`ISettings`), so it travels through sync and backup: base currency, the currency list (rates in `currencyRates`), and the AI provider config (`settings.ai`). Only the sync identity itself is device-local — key id, passphrase, auto-sync toggle in `src/data/sync/state.ts`. `settings.ai.apiKey` is the one exception to symmetry: it rides the encrypted sync snapshot but `BackupService` strips it from the export, because that file is plaintext on the user's disk.
 - `src/data/llm/state.ts` reads `settings.ai` from a synchronous in-memory cache filled in Dexie's `ready` handler. Any code path that replaces the settings row (sync pull, backup restore) must call `hydrateAiProviderSettings()` afterwards.
-- `AutoSyncService.startListening()` hooks a hardcoded table list. A new table has to be added there too, or edits to it never wake a push. Wrap a write that is a migration rather than a user decision in `AutoSyncService.withoutScheduling` so it does not race the device's own first pull.
+- `AutoSyncService.startListening()` hooks a hardcoded table list. A new table has to be added there too, or edits to it never wake a push. Wrap a write that is a migration rather than a user decision in `AutoSyncService.withoutScheduling` so it does not race the device's own first pull. Keep that wrapper around **writes, never around waiting**: suppression is a process-wide depth counter, not something scoped to the work that asked for it, so anything it spans is claimed as automatic — a user's edit made inside the window included, and such an edit gets neither a new `updatedAt` nor an unpushed mark, so the next merge overwrites it with no trace that it existed. `App`'s startup block therefore suppresses only the SIP/EMI conversions, and `AssetService.updateValue` runs its value script outside the wrapper and suppresses just the write it ends with.
 - A sync pull and a backup restore replace every table at once, but containers hold what they read on mount. Both paths call `emitDatabaseReplaced()`; anything holding synced state subscribes with `useDatabaseReplaced` (or `useDatabaseVersion` when it reads live during render). A container whose loader depends on `converter` from `useCurrency` already re-runs, because `CurrencyProvider` subscribes. A container with an editable draft must not clobber unsaved input — adopt the new value only when the draft is clean.
 
 **Sync conflicts (`src/data/sync/conflict.ts`, `recovery.ts`)** — sync is whole-snapshot
@@ -97,6 +97,31 @@ Four rules hold the line, and they are the whole design:
   `importSnapshot` also runs under `withoutScheduling`, because `bulkPut` fires the `creating` hooks:
   without it every pull armed a push of what it had just imported.
 
+**An older build in the mesh** is refused rather than absorbed, and most of that guard was already
+standing. An older build refuses to *read* a snapshot newer than itself (`upgradeSnapshot`'s
+"newer than this app"), and its push is refused by the same compare-and-swap as anyone else's, so a
+device left alone locks itself out with a conflict showing. The hole is a user answering that lockout
+with "keep this device", which forces the older shape over the newer one — and it cannot be closed
+there, because that build is already installed and will never run a check added now. So it is closed
+on the far side: `getHighestSnapshotVersion` records the highest `schemaVersion` this device has read
+from this key, and `guardAgainstDowngrade` refuses anything below it. A snapshot merely older than
+the app is normal and still migrates forward; one older than this device has *already read* can only
+mean the blob was overwritten by a build that has no field for what it dropped — every tombstone, so
+deleted rows come back, and the lineage, so every device drops to replacing. That is a
+`SyncDowngradeError` and a `kind: 'downgrade'` conflict record, and the card deliberately offers **no
+buttons**: "use the cloud copy" is the one answer that loses the rows, and "keep this device" leaves
+the other one pushing the same downgrade on its next edit. The only fix is updating that device, so
+the card says so and sync resumes on its own. The floor is cleared by `unlink` and by `linkSync`,
+because a different key has its own history.
+
+**Reading the cloud without taking it** (`SyncService.inspectRemote` / `downloadRemoteCopy`,
+`CloudCopyView`). Push replaces the cloud, Pull replaces the device, and
+resolving a conflict replaces one side or the other — so until these existed, the question a user
+actually has when records go missing (*is my data still up there?*) could only be answered by
+performing the very thing they were afraid of. Both are read-only on both sides, and the counts are
+reported **per table** because that is what answers it: an assets count of 0 and one of 34 are
+different situations and neither is visible from a version number.
+
 A refused sync is a `SyncConflictError` and a persisted `SyncConflict` record, never a silent stop:
 the background push swallows the throw, so the banner in `MainLayout` and the card in Settings are
 what stop "sync quietly stopped working" from being the new failure. Resolution is the user's
@@ -114,6 +139,13 @@ The rule, in the two halves the user asked for. **Not overlapping: keep both** �
 has survives, whichever side that is. **Overlapping: the latest change wins** — both edited one row,
 so there is no answer to derive, only a policy, and the later `updatedAt` is it. `MergeRows.ts` is
 that rule, pure and tested; everything else in the directory is plumbing.
+
+`localAhead` is a third answer the same comparison has to give, and it needs the *strict* one: a row
+is owed to the cloud only when the local stamp is strictly later. An equal stamp is the same write on
+both sides — the ordinary state of every row the moment a merge finishes — so reading a tie as "ahead"
+had each device publish the snapshot it had just merged and the other merge and publish that, on every
+poll for ever. Paired with an unset lineage, each of those pushes was another whole-database replace
+on the far side, which is how the two defects compounded into rows disappearing.
 
 Row-level, not field-level, and deliberately: per-field timestamps would let two edits to *different
 fields of one asset* both survive, at the cost of a stamp per column on every table. Two people
@@ -153,6 +185,18 @@ Three things had to exist before any of it could work, and each is load-bearing:
   favour), and everyone else replaces once before they can merge. Existing multi-device users
   therefore see exactly one conflict prompt after upgrading, and the card says so.
 
+  "Once" is only true because **a snapshot never names an empty lineage**. The lineage is a new key
+  in local storage and nothing backfills it, so a device that was already linked before merging
+  existed has none — and publishing that `undefined` unset the lineage in the cloud, after which
+  `mergeAllowed` refused *every* snapshot. Each sync fell back to a whole-database replace, which
+  keeps only what the cloud already holds, so a device lost whatever it alone had; and two such
+  devices never escaped, because each import minted a lineage locally (`snapshot.lineage ?? newUid()`)
+  that the cloud was never told about, so the next snapshot mismatched again. `requireMergeLineage`
+  in `exportSnapshot` is the fix: a push declares this device's rows canonical for the version it
+  writes, so it must name the uid space they are in. Minting there cannot fuse two uid spaces — a
+  device that has a lineage keeps it, and a device that has none has never adopted anyone else's
+  rows.
+
 Sync metadata is **not on the domain interfaces**. `IAsset` describes an asset; when it was last
 written and what a second device calls it are facts about *syncing* one. The tables are typed
 `Synced<T>`, the Dexie hooks in `database.ts` maintain the columns so no repository can forget them,
@@ -186,6 +230,30 @@ reference are dropped, because there is no local id to point them at.
 The one limit worth stating plainly: `updatedAt` comes from each device's own clock, so "latest" is
 only as good as the skew between them. A Lamport counter would fix the ordering and lose the ability
 to say *when*.
+
+**Starting up (`src/index.tsx`, `AppFailureBoundary`, `AppFailureView`)** — the app must never show
+a blank page, and the reason is not polish. Records live in this device's IndexedDB, so a blank page
+with no explanation leaves "clear the site data" as the only remedy a user can find unaided — and
+that deletes every asset, transaction and expense, plus the `recovery.ts` copies kept for exactly
+this kind of problem. A failure to *read* then becomes a permanent loss, by the user's own hand, with
+the app never having said a word. Telling them not to clear storage is the load-bearing sentence on
+both screens; keep it whatever else changes.
+
+Three layers, because the failures arrive by three different routes and none of them can see the
+others. `openDatabase()` asks on purpose whether the store opens: Dexie opens lazily on the first
+query, so an unopenable store otherwise surfaces as every screen failing at once, which looks exactly
+like a blank app. It names `stale-build` separately because that case is not corruption — IndexedDB
+refuses a database at a version above what the code asks for, which means *this bundle is older than
+the data on this device*, and a PWA (`registerType: 'autoUpdate'`, precached) makes that ordinary.
+`AppFailureBoundary` catches a render that throws, the only thing `componentDidCatch` can see, and
+owns both because they end in the same screen. And `showBootFailure` in `index.tsx` is built out of
+nothing — no imports, no React, no theme — because the original failure could not be caught by any
+component: a precached build whose chunks the server no longer has, or a module that throws while
+evaluating, leaves the page blank before anything mounts.
+
+The recovery action is `reloadWithFreshBuild`: unregister the service worker, sweep `caches`, reload.
+It touches **cached builds only, never IndexedDB or local storage** — it runs at the exact moment a
+frightened user would be clearing those by hand, so it has to be provably incapable of doing it too.
 
 **Testing:** Only complex domain logic (Vitest). Skip UI and repository tests. Schema migrations are covered too — they are pure and high-risk.
 

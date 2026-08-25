@@ -1,5 +1,10 @@
 import { SyncConflictBannerView } from '@/app/components/views/SyncConflictBannerView';
-import { getSyncConflict, onSyncConflictChanged, SyncConflict } from '@/data/sync/conflict';
+import {
+  conflictKind,
+  getSyncConflict,
+  onSyncConflictChanged,
+  SyncConflict,
+} from '@/data/sync/conflict';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +18,10 @@ export function SyncConflictBannerContainer() {
   if (!conflict) return null;
 
   return (
-    <SyncConflictBannerView direction={conflict.direction} onReview={() => navigate('/settings')} />
+    <SyncConflictBannerView
+      kind={conflictKind(conflict)}
+      direction={conflict.direction}
+      onReview={() => navigate('/settings')}
+    />
   );
 }

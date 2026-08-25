@@ -26,7 +26,7 @@ import { IMemory } from '@/domain/entities/memory/Memory';
 import type { IDeletion } from './merge/SyncMeta';
 import { hydrateAiProviderSettings } from '../llm/state';
 import { emitDatabaseReplaced } from '../databaseEvents';
-import { BackupData } from '@/domain/services/BackupService';
+import { BackupData, BackupService } from '@/domain/services/BackupService';
 import { buildSyncApiUrl } from './config';
 import {
   clearSyncConflict,
@@ -37,21 +37,26 @@ import {
   SyncConflict,
   SyncConflictError,
   SyncDirection,
+  SyncDowngradeError,
 } from './conflict';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
 import { applyMerge } from './merge/ApplyMerge';
 import type { MergeableRow } from './merge/MergeRows';
+import { SYNCED_TABLES } from './merge/SyncedTables';
 import { newUid } from './merge/SyncMeta';
 import { preserveCloud, preserveDevice } from './recovery';
 import {
+  clearHighestSnapshotVersion,
   clearPendingChange,
   getAutoSyncEnabled,
+  getHighestSnapshotVersion,
   getKeyId,
   getLastRemoteVersion,
   getLastSyncAt,
   getMergeLineage,
   getPassphrase,
   getPendingChangeSince,
+  recordSnapshotVersion,
   setAutoSyncEnabled,
   setKeyId,
   setLastRemoteVersion,
@@ -60,6 +65,29 @@ import {
   setPassphrase,
 } from './state';
 import { RemoteDataResponse, Snapshot, SyncStatus } from './types';
+
+/** What the cloud holds, read without touching either side. */
+export interface RemoteInspection {
+  version: number;
+  schemaVersion: number;
+  /** Whether this device could merge it, or would have to replace instead. */
+  sameLineage: boolean;
+  updatedAt?: string;
+  /** Row count per table, which is what "is my data still there" comes down to. */
+  counts: Record<string, number>;
+}
+
+/** Saves a string to a file, so a recovery path needs no Dexie write at all. */
+function downloadJson(json: string, filename: string): void {
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export class SyncApiError extends Error {
   constructor(
@@ -213,6 +241,35 @@ function rehydrateSnapshot(snapshot: Snapshot): void {
   rehydrateSnapshotDates(snapshot.data as unknown as Record<string, Record<string, unknown>[]>);
 }
 
+/**
+ * The uid lineage this device's rows belong to, minting one if it has none.
+ *
+ * A push declares this device's rows canonical for the version it writes, so the
+ * snapshot has to name the uid space they are in. Publishing `undefined`
+ * instead — which is what a device linked before merging existed did, because
+ * the lineage is a new key in local storage and nothing backfills it — unsets
+ * the lineage in the cloud, and `mergeAllowed` then refuses to merge *any*
+ * snapshot. Every sync degrades to a whole-database replace, and a replace only
+ * keeps what the cloud already holds.
+ *
+ * Worse, two such devices never escape it: each import mints a lineage locally
+ * that the cloud is never told about, so the next snapshot mismatches again.
+ * They replace each other in turn, or deadlock on a conflict apiece, for ever.
+ *
+ * Minting here cannot fuse two uid spaces, which is the thing the lineage exists
+ * to prevent: a device that has one keeps it, and a device that has none has
+ * never adopted anyone else's rows. Every other device sees a lineage it has not
+ * adopted, replaces once, and merges from then on.
+ */
+function requireMergeLineage(): string {
+  const existing = getMergeLineage();
+  if (existing) return existing;
+  const minted = newUid();
+  setMergeLineage(minted);
+  Logger.info('This device had no merge lineage; minting one for the snapshot it is publishing');
+  return minted;
+}
+
 async function exportSnapshot(): Promise<Snapshot> {
   const [
     assets,
@@ -247,10 +304,11 @@ async function exportSnapshot(): Promise<Snapshot> {
   ]);
   return {
     schemaVersion: getSchemaVersion(),
-    // Carried forward, not minted: a push that is publishing this device's
-    // merged result must stay in the lineage it merged against, or every other
-    // device would drop back to replacing.
-    lineage: getMergeLineage(),
+    // Carried forward where there is one, minted where there is not: a push
+    // publishing a merged result must stay in the lineage it merged against, and
+    // a push that names no lineage at all sends every other device back to
+    // replacing for ever.
+    lineage: requireMergeLineage(),
     data: {
       assets,
       investments,
@@ -349,6 +407,47 @@ function raiseConflict(
   throw new SyncConflictError(conflict);
 }
 
+/**
+ * Refuses a snapshot written by an earlier build of the app.
+ *
+ * A snapshot older than this app is normal and is migrated forward: that is
+ * every cloud nobody has pushed to since an upgrade. A snapshot older than one
+ * this device has *already read from this key* is a different thing entirely —
+ * some device overwrote the blob with a shape that predates it, and everything
+ * that shape has no field for is already gone from the cloud: the tombstones, so
+ * deleted rows come back, and the lineage, so every device that reads it drops
+ * from merging to replacing itself.
+ *
+ * It has to be caught here because it cannot be caught there. An older build is
+ * already installed and will never run a check added now; what it does do is
+ * refuse to *read* a snapshot newer than itself and refuse to push over a
+ * version it is behind, so a device left alone locks itself out. The hole is a
+ * user answering that lockout with "keep this device", which forces the older
+ * snapshot over the newer one — and this is the far side of it.
+ */
+function guardAgainstDowngrade(snapshot: Snapshot, remoteVersion: number): void {
+  const highest = getHighestSnapshotVersion();
+  if (highest === undefined || snapshot.schemaVersion >= highest) return;
+
+  const conflict: SyncConflict = {
+    kind: 'downgrade',
+    // The refused operation is the one that would have taken it in.
+    direction: 'pull',
+    baseVersion: getLastRemoteVersion(),
+    remoteVersion,
+    snapshotVersion: snapshot.schemaVersion,
+    expectedSnapshotVersion: highest,
+    pendingSince: getPendingChangeSince(),
+    detectedAt: new Date().toISOString(),
+  };
+  setSyncConflict(conflict);
+  Logger.warn(
+    `Sync paused: the cloud holds snapshot v${snapshot.schemaVersion}, ` +
+      `older than the v${highest} this device has already read`
+  );
+  throw new SyncDowngradeError(conflict);
+}
+
 async function importSnapshot(incoming: Snapshot): Promise<void> {
   const snapshot = upgradeSnapshot(incoming);
   rehydrateSnapshot(snapshot);
@@ -432,6 +531,9 @@ async function importSnapshot(incoming: Snapshot): Promise<void> {
   // nothing left to disagree about.
   clearPendingChange();
   clearSyncConflict();
+  // What the cloud actually held, not what it was migrated to: the floor a later
+  // read has to clear is the shape some device is really writing.
+  recordSnapshotVersion(incoming.schemaVersion);
 
   // This device now holds the snapshot's rows, so it is in the snapshot's uid
   // space and may merge against it. A snapshot from before merging existed has
@@ -505,6 +607,8 @@ async function pushSnapshot(
   });
   setLastRemoteVersion(resp.version);
   setLastSyncAt(new Date().toISOString());
+  // The cloud now holds this build's shape, so nothing older may replace it.
+  recordSnapshotVersion(snapshot.schemaVersion);
   // Only a completed push clears this. A failed one leaves the device marked as
   // holding work the cloud has not seen, which is what stops the next pull.
   clearPendingChange();
@@ -580,6 +684,9 @@ async function pullSnapshot(
   // Decrypted before anything is filed or cleared: a wrong passphrase must cost
   // nothing but the request.
   const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
+  // Not under `force`: taking the cloud copy on purpose is the user's call, and
+  // the downgrade card does not offer it in the first place.
+  if (!options.force) guardAgainstDowngrade(snapshot, resp.version);
 
   const result = await replaceFromSnapshot(snapshot, resp.version, baseVersion, {
     force: options.force,
@@ -638,6 +745,7 @@ async function reconcileOnce(passphrase: string | undefined): Promise<{ version:
   }
 
   const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
+  guardAgainstDowngrade(snapshot, resp.version);
 
   if (!mergeAllowed(snapshot)) {
     // Not the same uid space. Fall back to replacing, which is refused outright
@@ -656,6 +764,7 @@ async function reconcileOnce(passphrase: string | undefined): Promise<{ version:
 
   const report = await applyMerge(upgraded.data as unknown as Record<string, MergeableRow[]>);
 
+  recordSnapshotVersion(snapshot.schemaVersion);
   setLastRemoteVersion(resp.version);
   setLastSyncAt(new Date().toISOString());
   await hydrateAiProviderSettings();
@@ -713,6 +822,7 @@ export class SyncService {
       setKeyId(resp.keyId);
       setLastRemoteVersion(resp.version);
       setLastSyncAt(new Date().toISOString());
+      recordSnapshotVersion(snapshot.schemaVersion);
       // The cloud now holds exactly this device, whatever it was marked as
       // owing before it was linked.
       clearPendingChange();
@@ -738,6 +848,9 @@ export class SyncService {
     return runExclusive(async () => {
       const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
       const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, passphrase);
+      // A different key has its own history. Carried over, a floor learned from
+      // the previous one would refuse this key's first read as a downgrade.
+      clearHighestSnapshotVersion();
       // Forced: adopting someone else's key is a deliberate replacement, and the
       // recovery copy is what makes that recoverable.
       await replaceFromSnapshot(snapshot, resp.version, undefined, {
@@ -776,6 +889,69 @@ export class SyncService {
 
   static async push(passphrase?: string): Promise<{ version: number }> {
     return runExclusive(() => pushSnapshot(passphrase, { force: false }));
+  }
+
+  /**
+   * What the cloud is holding, without taking any of it.
+   *
+   * Every other way to see the cloud copy replaces something first: Pull wipes
+   * this device, and resolving a conflict wipes one side or the other. So the
+   * question a user actually has when records go missing — is my data still up
+   * there? — could only be answered by performing the very thing they were
+   * afraid of. This reads and decrypts, and writes nothing on either side.
+   *
+   * The counts are per table because that is what answers it: an assets count of
+   * 0 and one of 34 are different situations, and neither is visible from a
+   * version number.
+   */
+  static async inspectRemote(passphrase?: string): Promise<RemoteInspection> {
+    return runExclusive(async () => {
+      const keyId = getKeyId();
+      if (!keyId) throw new Error('Sync not set up');
+      const actualPassphrase = passphrase || getPassphrase();
+      if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
+
+      const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+      const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
+      const data = snapshot.data as unknown as Record<string, unknown[] | undefined>;
+
+      const counts: Record<string, number> = {};
+      for (const table of SYNCED_TABLES) counts[table.name] = data[table.name]?.length ?? 0;
+      counts.deletions = data.deletions?.length ?? 0;
+
+      return {
+        version: resp.version,
+        schemaVersion: snapshot.schemaVersion,
+        sameLineage: mergeAllowed(snapshot),
+        updatedAt: resp.updatedAt,
+        counts,
+      };
+    });
+  }
+
+  /**
+   * Hands the cloud copy back as a backup file, importing nothing.
+   *
+   * The same format `recovery.ts` files and Import Data reads, so what comes
+   * down can be opened in a text editor and restored deliberately — or simply
+   * kept as the off-device copy no sync operation can reach. Recovering should
+   * not require betting the device on it.
+   */
+  static async downloadRemoteCopy(passphrase?: string): Promise<void> {
+    return runExclusive(async () => {
+      const keyId = getKeyId();
+      if (!keyId) throw new Error('Sync not set up');
+      const actualPassphrase = passphrase || getPassphrase();
+      if (!actualPassphrase) throw new Error('No passphrase provided and none stored');
+
+      const resp = await api<RemoteDataResponse<CryptoMeta>>(`/data/${encodeURIComponent(keyId)}`);
+      const snapshot = await decryptJson<Snapshot>(resp.payload, resp.meta, actualPassphrase);
+      downloadJson(
+        BackupService.toBackupFile(backupRowsFromSnapshot(snapshot)),
+        `wealth-atlas-cloud-v${resp.version}.json`
+      );
+      Logger.info(`Downloaded the cloud copy at version ${resp.version}`);
+    });
   }
 
   /**
@@ -873,6 +1049,9 @@ export class SyncService {
     // The lineage belonged to that key. Kept, it would authorise merging against
     // whatever the next key happens to hold.
     setMergeLineage(undefined);
+    // So did the snapshot version: a different key has its own history, and a
+    // floor carried over from this one would refuse the next key's first read.
+    clearHighestSnapshotVersion();
   }
 
   static setAutoSyncEnabled(enabled: boolean): void {
@@ -907,6 +1086,12 @@ export class SyncService {
       // showing it, and the user's answer is the only thing that clears it.
       if (error instanceof SyncConflictError) {
         Logger.warn('Auto-sync stopped: this device and the cloud have both changed');
+        return { version: null };
+      }
+      // Also recorded and also showing in the banner, and equally not something
+      // retrying can clear — the other device has to be updated.
+      if (error instanceof SyncDowngradeError) {
+        Logger.warn('Auto-sync stopped: the cloud was written by an older build');
         return { version: null };
       }
       // Log error but don't throw - auto-sync should be non-intrusive

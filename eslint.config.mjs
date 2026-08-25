@@ -53,6 +53,17 @@ export default tseslint.config(
     },
   },
   {
+    // Command-line tools, where stdout is the product rather than a stray debug
+    // line. `Logger` is for the app, which has a user to notify instead.
+    files: ['scripts/**'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     files: ['public/service-worker.js'],
     languageOptions: {
       ecmaVersion: 2020,

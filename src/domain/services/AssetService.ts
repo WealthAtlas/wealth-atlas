@@ -1,3 +1,4 @@
+import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { InvestmentRepository } from '@/data/repositories/assets/InvestmentRepository';
 import { SIPRepository } from '@/data/repositories/assets/SIPRepository';
@@ -165,6 +166,21 @@ export class AssetService {
     await this.sipRepository.delete(id);
   }
 
+  /**
+   * Refreshes one asset's script value.
+   *
+   * The write is suppressed and the script run is not, and the split is the
+   * point. Suppression is a global flag, not something scoped to the work that
+   * asked for it, so anything it spans is claimed as automatic — including an
+   * edit the *user* makes in the meantime, which then gets no new `updatedAt`
+   * and no unpushed mark, and is silently overwritten by the next merge. Holding
+   * it across a script that fetches a price left that window open for as long as
+   * the network took, once per asset, on every launch.
+   *
+   * The write itself does belong under it: a value refresh is not the user
+   * changing their mind, so it must neither wake a push nor outrank a real edit
+   * made on another device.
+   */
   private async updateValue(asset: Asset): Promise<void> {
     if (asset.needsScriptExecution()) {
       try {
@@ -179,7 +195,7 @@ export class AssetService {
           scriptValue: newValue,
           scriptValueUpdatedAt: new Date(),
         };
-        await this.assetRepository.update(updatedAsset);
+        await AutoSyncService.withoutScheduling(() => this.assetRepository.update(updatedAsset));
       } catch (error) {
         Logger.warn(`Failed to update script value for ${asset.name}:`, error);
       }

@@ -357,6 +357,39 @@ export function tableByName(name: SyncedTableName): Table<MergeableRow> {
 }
 
 /**
+ * Why the store would not open.
+ *
+ * `stale-build` is the one that matters, and it is not a corruption: IndexedDB
+ * refuses to open a database at a version higher than the code asks for, so it
+ * means *this bundle is older than the data on this device*. A PWA makes that
+ * ordinary rather than exotic — a service worker can serve a precached build for
+ * as long as it likes, and one device updating before another is the whole
+ * premise of syncing.
+ */
+export type DatabaseOpenFailure = 'stale-build' | 'unavailable';
+
+/**
+ * Opens the store, reporting why rather than throwing.
+ *
+ * Nothing used to ask. Dexie opens lazily on the first query, so a store that
+ * cannot open surfaced as every screen failing at once with no explanation —
+ * and the only remedy a user can find on their own is to clear the site's
+ * storage, which is where all their records are. That is how a failure to
+ * *read* became a permanent loss.
+ */
+export async function openDatabase(): Promise<DatabaseOpenFailure | undefined> {
+  try {
+    await db.open();
+    return undefined;
+  } catch (error) {
+    // Dexie re-throws IndexedDB's own error, so the name is the browser's.
+    const name = error instanceof Error ? error.name : '';
+    if (name === 'VersionError') return 'stale-build';
+    return 'unavailable';
+  }
+}
+
+/**
  * Runs `fn` inside a single read-write transaction spanning every table, so a
  * multi-entity write (such as applying an import plan) is all-or-nothing.
  */

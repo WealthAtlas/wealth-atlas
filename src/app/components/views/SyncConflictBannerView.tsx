@@ -1,7 +1,8 @@
 import { Alert, AlertTitle, Box, Button } from '@mui/material';
-import type { SyncDirection } from '@/data/sync/conflict';
+import type { SyncConflictKind, SyncDirection } from '@/data/sync/conflict';
 
 export interface SyncConflictBannerViewProps {
+  kind: SyncConflictKind;
   direction: SyncDirection;
   onReview: () => void;
 }
@@ -25,10 +26,14 @@ export function SyncConflictBannerView(props: SyncConflictBannerViewProps) {
           </Button>
         }
       >
-        <AlertTitle sx={{ mb: 0 }}>Sync paused — conflict</AlertTitle>
-        {props.direction === 'push'
-          ? 'Another device has changes this one has not seen.'
-          : 'This device has changes the cloud has not seen.'}{' '}
+        <AlertTitle sx={{ mb: 0 }}>
+          {props.kind === 'downgrade' ? 'Sync paused — older device' : 'Sync paused — conflict'}
+        </AlertTitle>
+        {props.kind === 'downgrade'
+          ? 'Another device is running an older version of Wealth Atlas and overwrote the cloud copy.'
+          : props.direction === 'push'
+            ? 'Another device has changes this one has not seen.'
+            : 'This device has changes the cloud has not seen.'}{' '}
         Nothing has been deleted.
       </Alert>
     </Box>

@@ -34,6 +34,7 @@ import { AiProviderSettingsContainer } from '@/app/containers/settings/AiProvide
 import { CurrencySettingsContainer } from '@/app/containers/settings/CurrencySettingsContainer';
 import { MemorySettingsContainer } from '@/app/containers/settings/MemorySettingsContainer';
 import { NewsProviderSettingsContainer } from '@/app/containers/settings/NewsProviderSettingsContainer';
+import { CloudCopyContainer } from '@/app/containers/sync/CloudCopyContainer';
 import { SyncConflictContainer } from '@/app/containers/sync/SyncConflictContainer';
 import { TargetAllocationSettingsContainer } from '@/app/containers/settings/TargetAllocationSettingsContainer';
 import { useState } from 'react';
@@ -225,6 +226,10 @@ export function SettingsPage(props: SettingsPageProps) {
                     Key ID copied to clipboard!
                   </Alert>
                 )}
+
+                {/* Before the two buttons that replace a whole database, because
+                    seeing what is up there is what tells you which one to press. */}
+                <CloudCopyContainer />
 
                 <Stack spacing={0.5}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>

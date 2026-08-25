@@ -96,3 +96,31 @@ export function setMergeLineage(lineage: string | undefined): void {
   if (lineage) localStorage.setItem(MERGE_LINEAGE, lineage);
   else localStorage.removeItem(MERGE_LINEAGE);
 }
+
+/**
+ * The highest snapshot schema version this device has ever seen in the cloud.
+ *
+ * Device-local like the rest of the sync identity, and the only way a *downgrade*
+ * can be recognised: the snapshot carries its own version, but "older than the
+ * app" is the ordinary state of a cloud nobody has pushed to since an upgrade,
+ * and is migrated forward on purpose. "Older than what this device has already
+ * read from this key" is a different claim, and it can only mean a device
+ * running an earlier build overwrote the blob.
+ */
+const HIGHEST_SNAPSHOT_VERSION = 'sync.highestSnapshotVersion';
+
+export function getHighestSnapshotVersion(): number | undefined {
+  const value = localStorage.getItem(HIGHEST_SNAPSHOT_VERSION);
+  return value ? Number(value) : undefined;
+}
+
+/** Monotonic: a snapshot read or written at an older version never lowers it. */
+export function recordSnapshotVersion(version: number): void {
+  const seen = getHighestSnapshotVersion();
+  if (seen !== undefined && seen >= version) return;
+  localStorage.setItem(HIGHEST_SNAPSHOT_VERSION, String(version));
+}
+
+export function clearHighestSnapshotVersion(): void {
+  localStorage.removeItem(HIGHEST_SNAPSHOT_VERSION);
+}

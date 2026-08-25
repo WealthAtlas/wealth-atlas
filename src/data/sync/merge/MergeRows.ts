@@ -173,11 +173,16 @@ export function mergeTable<T extends MergeableRow>(input: {
     if (local.kind === 'alive' && incoming.kind === 'alive') {
       // Overlapping. The later change wins; a tie keeps the local row so the
       // outcome does not depend on which device asked.
-      if (incoming.at > local.at)
+      if (incoming.at > local.at) {
         plan.writes.push({ incoming: incoming.row, localId: local.row.id });
-      else {
+      } else {
         plan.localWins.push(local.row);
-        plan.localAhead = true;
+        // Only a *strictly* later local change is something the cloud has not
+        // seen. An equal stamp is the same write on both sides, which is the
+        // ordinary state of every row the moment a merge finishes — counting it
+        // as ahead had each device push back the snapshot it had just merged,
+        // and the other then merge and push that, for ever.
+        if (local.at > incoming.at) plan.localAhead = true;
       }
       continue;
     }

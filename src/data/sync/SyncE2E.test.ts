@@ -15,8 +15,9 @@ vi.stubEnv('VITE_SYNC_API_URL', 'https://sync.test');
  * counter, with no ability to merge anything — which is the constraint the whole
  * design is shaped by.
  */
-const cloud = new Map<string, { version: number; payload: string; meta: unknown }>();
+const cloud = new Map<string, { version: number; payload: string; meta: CryptoMeta }>();
 let requests = 0;
+let puts = 0;
 
 vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
   requests++;
@@ -41,6 +42,7 @@ vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
 
   if (match[2]) return ok({ version: entry.version });
   if (init?.method === 'PUT') {
+    puts++;
     // Unconditional, exactly like the real backend: it takes no expected
     // version, which is why the compare-and-swap has to happen in the client.
     const next = { version: entry.version + 1, payload: body.payload, meta: body.meta };
@@ -54,12 +56,16 @@ import type { Table } from 'dexie';
 import { ALL_TABLES, db } from '@/data/database';
 import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
+import { LoanRepository } from '@/data/repositories/loan/LoanRepository';
 import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { SyncService } from '@/data/sync/Syncer';
-import { SyncConflictError } from '@/data/sync/conflict';
+import { decryptJson, encryptJson, type CryptoMeta } from '@/data/sync/crypto';
+import type { Snapshot } from '@/data/sync/types';
+import { SyncConflictError, SyncDowngradeError } from '@/data/sync/conflict';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
 import type { IAsset } from '@/domain/entities/assets/Asset';
 import type { IExpense } from '@/domain/entities/expenses/Expense';
+import type { ILoan } from '@/domain/entities/loans/Loan';
 
 /**
  * The sync feature end to end: two devices, one cloud, the real service.
@@ -133,8 +139,27 @@ function expense(description: string, amount = 100) {
   } as unknown as IExpense;
 }
 
+function loan(name: string) {
+  return {
+    name,
+    principalAmount: 1000,
+    currency: 'INR',
+    startDate: new Date('2026-01-01'),
+    description: '',
+  } as unknown as ILoan;
+}
+
 const assets = new AssetRepository();
 const expenses = new ExpenseRepository();
+const loans = new LoanRepository();
+
+async function assetNames(): Promise<string[]> {
+  return (await db.assets.toArray()).map(row => row.name).sort();
+}
+
+async function loanNames(): Promise<string[]> {
+  return (await db.loans.toArray()).map(row => row.name).sort();
+}
 
 async function expenseDescriptions(): Promise<string[]> {
   return (await db.expenses.toArray()).map(row => row.description).sort();
@@ -160,6 +185,7 @@ async function twoLinkedDevices(): Promise<{ keyId: string; deviceA: Device; dev
 beforeEach(async () => {
   cloud.clear();
   requests = 0;
+  puts = 0;
   stored.clear();
   if (!db.isOpen()) await db.open();
   await db.transaction('rw', ALL_TABLES, async () => {
@@ -381,5 +407,213 @@ describe('cost', () => {
     // One request: the cheap version probe. Nothing changed on either side, so
     // the snapshot is never downloaded.
     expect(requests).toBe(1);
+  });
+});
+
+describe('a device that was already linked before merging existed', () => {
+  /**
+   * The state every existing multi-device user upgrades into: a key and a
+   * version in local storage, and no lineage — that key is new, and nothing
+   * backfills it.
+   */
+  function forgetLineage(...devices: Device[]): void {
+    for (const device of devices) device.state.delete('sync.mergeLineage');
+  }
+
+  it('publishes a lineage rather than none, so the pair converges after one replace', async () => {
+    // Publishing `undefined` unset the lineage in the cloud, and `mergeAllowed`
+    // then refused to merge anything at all: every sync became a whole-database
+    // replace, which keeps only what the cloud already holds. Two such devices
+    // never escaped it either — each import minted a lineage locally that the
+    // cloud was never told about, so the next snapshot mismatched again.
+    const { deviceA, deviceB } = await twoLinkedDevices();
+    forgetLineage(deviceA, deviceB);
+
+    await restoreDevice(deviceA);
+    await assets.create(asset('A only'));
+    await loans.create(loan('A loan'));
+    await SyncService.reconcile(PASSPHRASE);
+    let withA = await captureDevice();
+    const lineage = withA.state.get('sync.mergeLineage');
+    expect(lineage).toBeDefined();
+
+    // B has nothing unpushed, so it replaces itself with A's copy — once — and
+    // adopts the lineage that came with it.
+    await restoreDevice(deviceB);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(stored.get('sync.mergeLineage')).toBe(lineage);
+
+    // From here it is a merge: B keeps what A sent and its own work too.
+    await assets.create(asset('B only'));
+    await loans.create(loan('B loan'));
+    await SyncService.reconcile(PASSPHRASE);
+    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
+    const withB = await captureDevice();
+
+    await restoreDevice(withA);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
+    expect(await loanNames()).toEqual(['A loan', 'B loan']);
+    withA = await captureDevice();
+
+    // And it stays settled rather than replacing on every poll.
+    await restoreDevice(withB);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
+    await restoreDevice(withA);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
+  });
+
+  it('still asks rather than replacing when the second device holds unpushed work', async () => {
+    const { deviceA, deviceB } = await twoLinkedDevices();
+    forgetLineage(deviceA, deviceB);
+
+    await restoreDevice(deviceA);
+    await assets.create(asset('A only'));
+    await SyncService.reconcile(PASSPHRASE);
+    const withA = await captureDevice();
+
+    await restoreDevice(deviceB);
+    await assets.create(asset('B only'));
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    // Nothing taken away behind the user back while the question stands.
+    expect(await assetNames()).toEqual(['B only', 'Shared gold']);
+
+    await SyncService.resolveConflict('keep-local', PASSPHRASE);
+    const withB = await captureDevice();
+
+    await restoreDevice(withA);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(await assetNames()).toEqual(['B only', 'Shared gold']);
+    const replacedA = await captureDevice();
+
+    // ...and the two of them merge from then on rather than replacing again.
+    await restoreDevice(replacedA);
+    await assets.create(asset('A again'));
+    await SyncService.reconcile(PASSPHRASE);
+    await restoreDevice(withB);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(await assetNames()).toEqual(['A again', 'B only', 'Shared gold']);
+  });
+});
+
+describe('a pair that has converged', () => {
+  it('stops pushing, rather than trading the same snapshot back and forth', async () => {
+    // Every row a merge leaves behind carries the same `updatedAt` on both
+    // devices. Reading that tie as "this device is ahead" had each side publish
+    // the snapshot it had just merged, and the other merge and publish that, on
+    // every poll for ever — and while the lineage was unset, every one of those
+    // pushes was another whole-database replace on the other device.
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    await expenses.create(expense('A work'));
+    await SyncService.reconcile(PASSPHRASE);
+    let withA = await captureDevice();
+
+    await restoreDevice(deviceB);
+    await SyncService.reconcile(PASSPHRASE);
+    let withB = await captureDevice();
+
+    await restoreDevice(withA);
+    await SyncService.reconcile(PASSPHRASE);
+    withA = await captureDevice();
+
+    puts = 0;
+    await restoreDevice(withB);
+    await SyncService.reconcile(PASSPHRASE);
+    withB = await captureDevice();
+    await restoreDevice(withA);
+    await SyncService.reconcile(PASSPHRASE);
+    await restoreDevice(withB);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(puts).toBe(0);
+  });
+});
+
+describe('a cloud copy overwritten by an older build of the app', () => {
+  /**
+   * What an older build's push actually leaves behind.
+   *
+   * It cannot be simulated by editing rows: the damage is in the *shape*. An
+   * older build has no `deletions` table and no `lineage` field, so it exports
+   * neither — every tombstone is gone, and every device that reads it drops from
+   * merging to replacing itself.
+   */
+  async function pushFromAnOlderBuild(keyId: string): Promise<void> {
+    const entry = cloud.get(keyId)!;
+    const current = await decryptJson<Snapshot>(entry.payload, entry.meta, PASSPHRASE);
+    const older = {
+      schemaVersion: 16,
+      data: { ...current.data, deletions: [] },
+    } as unknown as Snapshot;
+    const { payload, meta } = await encryptJson(older, PASSPHRASE, 16);
+    cloud.set(keyId, { version: entry.version + 1, payload, meta });
+  }
+
+  it('is refused rather than read, and nothing on this device is touched', async () => {
+    const { keyId, deviceA } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    await assets.create(asset('Only on A'));
+    await expenses.create(expense('Only on A too'));
+    await SyncService.reconcile(PASSPHRASE);
+    const before = await assetNames();
+
+    await pushFromAnOlderBuild(keyId);
+
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncDowngradeError);
+    expect(await assetNames()).toEqual(before);
+    expect(await expenseDescriptions()).toEqual(['Only on A too']);
+
+    // Said out loud rather than retried into silence, and not as a choice of
+    // copies: taking the cloud copy is the one answer that would lose the rows.
+    const conflict = SyncService.getStatus().conflict;
+    expect(conflict?.kind).toBe('downgrade');
+    expect(conflict?.snapshotVersion).toBe(16);
+  });
+
+  it('resumes by itself once that device is updated', async () => {
+    const { keyId, deviceA } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    await assets.create(asset('Only on A'));
+    await SyncService.reconcile(PASSPHRASE);
+
+    await pushFromAnOlderBuild(keyId);
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncDowngradeError);
+
+    // The other device updates and pushes this build's shape again. Simulated
+    // the same way: re-export what a current build would write.
+    const entry = cloud.get(keyId)!;
+    const stale = await decryptJson<Snapshot>(entry.payload, entry.meta, PASSPHRASE);
+    const restored = {
+      ...stale,
+      schemaVersion: 17,
+      lineage: stored.get('sync.mergeLineage'),
+      data: { ...stale.data, deletions: [] },
+    } as unknown as Snapshot;
+    const { payload, meta } = await encryptJson(restored, PASSPHRASE, 17);
+    cloud.set(keyId, { version: entry.version + 1, payload, meta });
+
+    await SyncService.reconcile(PASSPHRASE);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
+    expect(await assetNames()).toEqual(['Only on A', 'Shared gold']);
+  });
+
+  it('does not refuse the ordinary case of a cloud nobody has upgraded yet', async () => {
+    // An older snapshot is normal right after an upgrade and is migrated
+    // forward. Only one older than what this device has already read from this
+    // key means some device overwrote it.
+    stored.delete('sync.highestSnapshotVersion');
+    const { keyId, deviceA } = await twoLinkedDevices();
+    await pushFromAnOlderBuild(keyId);
+    stored.delete('sync.highestSnapshotVersion');
+
+    await restoreDevice(deviceA);
+    stored.delete('sync.highestSnapshotVersion');
+    await expect(SyncService.reconcile(PASSPHRASE)).resolves.toBeDefined();
+    expect(await assetNames()).toEqual(['Shared gold']);
   });
 });

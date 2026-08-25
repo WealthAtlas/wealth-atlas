@@ -6,6 +6,7 @@ import { Logger } from '@/domain/utils/Logger';
 import { useEffect } from 'react';
 import { CurrencyProvider } from './components/providers/CurrencyProvider';
 import { NotificationProvider } from './components/providers/NotificationProvider';
+import { AppFailureBoundary } from './containers/shell/AppFailureBoundary';
 import { AppRouter } from './router/AppRouter';
 import { AppThemeProvider } from './theme/AppThemeProvider';
 
@@ -22,14 +23,22 @@ export default function App() {
         // a pull replaces them, and marking them as unpushed work would make
         // every launch look like a conflict against a cloud that had moved on.
         // They reach the cloud with the next real edit.
+        //
+        // Only the conversions, which are database work and over in a moment.
+        // Suppression is a process-wide flag, so everything it spans is claimed
+        // as automatic — an edit the user makes inside the window included, and
+        // such an edit gets no new `updatedAt` and no unpushed mark, so the next
+        // merge overwrites it without trace. `updateValues()` runs one value
+        // script per asset over the network and used to sit in here, holding the
+        // flag up for as long as that took; it now suppresses each of its own
+        // writes instead.
+        const investmentService = new AssetService();
+        const loanService = new LoanService();
         await AutoSyncService.withoutScheduling(async () => {
-          const investmentService = new AssetService();
           await investmentService.createSIPInvestments();
-          await investmentService.updateValues();
-
-          const loanService = new LoanService();
           await loanService.createEMIPayments();
         });
+        await investmentService.updateValues();
 
         // Auto-sync if enabled
         const syncResult = await SyncService.autoSync();
@@ -56,11 +65,15 @@ export default function App() {
 
   return (
     <AppThemeProvider>
-      <NotificationProvider>
-        <CurrencyProvider>
-          <AppRouter />
-        </CurrencyProvider>
-      </NotificationProvider>
+      {/* Inside the theme so the failure screen is styled, and outside everything
+          else so a provider that throws is caught rather than blanking the app. */}
+      <AppFailureBoundary>
+        <NotificationProvider>
+          <CurrencyProvider>
+            <AppRouter />
+          </CurrencyProvider>
+        </NotificationProvider>
+      </AppFailureBoundary>
     </AppThemeProvider>
   );
 }

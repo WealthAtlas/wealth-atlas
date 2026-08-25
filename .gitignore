@@ -29,3 +29,12 @@ yarn-error.log*
 
 # CodeGraph (machine-local index)
 .codegraph/
+
+# Decrypted sync snapshots. `scripts/decrypt-sync.mjs` writes these, and they are
+# the user's records in plaintext — the one thing in this repo that must never be
+# committed.
+raw.json
+*.snapshot.json
+wealth-atlas-cloud-*.json
+wealth-atlas-recovery-*.json
+wealth-atlas-backup-*.json

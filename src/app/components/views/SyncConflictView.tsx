@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import type { SyncConflict } from '@/data/sync/conflict';
+import { conflictKind, type SyncConflict } from '@/data/sync/conflict';
 
 export interface SyncConflictViewProps {
   conflict: SyncConflict;
@@ -42,22 +42,39 @@ function when(iso: string): string {
 export function SyncConflictView(props: SyncConflictViewProps) {
   const { conflict } = props;
   const blocked = props.needsPassphrase && !props.passphrase;
+  // A downgrade is not a choice between two copies, so the card does not offer
+  // one: both answers are wrong, and the fix is on the other device.
+  const downgrade = conflictKind(conflict) === 'downgrade';
 
   return (
     <Paper elevation={2} sx={{ p: 2, mb: 2, borderColor: 'warning.main', borderTop: 3 }}>
       <Stack spacing={2}>
         <Typography variant="h6">
-          <SyncProblem sx={{ mr: 1, verticalAlign: 'middle' }} /> Sync Conflict
+          <SyncProblem sx={{ mr: 1, verticalAlign: 'middle' }} />{' '}
+          {downgrade ? 'Sync Paused' : 'Sync Conflict'}
         </Typography>
 
         <Alert severity="warning">
-          <AlertTitle>This device and the cloud have both changed</AlertTitle>
-          {conflict.direction === 'push'
-            ? 'Another device has saved changes since this one last synced, so uploading ' +
-              'from here would delete them.'
-            : 'This device has changes the cloud has never seen, so downloading would ' +
-              'delete them.'}{' '}
-          Sync is paused until you choose which copy to keep. Nothing has been changed or deleted.
+          <AlertTitle>
+            {downgrade
+              ? 'Another device is running an older version'
+              : 'This device and the cloud have both changed'}
+          </AlertTitle>
+          {downgrade
+            ? `The cloud copy was last written by an older version of the app (snapshot ` +
+              `v${conflict.snapshotVersion} where this device has already read ` +
+              `v${conflict.expectedSnapshotVersion}). Reading it here would lose what that ` +
+              'version has no place to keep — records of what you deleted, so deleted items ' +
+              'would come back, and the marker that lets devices merge instead of overwriting ' +
+              'each other. Update Wealth Atlas on your other device and sync will resume by ' +
+              'itself. Nothing on this device has been changed or deleted.'
+            : (conflict.direction === 'push'
+                ? 'Another device has saved changes since this one last synced, so uploading ' +
+                  'from here would delete them.'
+                : 'This device has changes the cloud has never seen, so downloading would ' +
+                  'delete them.') +
+              ' Sync is paused until you choose which copy to keep. Nothing has been changed ' +
+              'or deleted.'}
         </Alert>
 
         <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
@@ -102,7 +119,7 @@ export function SyncConflictView(props: SyncConflictViewProps) {
           Export this device as a backup first
         </Button>
 
-        {props.needsPassphrase && (
+        {!downgrade && props.needsPassphrase && (
           <TextField
             fullWidth
             label="Passphrase"
@@ -113,51 +130,55 @@ export function SyncConflictView(props: SyncConflictViewProps) {
           />
         )}
 
-        <Divider />
+        {!downgrade && (
+          <>
+            <Divider />
 
-        <Typography variant="subtitle2">Choose which copy to keep</Typography>
+            <Typography variant="subtitle2">Choose which copy to keep</Typography>
 
-        <Typography variant="caption" color="text.secondary">
-          This is a one-time step. Whichever copy you keep becomes the shared starting point, and
-          from then on changes made on different devices merge automatically — you will only be
-          asked again if the two devices somehow fall out of step.
-        </Typography>
+            <Typography variant="caption" color="text.secondary">
+              This is a one-time step. Whichever copy you keep becomes the shared starting point,
+              and from then on changes made on different devices merge automatically — you will only
+              be asked again if the two devices somehow fall out of step.
+            </Typography>
 
-        <Stack spacing={1}>
-          <Button
-            variant="contained"
-            color="warning"
-            startIcon={<CloudUpload />}
-            onClick={props.onKeepLocal}
-            disabled={props.busy || blocked}
-            fullWidth
-          >
-            Keep this device
-          </Button>
-          <Typography variant="caption" color="text.secondary">
-            Uploads this device over the cloud. The cloud copy is saved here as a recovery file
-            before it is replaced.
-          </Typography>
+            <Stack spacing={1}>
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={<CloudUpload />}
+                onClick={props.onKeepLocal}
+                disabled={props.busy || blocked}
+                fullWidth
+              >
+                Keep this device
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Uploads this device over the cloud. The cloud copy is saved here as a recovery file
+                before it is replaced.
+              </Typography>
 
-          <Button
-            variant="outlined"
-            color="warning"
-            startIcon={<CloudDownload />}
-            onClick={props.onTakeRemote}
-            disabled={props.busy || blocked}
-            fullWidth
-          >
-            Use the cloud copy
-          </Button>
-          <Typography variant="caption" color="text.secondary">
-            Replaces everything on this device with the cloud copy. This device is saved as a
-            recovery file first, listed under Recovery Copies below.
-          </Typography>
-        </Stack>
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={<CloudDownload />}
+                onClick={props.onTakeRemote}
+                disabled={props.busy || blocked}
+                fullWidth
+              >
+                Use the cloud copy
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Replaces everything on this device with the cloud copy. This device is saved as a
+                recovery file first, listed under Recovery Copies below.
+              </Typography>
+            </Stack>
 
-        <Button size="small" onClick={props.onDismiss} disabled={props.busy}>
-          Decide later
-        </Button>
+            <Button size="small" onClick={props.onDismiss} disabled={props.busy}>
+              Decide later
+            </Button>
+          </>
+        )}
       </Stack>
     </Paper>
   );
