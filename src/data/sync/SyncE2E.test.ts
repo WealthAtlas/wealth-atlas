@@ -387,10 +387,13 @@ describe('a snapshot from a different lineage', () => {
     await SyncService.resolveConflict('keep-local', PASSPHRASE);
     const newLineage = stored.get('sync.mergeLineage');
 
-    // A is still on the old lineage, so it must not merge two uid spaces.
+    // A is still on the old lineage, so it must not merge two uid spaces. It also
+    // holds records, so it asks before replacing them rather than inferring that
+    // the cloud copy is the one to keep.
     await restoreDevice(deviceA);
     expect(stored.get('sync.mergeLineage')).not.toBe(newLineage);
-    await SyncService.reconcile(PASSPHRASE);
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    await SyncService.resolveConflict('take-remote', PASSPHRASE);
 
     // One gold asset, not two.
     expect((await db.assets.toArray()).map(row => row.name)).toEqual(['Shared gold']);
@@ -437,10 +440,11 @@ describe('a device that was already linked before merging existed', () => {
     const lineage = withA.state.get('sync.mergeLineage');
     expect(lineage).toBeDefined();
 
-    // B has nothing unpushed, so it replaces itself with A's copy — once — and
-    // adopts the lineage that came with it.
+    // B holds records, so replacing them is a question rather than an inference —
+    // asked once, and never again after the lineage is shared.
     await restoreDevice(deviceB);
-    await SyncService.reconcile(PASSPHRASE);
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    await SyncService.resolveConflict('take-remote', PASSPHRASE);
     expect(stored.get('sync.mergeLineage')).toBe(lineage);
 
     // From here it is a merge: B keeps what A sent and its own work too.
@@ -451,6 +455,8 @@ describe('a device that was already linked before merging existed', () => {
     const withB = await captureDevice();
 
     await restoreDevice(withA);
+    // A merges rather than asking: the lineage is shared now, so nothing is
+    // being replaced and every row on both sides survives.
     await SyncService.reconcile(PASSPHRASE);
     expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
     expect(await loanNames()).toEqual(['A loan', 'B loan']);
@@ -484,7 +490,8 @@ describe('a device that was already linked before merging existed', () => {
     const withB = await captureDevice();
 
     await restoreDevice(withA);
-    await SyncService.reconcile(PASSPHRASE);
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    await SyncService.resolveConflict('take-remote', PASSPHRASE);
     expect(await assetNames()).toEqual(['B only', 'Shared gold']);
     const replacedA = await captureDevice();
 
@@ -613,7 +620,126 @@ describe('a cloud copy overwritten by an older build of the app', () => {
 
     await restoreDevice(deviceA);
     stored.delete('sync.highestSnapshotVersion');
-    await expect(SyncService.reconcile(PASSPHRASE)).resolves.toBeDefined();
+    // Not a downgrade, so not refused. It is still a replace of a device holding
+    // records, so it asks — and answering it goes through, which is the thing
+    // being pinned: the guard has not swallowed the ordinary case.
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    expect(SyncService.getStatus().conflict?.kind ?? 'diverged').toBe('diverged');
+    await SyncService.resolveConflict('take-remote', PASSPHRASE);
     expect(await assetNames()).toEqual(['Shared gold']);
+  });
+});
+
+describe('saving a record without editing it', () => {
+  it('does not make the stale device the winner', async () => {
+    // The mechanism behind "I opened the old device and it overwrote everything".
+    // A dialog hands back the row it was given, so Save fires the update hooks
+    // with no change in them — and the row used to come out re-dated. That made
+    // the *older* copy the latest change, and last-write-wins then did exactly
+    // as it was told: the real edit on the other device lost.
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    const [onA] = await db.assets.toArray();
+    await assets.update({ ...onA, name: 'Edited on A' });
+    await SyncService.reconcile(PASSPHRASE);
+
+    // B is stale. Its user opens the asset and presses Save, changing nothing.
+    await restoreDevice(deviceB);
+    const [onB] = await db.assets.toArray();
+    await new Promise(resolve => setTimeout(resolve, 5));
+    await assets.update({ ...onB });
+    // A's edit replaces the row here, so the merge is held for confirmation.
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    await SyncService.confirmMerge(PASSPHRASE);
+
+    // A's edit stands, because B never actually changed anything.
+    expect(await assetNames()).toEqual(['Edited on A']);
+  });
+
+  it('arms no push, so an idle device stays idle', async () => {
+    const { deviceA } = await twoLinkedDevices();
+    await restoreDevice(deviceA);
+    const [row] = await db.assets.toArray();
+
+    stored.delete('sync.pendingChangeSince');
+    puts = 0;
+    await assets.update({ ...row });
+    await SyncService.reconcile(PASSPHRASE);
+
+    expect(stored.get('sync.pendingChangeSince')).toBeUndefined();
+    expect(puts).toBe(0);
+  });
+});
+
+describe('a merge that would change records already on this device', () => {
+  it('is held for confirmation, naming what it would replace', async () => {
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    const [onA] = await db.assets.toArray();
+    await assets.update({ ...onA, name: 'Renamed on A' });
+    await SyncService.reconcile(PASSPHRASE);
+
+    await restoreDevice(deviceB);
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+
+    const conflict = SyncService.getStatus().conflict;
+    expect(conflict?.kind).toBe('overwrite');
+    expect(conflict?.overwriteCount).toBe(1);
+    // Named as the user knows it, so the dialog is about a record rather than a row id.
+    expect(conflict?.impacts?.[0]?.label).toBe('Shared gold');
+    // And nothing has happened yet, which is what makes it a question.
+    expect(await assetNames()).toEqual(['Shared gold']);
+  });
+
+  it('goes through once confirmed', async () => {
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    const [onA] = await db.assets.toArray();
+    await assets.update({ ...onA, name: 'Renamed on A' });
+    await SyncService.reconcile(PASSPHRASE);
+
+    await restoreDevice(deviceB);
+    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    await SyncService.confirmMerge(PASSPHRASE);
+
+    expect(await assetNames()).toEqual(['Renamed on A']);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
+  });
+
+  it('does not ask when the merge only adds records', async () => {
+    // The ordinary state of one person with two devices. Asking here would be a
+    // prompt on almost every session, which is how a dialog stops being read.
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    await expenses.create(expense('A groceries'));
+    await SyncService.reconcile(PASSPHRASE);
+
+    await restoreDevice(deviceB);
+    await expenses.create(expense('B fuel'));
+    await SyncService.reconcile(PASSPHRASE);
+
+    expect(await expenseDescriptions()).toEqual(['A groceries', 'B fuel']);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
+  });
+
+  it('does not ask about a deletion another device made on purpose', async () => {
+    // A removal carries a tombstone naming the delete behind it. Someone chose
+    // that; re-asking would nag every device about every deletion.
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    const created = await expenses.create(expense('Doomed'));
+    await SyncService.reconcile(PASSPHRASE);
+    await expenses.delete(created.id!);
+    await SyncService.reconcile(PASSPHRASE);
+
+    await restoreDevice(deviceB);
+    await SyncService.reconcile(PASSPHRASE);
+    expect(await expenseDescriptions()).toEqual([]);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
   });
 });

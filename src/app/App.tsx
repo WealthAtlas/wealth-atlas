@@ -12,7 +12,6 @@ import { AppThemeProvider } from './theme/AppThemeProvider';
 
 export default function App() {
   useEffect(() => {
-    // Auto-convert scheduled transactions and auto-sync on app startup
     const initializeApp = async () => {
       try {
         // Auto-convert scheduled transactions.
@@ -22,29 +21,34 @@ export default function App() {
         // snapshot already carries, they are regenerated on the next startup if
         // a pull replaces them, and marking them as unpushed work would make
         // every launch look like a conflict against a cloud that had moved on.
-        // They reach the cloud with the next real edit.
         //
         // Only the conversions, which are database work and over in a moment.
         // Suppression is a process-wide flag, so everything it spans is claimed
-        // as automatic — an edit the user makes inside the window included, and
-        // such an edit gets no new `updatedAt` and no unpushed mark, so the next
-        // merge overwrites it without trace. `updateValues()` runs one value
-        // script per asset over the network and used to sit in here, holding the
-        // flag up for as long as that took; it now suppresses each of its own
-        // writes instead.
-        const investmentService = new AssetService();
-        const loanService = new LoanService();
+        // as automatic — a user's edit inside the window included, and such an
+        // edit gets neither a new `updatedAt` nor an unpushed mark.
         await AutoSyncService.withoutScheduling(async () => {
-          await investmentService.createSIPInvestments();
-          await loanService.createEMIPayments();
+          await new AssetService().createSIPInvestments();
+          await new LoanService().createEMIPayments();
         });
-        await investmentService.updateValues();
 
-        // Auto-sync if enabled
+        // Before the value scripts, not after. Learning what the other devices
+        // did is the thing worth doing first: editing a record this device has
+        // not caught up on writes the whole stale row forward under a fresh
+        // timestamp, and row-level last-write-wins then prefers it. This used to
+        // wait on `updateValues()` — one script per asset over the network —
+        // leaving the app interactive for seconds while still showing what
+        // another device had already changed.
         const syncResult = await SyncService.autoSync();
         if (syncResult.version) {
           Logger.info(`Auto-sync completed, updated to version ${syncResult.version}`);
         }
+
+        // Prices, which say nothing about the other devices, so nothing waits on
+        // them. Unawaited on purpose: a slow value script must not delay
+        // anything above it.
+        void new AssetService()
+          .updateValues()
+          .catch(error => Logger.warn('Could not refresh the value scripts:', error));
       } catch (error) {
         Logger.error('Failed to initialize app:', error);
       }
@@ -57,7 +61,6 @@ export default function App() {
     AutoSyncService.startListening();
     AutoSyncService.startPeriodicPull();
 
-    // Cleanup on unmount
     return () => {
       AutoSyncService.stopPeriodicPull();
     };

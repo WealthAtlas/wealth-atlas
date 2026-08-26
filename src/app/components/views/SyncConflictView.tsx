@@ -14,6 +14,8 @@ import {
 import { conflictKind, type SyncConflict } from '@/data/sync/conflict';
 
 export interface SyncConflictViewProps {
+  /** `overwrite` only: applies the merge the user has just approved. */
+  onConfirmMerge: () => void;
   conflict: SyncConflict;
   busy: boolean;
   /** True when no passphrase is stored, so resolving needs one typed in. */
@@ -44,38 +46,109 @@ export function SyncConflictView(props: SyncConflictViewProps) {
   const blocked = props.needsPassphrase && !props.passphrase;
   // A downgrade is not a choice between two copies, so the card does not offer
   // one: both answers are wrong, and the fix is on the other device.
-  const downgrade = conflictKind(conflict) === 'downgrade';
+  const kind = conflictKind(conflict);
+  const downgrade = kind === 'downgrade';
+  // A merge held for approval: not a choice between two copies, but a choice
+  // about one operation, so the copy-picking buttons are wrong here too.
+  const overwrite = kind === 'overwrite';
+  const chooseCopy = !downgrade && !overwrite;
 
   return (
     <Paper elevation={2} sx={{ p: 2, mb: 2, borderColor: 'warning.main', borderTop: 3 }}>
       <Stack spacing={2}>
         <Typography variant="h6">
           <SyncProblem sx={{ mr: 1, verticalAlign: 'middle' }} />{' '}
-          {downgrade ? 'Sync Paused' : 'Sync Conflict'}
+          {downgrade ? 'Sync Paused' : overwrite ? 'Confirm Merge' : 'Sync Conflict'}
         </Typography>
 
         <Alert severity="warning">
           <AlertTitle>
             {downgrade
               ? 'Another device is running an older version'
-              : 'This device and the cloud have both changed'}
+              : overwrite
+                ? 'Another device has already changed some of these records'
+                : 'This device and the cloud have both changed'}
           </AlertTitle>
-          {downgrade
-            ? `The cloud copy was last written by an older version of the app (snapshot ` +
-              `v${conflict.snapshotVersion} where this device has already read ` +
-              `v${conflict.expectedSnapshotVersion}). Reading it here would lose what that ` +
-              'version has no place to keep — records of what you deleted, so deleted items ' +
-              'would come back, and the marker that lets devices merge instead of overwriting ' +
-              'each other. Update Wealth Atlas on your other device and sync will resume by ' +
-              'itself. Nothing on this device has been changed or deleted.'
-            : (conflict.direction === 'push'
-                ? 'Another device has saved changes since this one last synced, so uploading ' +
-                  'from here would delete them.'
-                : 'This device has changes the cloud has never seen, so downloading would ' +
-                  'delete them.') +
-              ' Sync is paused until you choose which copy to keep. Nothing has been changed ' +
-              'or deleted.'}
+          {overwrite
+            ? `Merging would replace ${conflict.overwriteCount ?? 0} record` +
+              `${conflict.overwriteCount === 1 ? '' : 's'} on this device` +
+              (conflict.removalCount
+                ? ` and remove ${conflict.removalCount} that another device deleted`
+                : '') +
+              '. Records only one device has are always kept — these are the ones both ' +
+              'devices have, where the more recent change wins. Nothing has changed yet.'
+            : downgrade
+              ? `The cloud copy was last written by an older version of the app (snapshot ` +
+                `v${conflict.snapshotVersion} where this device has already read ` +
+                `v${conflict.expectedSnapshotVersion}). Reading it here would lose what that ` +
+                'version has no place to keep — records of what you deleted, so deleted items ' +
+                'would come back, and the marker that lets devices merge instead of overwriting ' +
+                'each other. Update Wealth Atlas on your other device and sync will resume by ' +
+                'itself. Nothing on this device has been changed or deleted.'
+              : (conflict.direction === 'push'
+                  ? 'Another device has saved changes since this one last synced, so uploading ' +
+                    'from here would delete them.'
+                  : 'This device has changes the cloud has never seen, so downloading would ' +
+                    'delete them.') +
+                ' Sync is paused until you choose which copy to keep. Nothing has been changed ' +
+                'or deleted.'}
         </Alert>
+
+        {overwrite && conflict.impacts && conflict.impacts.length > 0 && (
+          <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
+            <CardContent>
+              <Stack spacing={0.5}>
+                <Typography variant="caption" color="text.secondary">
+                  Affected on this device
+                </Typography>
+                {conflict.impacts.map((impact, index) => (
+                  <Typography key={`${impact.table}-${index}`} variant="body2">
+                    {impact.removed ? '\u2212' : '\u21bb'} {impact.label}{' '}
+                    <Typography component="span" variant="caption" color="text.secondary">
+                      ({impact.table})
+                    </Typography>
+                  </Typography>
+                ))}
+                {(conflict.overwriteCount ?? 0) + (conflict.removalCount ?? 0) >
+                  conflict.impacts.length && (
+                  <Typography variant="caption" color="text.secondary">
+                    …and{' '}
+                    {(conflict.overwriteCount ?? 0) +
+                      (conflict.removalCount ?? 0) -
+                      conflict.impacts.length}{' '}
+                    more
+                  </Typography>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
+
+        {overwrite && (
+          <>
+            <Divider />
+            <Typography variant="subtitle2">Before you merge</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Downloading a backup first costs nothing and makes this reversible. It is the only
+              copy of this device that no sync operation can reach.
+            </Typography>
+            <Stack spacing={1}>
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={<CloudDownload />}
+                onClick={props.onConfirmMerge}
+                disabled={props.busy || blocked}
+                fullWidth
+              >
+                Merge, keeping the more recent of each
+              </Button>
+              <Button size="small" onClick={props.onDismiss} disabled={props.busy}>
+                Cancel — leave both copies alone
+              </Button>
+            </Stack>
+          </>
+        )}
 
         <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
           <CardContent>
@@ -130,7 +203,7 @@ export function SyncConflictView(props: SyncConflictViewProps) {
           />
         )}
 
-        {!downgrade && (
+        {chooseCopy && (
           <>
             <Divider />
 

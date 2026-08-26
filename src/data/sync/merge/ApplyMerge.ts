@@ -29,11 +29,31 @@ import { tombstonesFor } from './Tombstones';
  * it, or it would arrive dated "now" and win every comparison for ever after.
  */
 
+/** One local row a merge would not leave as it found it, named for the user. */
+export interface MergeImpact {
+  table: SyncedTableName;
+  /** The row as the user would recognise it, not its id. */
+  label: string;
+}
+
 export interface MergeReport {
   /** Whether the merged result differs from the cloud's, so a push is owed. */
   localAhead: boolean;
   written: number;
   removed: number;
+  /**
+   * Local rows the incoming copy would replace outright, and local rows the
+   * cloud has deleted. Kept apart from the counts because these are the only
+   * two things a merge does that a user could regret: everything else it does
+   * is additive, and a merge with nothing here cannot cost anything.
+   *
+   * A replacement is row-level, so it carries the *whole* incoming row — which
+   * is why it is worth naming even when the incoming row is genuinely newer. A
+   * device that was read before it was refreshed writes stale fields forward
+   * under a fresh timestamp, and those field values are what disappear.
+   */
+  overwrites: MergeImpact[];
+  removals: MergeImpact[];
   /**
    * Incoming rows dropped because the row they belonged to is gone — a
    * transaction whose asset another device deleted. Only incoming rows: a local
@@ -46,8 +66,34 @@ export interface MergeReport {
 
 type SnapshotData = Record<string, MergeableRow[] | undefined>;
 
-export async function applyMerge(data: SnapshotData, now = Date.now()): Promise<MergeReport> {
-  const report: MergeReport = { localAhead: false, written: 0, removed: 0, orphaned: 0 };
+/** How the user would name a row: what the list screens show, not the id. */
+function labelOf(row: MergeableRow): string {
+  for (const field of ['name', 'description', 'code', 'text', 'category']) {
+    const value = row[field];
+    if (typeof value === 'string' && value.trim() !== '') return value;
+  }
+  return `#${row.id ?? '?'}`;
+}
+
+/**
+ * `dryRun` computes the whole plan and writes none of it, so the app can say
+ * what a merge would cost *before* doing it. The same code path as the real
+ * thing on purpose: a preview computed by a second implementation is a preview
+ * of something else.
+ */
+export async function applyMerge(
+  data: SnapshotData,
+  now = Date.now(),
+  options: { dryRun?: boolean } = {}
+): Promise<MergeReport> {
+  const report: MergeReport = {
+    localAhead: false,
+    written: 0,
+    removed: 0,
+    orphaned: 0,
+    overwrites: [],
+    removals: [],
+  };
   const incomingTombstones = (data.deletions ?? []) as unknown as IDeletion[];
 
   await AutoSyncService.withoutScheduling(() =>
@@ -87,12 +133,19 @@ export async function applyMerge(data: SnapshotData, now = Date.now()): Promise<
             continue;
           }
           if (write.localId !== undefined) {
+            const replaced = local.find(row => row.id === write.localId);
+            if (replaced) report.overwrites.push({ table: spec.name, label: labelOf(replaced) });
             // Written over the local row, keeping its id: everything that
             // references it locally goes on referencing the right thing.
-            await table.put({ ...remapped.row, id: write.localId });
+            if (!options.dryRun) await table.put({ ...remapped.row, id: write.localId });
           } else {
             const key = identityOf(spec, remapped.row);
-            const newId = await table.add({ ...remapped.row, id: undefined });
+            // The id has to be minted even for a preview, or this table's own
+            // children resolve against nothing and report as orphans that the
+            // real merge would have kept.
+            const newId = options.dryRun
+              ? -(idMap.size + 1)
+              : await table.add({ ...remapped.row, id: undefined });
             // Registered so this table's own children can resolve a parent that
             // arrived in the same snapshot.
             if (write.incoming.id !== undefined) idMap.set(write.incoming.id, Number(newId));
@@ -101,14 +154,19 @@ export async function applyMerge(data: SnapshotData, now = Date.now()): Promise<
           report.written++;
         }
 
+        for (const row of plan.removals) {
+          report.removals.push({ table: spec.name, label: labelOf(row) });
+        }
         const removals = plan.removals
           .map(row => row.id)
           .filter((id): id is number => id !== undefined);
         if (removals.length > 0) {
-          await table.bulkDelete(removals);
+          if (!options.dryRun) await table.bulkDelete(removals);
           report.removed += removals.length;
         }
       }
+
+      if (options.dryRun) return;
 
       // Rewritten whole rather than appended to: this is also where the pruning
       // and the de-duplication of two records of one deletion take effect.
@@ -124,8 +182,9 @@ export async function applyMerge(data: SnapshotData, now = Date.now()): Promise<
   );
 
   Logger.info(
-    `Merged a snapshot: ${report.written} written, ${report.removed} removed, ` +
-      `${report.orphaned} orphaned, local ${report.localAhead ? 'ahead' : 'in step'}`
+    `${options.dryRun ? 'Previewed' : 'Merged'} a snapshot: ${report.written} written, ` +
+      `${report.removed} removed, ${report.orphaned} orphaned, ` +
+      `${report.overwrites.length} overwritten, local ${report.localAhead ? 'ahead' : 'in step'}`
   );
   return report;
 }

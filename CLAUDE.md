@@ -54,6 +54,7 @@ Wealth Atlas is a local-first React 18 PWA for personal wealth tracking. Stack: 
 - `Currency` is stored as an ISO code (`INR`), never a symbol. Symbols come from `CURRENCY_SYMBOLS`/`getCurrencySymbol`.
 - `IInvestment.totalAmount` is the **total** transaction value and is always positive; buy/sell direction lives in `type` (see `Investment.getSignedAmount`).
 - Any change to a persisted row shape needs a Dexie `version()` bump in `src/data/database.ts`, a transform in `src/data/migrations/`, a `SNAPSHOT_VERSION` bump in `src/data/sync/Syncer.ts`, and a `BACKUP_VERSION` bump in `BackupService` — all four, or a sync/restore will corrupt data. A new *table* needs nine (see `decisions`/`memories` below), and a new *synced entity* table also needs a row in `SYNCED_TABLES` — without it the table is never merged, so every edit to it is settled by whichever device pushes last.
+- A write that changes nothing claims nothing. `isNoOpUpdate` gates both the `updatedAt` stamp and the push: a dialog hands back the row it was given, so pressing Save without editing fires the `updating` hooks with no change in them, and the row used to come out re-dated with a push armed behind it. That made a device holding *older* data the "latest change" — merely opening a record and saving it beat a real edit made elsewhere, and last-write-wins then did exactly as it was told. `uid` and `updatedAt` are excluded from the comparison, being the bookkeeping under decision rather than the content being judged.
 - A synced row is deleted through `deleteSynced`, never `table.delete` or a collection delete. The delete and its tombstone have to land in one transaction, or the row comes back on the next merge.
 - Rows arriving via JSON (backup, sync snapshot) must go through `rehydrateSnapshotDates` before being written; otherwise Date columns land as strings.
 - Every preference the Settings page edits lives in the `settings` singleton (`ISettings`), so it travels through sync and backup: base currency, the currency list (rates in `currencyRates`), and the AI provider config (`settings.ai`). Only the sync identity itself is device-local — key id, passphrase, auto-sync toggle in `src/data/sync/state.ts`. `settings.ai.apiKey` is the one exception to symmetry: it rides the encrypted sync snapshot but `BackupService` strips it from the export, because that file is plaintext on the user's disk.
@@ -78,9 +79,16 @@ Four rules hold the line, and they are the whole design:
   loses data. An unknown base is a conflict, not a push: a device that cannot say what it is based on
   cannot claim to be current. `requireRemoteVersion` falls back to a full GET on backends predating
   `/version`, because for a push "could not tell" must never mean "go ahead".
-- **A pull may only replace rows the cloud already has.** `markPendingChange` records when this
-  device first changed something it has not pushed; only a *completed* push or import clears it, so a
-  failed push leaves the guard standing. `decidePull` refuses the import while it stands. Writes that
+- **A replace asks; only a merge may act silently.** The line is not how likely the app is to be
+  right, it is what being wrong costs. A merge removes rows silently because every row it removes has
+  a tombstone naming the delete that did it — *nothing disappears without a recorded reason*. A
+  replace has no per-row reason for anything; it removes whatever the other copy happens not to have,
+  so the only honest question is which copy the user wants. `decidePull` therefore refuses on
+  `hasLocalRecords` — counted, not inferred — and an empty device still imports without asking,
+  because there is nothing to weigh. `markPendingChange` still counts, but it now only ever *adds*
+  caution: it is cleared by any completed push, and never set for a write made while automatic work
+  held the suppression flag, so a flag that can be wrong in the permissive direction cannot be the
+  only thing standing between the user and a wiped database. Writes that
   are not the user changing their mind — the startup SIP/EMI conversions, a migration — go through
   `AutoSyncService.withoutScheduling` so they neither push nor set the mark; otherwise the device
   that opens second would conflict on every launch.
@@ -230,6 +238,43 @@ reference are dropped, because there is no local id to point them at.
 The one limit worth stating plainly: `updatedAt` comes from each device's own clock, so "latest" is
 only as good as the skew between them. A Lamport counter would fix the ordering and lose the ability
 to say *when*.
+
+**A merge that costs something is confirmed, not performed** (`applyMerge`'s `dryRun`,
+`raiseMergeConfirmation`, `SyncService.confirmMerge`). The line is cost, not divergence, and the
+distinction is the whole design. Two devices holding different records is the *ordinary* state of one
+person with a phone and a laptop; a merge that only adds rows takes nothing from anybody, and asking
+there would be a prompt on almost every session — which trains the user to click through it and
+spends the one moment of attention that matters. A merge that *replaces* a local row is a different
+thing: merging is row-level, so a replacement carries the whole incoming row, and a device read
+before it was refreshed writes stale fields forward under a fresh timestamp. Nobody chose to discard
+those values.
+
+So **overwrites ask; removals do not**, and the asymmetry is deliberate: a removal carries a
+tombstone naming the delete behind it, so someone chose it on purpose on another device, and asking
+would nag every device about every deletion. Removals are still *listed* when the question is asked
+for another reason, because they are part of what is being agreed to.
+
+The preview is the real merge with its writes withheld (`dryRun`), never a second implementation of
+it — a preview computed twice is a preview of something else. Note `dryRun` still mints placeholder
+ids into the id map, or a child whose parent arrives in the same snapshot resolves against nothing
+and previews as an orphan the real merge would have kept. `confirmMerge` re-reads and re-merges
+rather than applying the stored plan: the cloud may have moved while the card was open, and applying
+a plan computed against a snapshot that is no longer there is exactly how a confirmation becomes the
+overwrite it was asked about. Impacts are labelled as the user knows the record (`name`, then
+`description`, `code`, `text`, `category`) and capped at `MAX_LISTED_IMPACTS`, because the record
+lives in local storage.
+
+**Ordering at startup.** Editing a record this device has not caught up on is the sequence that
+loses data without either side doing anything wrong: the screen shows a stale value, the write
+carries the *whole row* — stale fields included — under a fresh `updatedAt`, and row-level
+last-write-wins prefers it. So `App` runs the open-sync *before* `updateValues()`, not after. It used
+to wait on one value script per asset over the network, leaving the app interactive for seconds while
+still showing what another device had already changed. `updateValues()` is now fired unawaited: it
+refreshes prices and says nothing about the other devices, so nothing should wait on it.
+
+The residual case — deliberately editing a stale device before it syncs — is caught at merge time by
+the confirmation above rather than by blocking input, because blocking would break offline use to
+prevent something the confirmation already catches.
 
 **Starting up (`src/index.tsx`, `AppFailureBoundary`, `AppFailureView`)** — the app must never show
 a blank page, and the reason is not polish. Records live in this device's IndexedDB, so a blank page

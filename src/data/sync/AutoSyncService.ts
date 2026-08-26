@@ -2,6 +2,8 @@ import { Logger } from '@/domain/utils/Logger';
 import { db } from '../database';
 import { getSyncConflict } from './conflict';
 import { SyncService } from './Syncer';
+import type { MergeableRow } from './merge/MergeRows';
+import { isNoOpUpdate } from './merge/SyncMeta';
 import { getAutoSyncEnabled, getKeyId, markPendingChange } from './state';
 
 export class AutoSyncService {
@@ -62,7 +64,14 @@ export class AutoSyncService {
     tables.forEach(table => {
       // Listen for create, update, delete operations
       table.hook('creating', () => AutoSyncService.scheduleSync('create', table.name));
-      table.hook('updating', () => AutoSyncService.scheduleSync('update', table.name));
+      table.hook('updating', (modifications, _primKey, obj) => {
+        // Saving a form without editing it must not wake a push, for the same
+        // reason it must not re-date the row: nothing about this device changed,
+        // so there is nothing the cloud has not got.
+        if (isNoOpUpdate(modifications as Record<string, unknown>, obj as unknown as MergeableRow))
+          return;
+        AutoSyncService.scheduleSync('update', table.name);
+      });
       table.hook('deleting', () => AutoSyncService.scheduleSync('delete', table.name));
     });
   }

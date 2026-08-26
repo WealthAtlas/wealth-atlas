@@ -50,34 +50,77 @@ describe('deciding whether a push may overwrite the cloud', () => {
 
 describe('deciding whether a pull may replace every local table', () => {
   it('skips when the cloud has nothing newer', () => {
-    expect(decidePull({ baseVersion: 9, remoteVersion: 9, hasUnpushedChanges: false })).toBe(
-      'skip'
-    );
+    expect(
+      decidePull({
+        baseVersion: 9,
+        remoteVersion: 9,
+        hasUnpushedChanges: false,
+        hasLocalRecords: false,
+      })
+    ).toBe('skip');
   });
 
   it('imports when everything local is already in the cloud', () => {
-    expect(decidePull({ baseVersion: 7, remoteVersion: 9, hasUnpushedChanges: false })).toBe(
-      'import'
-    );
+    expect(
+      decidePull({
+        baseVersion: 7,
+        remoteVersion: 9,
+        hasUnpushedChanges: false,
+        hasLocalRecords: false,
+      })
+    ).toBe('import');
   });
 
   it('refuses when this device holds edits the cloud has never seen', () => {
     // The import is a whole-database wipe, and an edit made offline or inside
     // the push debounce is a row no remote snapshot can give back.
-    expect(decidePull({ baseVersion: 7, remoteVersion: 9, hasUnpushedChanges: true })).toBe(
-      'conflict'
-    );
+    expect(
+      decidePull({
+        baseVersion: 7,
+        remoteVersion: 9,
+        hasUnpushedChanges: true,
+        hasLocalRecords: false,
+      })
+    ).toBe('conflict');
+  });
+
+  it('refuses when this device holds records of its own, pushed or not', () => {
+    // The blunt rule, and the one the user asked for: a replace has no per-row
+    // reason for anything it removes, so if there is something here to lose the
+    // only honest move is to ask which copy to keep. `hasUnpushedChanges` is not
+    // enough on its own — a completed push clears it, and a write made while
+    // automatic work held the suppression flag never sets it.
+    expect(
+      decidePull({
+        baseVersion: 7,
+        remoteVersion: 9,
+        hasUnpushedChanges: false,
+        hasLocalRecords: true,
+      })
+    ).toBe('conflict');
   });
 
   it('skips rather than conflicting when the cloud is not ahead at all', () => {
     // Unpushed local work is not a conflict on its own — there is nothing
     // arriving to displace it. It is settled by the next push.
-    expect(decidePull({ baseVersion: 9, remoteVersion: 9, hasUnpushedChanges: true })).toBe('skip');
+    expect(
+      decidePull({
+        baseVersion: 9,
+        remoteVersion: 9,
+        hasUnpushedChanges: true,
+        hasLocalRecords: false,
+      })
+    ).toBe('skip');
   });
 
   it('treats a device that has never synced as behind any real version', () => {
     expect(
-      decidePull({ baseVersion: undefined, remoteVersion: 1, hasUnpushedChanges: false })
+      decidePull({
+        baseVersion: undefined,
+        remoteVersion: 1,
+        hasUnpushedChanges: false,
+        hasLocalRecords: false,
+      })
     ).toBe('import');
   });
 });

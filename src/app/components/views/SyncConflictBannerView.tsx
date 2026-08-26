@@ -27,13 +27,19 @@ export function SyncConflictBannerView(props: SyncConflictBannerViewProps) {
         }
       >
         <AlertTitle sx={{ mb: 0 }}>
-          {props.kind === 'downgrade' ? 'Sync paused — older device' : 'Sync paused — conflict'}
+          {props.kind === 'downgrade'
+            ? 'Sync paused — older device'
+            : props.kind === 'overwrite'
+              ? 'Sync paused — merge needs confirming'
+              : 'Sync paused — conflict'}
         </AlertTitle>
         {props.kind === 'downgrade'
           ? 'Another device is running an older version of Wealth Atlas and overwrote the cloud copy.'
-          : props.direction === 'push'
-            ? 'Another device has changes this one has not seen.'
-            : 'This device has changes the cloud has not seen.'}{' '}
+          : props.kind === 'overwrite'
+            ? 'Another device has already changed some of the same records.'
+            : props.direction === 'push'
+              ? 'Another device has changes this one has not seen.'
+              : 'This device has changes the cloud has not seen.'}{' '}
         Nothing has been deleted.
       </Alert>
     </Box>

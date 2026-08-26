@@ -31,7 +31,7 @@ export type SyncDirection = 'push' | 'pull';
  * and both destructive answers are wrong. Absent on records written before this
  * existed, which are all `diverged`.
  */
-export type SyncConflictKind = 'diverged' | 'downgrade';
+export type SyncConflictKind = 'diverged' | 'downgrade' | 'overwrite';
 
 /** A divergence that was refused. Held until the user resolves it. */
 export interface SyncConflict {
@@ -50,7 +50,19 @@ export interface SyncConflict {
   snapshotVersion?: number;
   /** `downgrade` only: the version this device had already read from this key. */
   expectedSnapshotVersion?: number;
+  /** `overwrite` only: how many local rows the merge would replace, and remove. */
+  overwriteCount?: number;
+  removalCount?: number;
+  /**
+   * `overwrite` only: a sample of the affected rows, named as the user would
+   * know them. Capped, because this record lives in local storage and a merge
+   * touching a thousand rows must not be the thing that fills it.
+   */
+  impacts?: { table: string; label: string; removed?: boolean }[];
 }
+
+/** How many affected rows a conflict record will name before it stops. */
+export const MAX_LISTED_IMPACTS = 12;
 
 /** A conflict record's kind, defaulted for records written before it existed. */
 export function conflictKind(conflict: SyncConflict): SyncConflictKind {
@@ -81,19 +93,36 @@ export function decidePush(input: { baseVersion?: number; remoteVersion: number 
 /**
  * Whether a pull may replace every local table.
  *
- * Importing is a whole-database wipe, so it is only safe while everything local
- * is already in the cloud. `hasUnpushedChanges` is the guard: an edit made
- * offline, inside the push debounce, or after a push that failed, is a row the
- * remote snapshot has never seen and cannot restore.
+ * Importing is a whole-database wipe, and the rule is now the blunt one: **if
+ * this device holds records, it asks.** Not because the app cannot usually tell,
+ * but because of what it costs when it is wrong. A merge may remove rows
+ * silently, because every row it removes has a tombstone naming the delete that
+ * did it — nothing disappears without a recorded reason. A replace has no
+ * per-row reason for anything; it removes whatever the other copy happens not to
+ * have, so the only honest question is which copy the user wants to keep.
+ *
+ * `hasUnpushedChanges` used to be the whole guard, and it was not enough. It is
+ * cleared by any completed push, so a device that pushed an hour ago and has
+ * been edited since a merge cleared the mark reads as "nothing to lose"; and it
+ * is never set for a write made while automatic work held the suppression flag.
+ * A flag that can be wrong in the permissive direction cannot be the thing
+ * standing between the user and a wiped database. It still counts — it just only
+ * ever *adds* caution now, never removes it.
+ *
+ * An empty device still imports without asking. There is nothing to weigh, and a
+ * new device's first sync should not open with a question about a copy it does
+ * not have.
  */
 export function decidePull(input: {
   baseVersion?: number;
   remoteVersion: number;
   hasUnpushedChanges: boolean;
+  /** Whether this device holds records of its own, counted rather than inferred. */
+  hasLocalRecords: boolean;
 }): PullDecision {
   const base = input.baseVersion ?? -1;
   if (input.remoteVersion <= base) return 'skip';
-  return input.hasUnpushedChanges ? 'conflict' : 'import';
+  return input.hasUnpushedChanges || input.hasLocalRecords ? 'conflict' : 'import';
 }
 
 /**

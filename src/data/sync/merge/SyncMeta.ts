@@ -54,6 +54,42 @@ export function stampOnCreate(row: MergeableRow, automatic: boolean): void {
   if (!automatic || !row.updatedAt) row.updatedAt = new Date();
 }
 
+/** The two columns that are *about* a write rather than part of it. */
+const SYNC_META_FIELDS = new Set(['uid', 'updatedAt']);
+
+function sameValue(next: unknown, current: unknown): boolean {
+  if (next === current) return true;
+  if (next instanceof Date && current instanceof Date) return next.getTime() === current.getTime();
+  if (next === null || current === null) return false;
+  if (typeof next !== 'object' || typeof current !== 'object') return false;
+  // Settings blocks and allocation arrays are written whole, so a re-save of an
+  // identical one is still a re-save of nothing.
+  return JSON.stringify(next) === JSON.stringify(current);
+}
+
+/**
+ * Whether a write leaves the row exactly as it found it.
+ *
+ * Saving a form without editing anything is a write: the dialog hands back the
+ * row it was given, Dexie fires the hooks, and the row used to come out re-dated
+ * with a push armed behind it. That is how a device holding *older* data comes to
+ * outrank a newer edit on another device — merely opening a record and pressing
+ * Save makes this copy "the latest change", and last-write-wins then does exactly
+ * what it is told. No edit, and the other device's real work is gone.
+ *
+ * So a write that changes nothing must claim nothing: no new `updatedAt`, and no
+ * push. `uid` and `updatedAt` are excluded from the comparison because they are
+ * the bookkeeping being decided, not the content being judged.
+ */
+export function isNoOpUpdate(
+  modifications: Record<string, unknown>,
+  existing: MergeableRow | undefined
+): boolean {
+  if (!existing) return false;
+  const keys = Object.keys(modifications).filter(field => !SYNC_META_FIELDS.has(field));
+  return keys.every(key => sameValue(modifications[key], existing[key]));
+}
+
 /**
  * The extra modifications a write needs, for Dexie's `updating` hook.
  *
@@ -69,7 +105,8 @@ export function stampOnUpdate(
 ): Record<string, unknown> {
   const extra: Record<string, unknown> = {};
   if (modifications.uid === undefined) extra.uid = existing?.uid ?? newUid();
-  if (!automatic) extra.updatedAt = new Date();
+  // A write that changed nothing is not the latest change, whoever made it.
+  if (!automatic && !isNoOpUpdate(modifications, existing)) extra.updatedAt = new Date();
   return extra;
 }
 

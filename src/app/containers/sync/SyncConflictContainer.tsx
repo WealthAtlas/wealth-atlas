@@ -64,6 +64,23 @@ export function SyncConflictContainer() {
     [notify, passphrase, reloadCopies]
   );
 
+  const onConfirmMerge = useCallback(async () => {
+    setBusy(true);
+    try {
+      await SyncService.confirmMerge(passphrase || undefined);
+      setPassphrase('');
+      notify('Merged. Both devices now hold the same records.', 'success');
+    } catch (error) {
+      // Including the case where the cloud moved again while the card was open,
+      // which re-asks rather than applying a plan computed against a snapshot
+      // that is no longer there.
+      notify(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      setBusy(false);
+      reloadCopies();
+    }
+  }, [notify, passphrase, reloadCopies]);
+
   const onExportBackup = useCallback(async () => {
     try {
       await BackupService.downloadBackup();
@@ -102,6 +119,7 @@ export function SyncConflictContainer() {
           onPassphraseChange={setPassphrase}
           onKeepLocal={() => void resolve('keep-local')}
           onTakeRemote={() => void resolve('take-remote')}
+          onConfirmMerge={() => void onConfirmMerge()}
           onExportBackup={() => void onExportBackup()}
           onDismiss={onDismiss}
         />

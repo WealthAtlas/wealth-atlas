@@ -38,9 +38,10 @@ import {
   SyncConflictError,
   SyncDirection,
   SyncDowngradeError,
+  MAX_LISTED_IMPACTS,
 } from './conflict';
 import { CryptoMeta, decryptJson, encryptJson } from './crypto';
-import { applyMerge } from './merge/ApplyMerge';
+import { applyMerge, type MergeReport } from './merge/ApplyMerge';
 import type { MergeableRow } from './merge/MergeRows';
 import { SYNCED_TABLES } from './merge/SyncedTables';
 import { newUid } from './merge/SyncMeta';
@@ -448,6 +449,51 @@ function guardAgainstDowngrade(snapshot: Snapshot, remoteVersion: number): void 
   throw new SyncDowngradeError(conflict);
 }
 
+/**
+ * Refuses a merge that would change records already on this device, until the
+ * user has said so.
+ *
+ * The line is drawn at cost, not at divergence — and that distinction is the
+ * whole design. Two devices holding different records is the *ordinary* state of
+ * one person with a phone and a laptop, and a merge that only adds rows takes
+ * nothing away from anybody: asking there would be a prompt on almost every
+ * session, which trains people to click through it and spends the one moment of
+ * attention that actually matters.
+ *
+ * A merge that *replaces* or *removes* a local row is a different thing. Because
+ * merging is row-level, a replacement carries the whole incoming row, so a
+ * device that was read before it was refreshed writes its stale fields forward
+ * under a fresh timestamp and the newer values are gone. That is worth stopping
+ * for, and it is rare enough to be worth stopping for.
+ */
+function raiseMergeConfirmation(
+  preview: MergeReport,
+  baseVersion: number | undefined,
+  remoteVersion: number
+): never {
+  const impacts = [
+    ...preview.overwrites.map(impact => ({ ...impact, removed: false })),
+    ...preview.removals.map(impact => ({ ...impact, removed: true })),
+  ];
+  const conflict: SyncConflict = {
+    kind: 'overwrite',
+    direction: 'pull',
+    baseVersion,
+    remoteVersion,
+    overwriteCount: preview.overwrites.length,
+    removalCount: preview.removals.length,
+    impacts: impacts.slice(0, MAX_LISTED_IMPACTS),
+    pendingSince: getPendingChangeSince(),
+    detectedAt: new Date().toISOString(),
+  };
+  setSyncConflict(conflict);
+  Logger.warn(
+    `Merge held for confirmation: ${preview.overwrites.length} would be replaced, ` +
+      `${preview.removals.length} removed`
+  );
+  throw new SyncConflictError(conflict);
+}
+
 async function importSnapshot(incoming: Snapshot): Promise<void> {
   const snapshot = upgradeSnapshot(incoming);
   rehydrateSnapshot(snapshot);
@@ -636,11 +682,16 @@ async function replaceFromSnapshot(
   baseVersion: number | undefined,
   options: { force: boolean; reason: 'pull' | 'take-remote' | 'link' }
 ): Promise<{ version: number | null }> {
+  // Counted before deciding, not after: whether this device holds records is the
+  // decision, and it is also what says whether there is anything to file.
+  const holdsRecords = await hasLocalData();
+
   if (!options.force) {
     const decision = decidePull({
       baseVersion,
       remoteVersion: version,
       hasUnpushedChanges: Boolean(getPendingChangeSince()),
+      hasLocalRecords: holdsRecords,
     });
     if (decision === 'skip') return { version: null };
     if (decision === 'conflict') raiseConflict('pull', baseVersion, version);
@@ -650,7 +701,7 @@ async function replaceFromSnapshot(
   // if it cannot be written — a wipe with no net is the thing this exists to
   // prevent. Skipped only when there is provably nothing to keep, so a fresh
   // device's first pull cannot fill the store with empty files.
-  if (await hasLocalData()) await preserveDevice(options.reason);
+  if (holdsRecords) await preserveDevice(options.reason);
 
   await importSnapshot(snapshot);
   setLastRemoteVersion(version);
@@ -720,7 +771,10 @@ function mergeAllowed(snapshot: Snapshot): boolean {
  * One pass of: take what the cloud has, keep both sides where they do not
  * overlap, take the later change where they do, then publish the result.
  */
-async function reconcileOnce(passphrase: string | undefined): Promise<{ version: number | null }> {
+async function reconcileOnce(
+  passphrase: string | undefined,
+  options: { approveMerge?: boolean } = {}
+): Promise<{ version: number | null }> {
   const keyId = getKeyId();
   if (!keyId) throw new Error('Sync not set up');
 
@@ -761,8 +815,25 @@ async function reconcileOnce(passphrase: string | undefined): Promise<{ version:
 
   const upgraded = upgradeSnapshot(snapshot);
   rehydrateSnapshot(upgraded);
+  const incoming = upgraded.data as unknown as Record<string, MergeableRow[]>;
 
-  const report = await applyMerge(upgraded.data as unknown as Record<string, MergeableRow[]>);
+  // Computed by the real merge with its writes withheld, so what the user is
+  // shown is what would actually happen rather than a second guess at it.
+  if (!options.approveMerge) {
+    const preview = await applyMerge(incoming, Date.now(), { dryRun: true });
+    // Overwrites ask; removals do not, and the asymmetry is the point. A removal
+    // carries a tombstone naming the delete that caused it — someone chose that,
+    // on purpose, on another device, and re-asking here would nag every other
+    // device about every deletion the user has already made. An overwrite is the
+    // opposite: nobody chose to discard the field values it discards. They are
+    // still *listed* when the question is asked for another reason, because they
+    // are part of what the user is agreeing to.
+    if (preview.overwrites.length > 0) {
+      raiseMergeConfirmation(preview, baseVersion, resp.version);
+    }
+  }
+
+  const report = await applyMerge(incoming);
 
   recordSnapshotVersion(snapshot.schemaVersion);
   setLastRemoteVersion(resp.version);
@@ -876,6 +947,19 @@ export class SyncService {
    */
   static async reconcile(passphrase?: string): Promise<{ version: number | null }> {
     return runExclusive(() => reconcileOnce(passphrase));
+  }
+
+  /**
+   * Runs the merge the user has just approved.
+   *
+   * Deliberately re-reads and re-merges rather than applying a stored plan: the
+   * cloud may have moved again while the dialog was open, and applying a plan
+   * computed against a snapshot that is no longer there is how a confirmation
+   * turns into the very overwrite it was asked about. If the new snapshot would
+   * cost something different, the question is simply asked again.
+   */
+  static async confirmMerge(passphrase?: string): Promise<{ version: number | null }> {
+    return runExclusive(() => reconcileOnce(passphrase, { approveMerge: true }));
   }
 
   /**
