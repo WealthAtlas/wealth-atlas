@@ -87,6 +87,96 @@ function requireSettings() {
 }
 
 /**
+ * Marks a payload whose closing quote had to be supplied by
+ * `repairTruncatedJson` — the model stopped mid-value, so the text really is
+ * incomplete and the user must be told.
+ *
+ * A symbol rather than a field because `ChatLoop` stores the raw payload in the
+ * transcript with `JSON.stringify`, which omits symbol keys: the flag reaches
+ * `parseAssistantTurn` without ever becoming a key the model sees itself emit.
+ */
+export const TRUNCATED_REPLY = Symbol('truncatedReply');
+
+function tryParse(text: string): { ok: true; value: unknown } | { ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
+ * Closes the strings and brackets a cut-off JSON document left open.
+ *
+ * DeepSeek with `thinking` enabled does not apply constrained decoding for
+ * `response_format: { type: 'json_object' }` — it is honoured in name only — so
+ * roughly one turn in fifteen it emits its stop token *before* the envelope's
+ * final `}`. Measured against the real API: 2 unparseable in 30 identical
+ * requests, both with `finish_reason: 'stop'`, because the model did choose to
+ * stop; it simply stopped one token early. One observed payload was a complete,
+ * well-formed sentence missing nothing but the closing brace.
+ *
+ * So this completes a document whose remaining structure is not in doubt, which
+ * is why it is a repair rather than a guess: every character it appends is the
+ * only character the grammar allows there. It deliberately does *not* invent
+ * values — a cut in the middle of a key, or after a `:` with no value, leaves
+ * nothing determined and is left to fail.
+ *
+ * `closedString` is the honesty flag. Having to supply the closing quote means
+ * the model was cut mid-sentence and text is genuinely missing; needing only
+ * brackets means nothing was lost at all.
+ */
+export function repairTruncatedJson(
+  text: string
+): { text: string; closedString: boolean } | undefined {
+  const closers: string[] = [];
+  let inString = false;
+  let escaped = false;
+
+  for (const char of text) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === '{') closers.push('}');
+    else if (char === '[') closers.push(']');
+    else if (char === '}' || char === ']') {
+      // More closes than opens is malformed in some other way, not truncated.
+      if (closers.pop() === undefined) return undefined;
+    }
+  }
+
+  // Nothing left open: whatever broke this document, it was not a truncation,
+  // and appending to it would only mask the real fault.
+  if (!inString && closers.length === 0) return undefined;
+
+  // A dangling backslash is half an escape sequence; the quote that follows it
+  // would be read as escaped and swallow the close.
+  let repaired = escaped ? text.slice(0, -1) : text;
+
+  if (inString) {
+    repaired += '"';
+  } else {
+    // A cut just after a comma leaves a trailing one, which is not legal JSON.
+    repaired = repaired.replace(/,\s*$/, '');
+  }
+
+  while (closers.length > 0) repaired += closers.pop();
+
+  return { text: repaired, closedString: inString };
+}
+
+function markTruncated(value: unknown): unknown {
+  if (typeof value === 'object' && value !== null) {
+    (value as Record<symbol, unknown>)[TRUNCATED_REPLY] = true;
+  }
+  return value;
+}
+
+/**
  * Providers frequently ignore `response_format` and wrap JSON in a markdown
  * fence, or prefix it with prose. Recover the JSON object rather than failing.
  */
@@ -96,21 +186,36 @@ export function extractJson(content: string): unknown {
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1].trim() : trimmed;
 
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    // Fall back to the outermost {...} span.
-    const start = candidate.indexOf('{');
-    const end = candidate.lastIndexOf('}');
-    if (start !== -1 && end > start) {
-      try {
-        return JSON.parse(candidate.slice(start, end + 1));
-      } catch {
-        // fall through
+  const direct = tryParse(candidate);
+  if (direct.ok) return direct.value;
+
+  // Fall back to the outermost {...} span.
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    const span = tryParse(candidate.slice(start, end + 1));
+    if (span.ok) return span.value;
+  }
+
+  // Last resort: the model stopped before closing the envelope. Tried from the
+  // first `{` so a truncated markdown fence — whose closing ``` never arrived,
+  // leaving the regex above no match — is stripped along with any prose.
+  if (start !== -1) {
+    const repaired = repairTruncatedJson(candidate.slice(start));
+    if (repaired) {
+      const parsed = tryParse(repaired.text);
+      if (parsed.ok) {
+        Logger.warn(
+          repaired.closedString
+            ? 'Model stopped mid-value; closed the JSON envelope and flagged the reply as cut off.'
+            : 'Model omitted the closing brace of an otherwise complete JSON envelope; closed it.'
+        );
+        return repaired.closedString ? markTruncated(parsed.value) : parsed.value;
       }
     }
-    throw new LlmError('bad-response', 'The model did not return valid JSON.');
   }
+
+  throw new LlmError('bad-response', 'The model did not return valid JSON.');
 }
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {

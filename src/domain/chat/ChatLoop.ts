@@ -1,4 +1,4 @@
-import { LlmMessage } from '@/data/llm/LlmClient';
+import { LlmMessage, TRUNCATED_REPLY } from '@/data/llm/LlmClient';
 import { ReasoningEffort } from '@/data/llm/presets';
 import { Logger } from '../utils/Logger';
 import { ChatSnapshot } from './ChatContextBuilder';
@@ -258,6 +258,19 @@ export async function runChatLoop({
     // A question answerable from the snapshot alone is therefore answered at low
     // effort. That is the intended trade: those are the simple ones.
     const raw = await chat({ messages, signal, reasoning: step === 0 ? 'low' : 'high' });
+
+    // `extractJson` closed an envelope the model stopped short of finishing. It
+    // could only be repaired up to the point the text stops, so the answer below
+    // really is missing its ending — said plainly, because a reply that reads as
+    // complete and simply ends early is the one failure the user cannot see.
+    if (
+      typeof raw === 'object' &&
+      raw !== null &&
+      (raw as Record<symbol, unknown>)[TRUNCATED_REPLY]
+    ) {
+      warnings.push('The model stopped before finishing this answer, so it may be cut short.');
+    }
+
     const { turn, warnings: turnWarnings } = parseAssistantTurn(raw, CHAT_TOOL_NAMES);
     warnings.push(...turnWarnings);
 
