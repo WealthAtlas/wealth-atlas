@@ -120,17 +120,17 @@ export function EMIView({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
               <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                {new Date(emi.startDate).toLocaleDateString()}
+                {new Date(emi.startDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             </Box>
             {emi.endDate && (
               <Typography variant="caption" color="text.secondary">
-                Until {new Date(emi.endDate).toLocaleDateString()}
+                Until {new Date(emi.endDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             )}
             {isActive && (
               <Typography variant="caption" color="primary" sx={{ fontWeight: 'medium' }}>
-                Next: {nextPayment.toLocaleDateString()}
+                Next: {nextPayment.toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             )}
           </Stack>
@@ -157,7 +157,9 @@ export function EMIView({
                   Last generated:
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  {new Date(emi.lastGeneratedDate).toLocaleDateString()}
+                  {new Date(emi.lastGeneratedDate).toLocaleDateString(undefined, {
+                    timeZone: 'UTC',
+                  })}
                 </Typography>
               </>
             ) : (

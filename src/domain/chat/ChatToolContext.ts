@@ -17,6 +17,7 @@ import { CurrencyService } from '../services/CurrencyService';
 import { ExpenseService } from '../services/ExpenseService';
 import { GoalService } from '../services/GoalService';
 import { LoanService } from '../services/LoanService';
+import { utcToday } from '../utils/DateUtils';
 
 /**
  * What the tools read from, loaded once per question.
@@ -99,7 +100,7 @@ export function createChatToolContext(
   runCode: CodeRunner,
   market: MarketDataPort = unavailableMarketData('market data is not configured'),
   news: NewsPort = unavailableNews('no news provider is configured'),
-  today: Date = new Date()
+  today: Date = utcToday()
 ): ChatToolContext {
   const sipCache = new Map<number, Promise<SIP[]>>();
 

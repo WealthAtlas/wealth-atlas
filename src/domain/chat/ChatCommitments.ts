@@ -1,5 +1,5 @@
 import { Payment } from '../entities/loans/Payment';
-import { isoDate } from '../utils/DateUtils';
+import { addUtcMonths, isoDate } from '../utils/DateUtils';
 import { ChatToolContext } from './ChatToolContext';
 
 /**
@@ -42,8 +42,7 @@ export async function computeUpcomingCommitments(
   ctx: ChatToolContext,
   months: number
 ): Promise<UpcomingCommitments> {
-  const till = new Date(ctx.today);
-  till.setMonth(till.getMonth() + months);
+  const till = addUtcMonths(ctx.today, months);
 
   const [assets, loans] = await Promise.all([ctx.assets(), ctx.loans()]);
 

@@ -2,6 +2,7 @@ import { Currency } from '../shared/Currency';
 import { IRRCalculator, Transaction } from '../shared/IRRCalculator';
 import { EMI, IEMI } from './EMI';
 import { IPayment, Payment } from './Payment';
+import { utcDay, utcToday } from '../../utils/DateUtils';
 
 export interface ILoan {
   id: number | undefined;
@@ -37,7 +38,7 @@ export class Loan implements ILoan {
     this.description = description;
     this.principalAmount = principalAmount;
     this.currency = currency;
-    this.startDate = new Date(startDate);
+    this.startDate = utcDay(startDate);
     this.payments = payments.map(payment => new Payment(payment));
     this.emis = emis.map(emi => new EMI(emi));
   }
@@ -83,7 +84,9 @@ export class Loan implements ILoan {
     const pendingPayments = this.emis
       .flatMap(schedule => schedule.getPendingOccurrences())
       .map(occurrence => occurrence.date)
-      .filter(date => date >= new Date())
+      // A payment due today is still pending. Comparing a calendar day against
+      // `new Date()` made it past from one minute after midnight UTC onwards.
+      .filter(date => date >= utcToday())
       .sort((a, b) => a.getTime() - b.getTime());
     return pendingPayments.length > 0 ? pendingPayments[0] : undefined;
   }
@@ -92,7 +95,7 @@ export class Loan implements ILoan {
     return this.emis
       .flatMap(schedule => schedule.getPendingOccurrences())
       .map(occurrence => occurrence.date)
-      .filter(date => date >= new Date()).length;
+      .filter(date => date >= utcToday()).length;
   }
 
   public getPaidPaymentsCount(): number {

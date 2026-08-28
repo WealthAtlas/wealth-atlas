@@ -43,7 +43,11 @@ export function ExpenseChartsView({ monthlyExpenses, currencies }: ExpenseCharts
         .filter(month => !currency || month.getTotalAmount(currency) > 0)
         .map(month => ({
           date: month.month,
-          display: month.month.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+          display: month.month.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            timeZone: 'UTC',
+          }),
           key: monthKeyOf(month.month),
         }))
         .sort((a, b) => b.date.getTime() - a.date.getTime()), // Most recent first

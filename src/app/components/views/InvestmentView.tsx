@@ -103,11 +103,11 @@ export function InvestmentView({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
               <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                {transactionDate.toLocaleDateString()}
+                {transactionDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary">
-              {transactionDate.toLocaleDateString('en-US', { weekday: 'short' })} •{' '}
+              {transactionDate.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} •{' '}
               {getRelativeTimeInfo(transactionDate)}
             </Typography>
           </Stack>

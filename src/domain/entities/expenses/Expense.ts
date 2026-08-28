@@ -1,4 +1,5 @@
 import { Currency } from '../shared/Currency';
+import { utcDay } from '../../utils/DateUtils';
 
 export interface IExpense {
   id: number | undefined;
@@ -23,14 +24,14 @@ export class Expense implements IExpense {
     this.id = id;
     this.amount = amount;
     this.currency = currency;
-    this.date = new Date(date);
+    this.date = utcDay(date);
     this.category = category;
     this.isEssential = isEssential;
     this.description = description;
   }
 
   public getMonthYear(): string {
-    return this.date.getMonth().toString() + ':' + this.date.getFullYear().toString();
+    return this.date.getUTCMonth().toString() + ':' + this.date.getUTCFullYear().toString();
   }
 }
 

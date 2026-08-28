@@ -18,7 +18,7 @@ import { JournalEntryWithReview } from '../services/DecisionJournalService';
 import { Frequency } from '../entities/shared/Frequency';
 import { MarketDataPort, unavailableMarketData } from '../market/MarketDataPort';
 import { NewsPort, unavailableNews } from '../news/NewsPort';
-import { monthKey } from '../utils/DateUtils';
+import { monthKey, utcMonthStart } from '../utils/DateUtils';
 import { ChatToolContext, CodeRunner } from './ChatToolContext';
 
 /**
@@ -113,7 +113,7 @@ export function months(expenses: Expense[]): MonthlyExpense[] {
     const key = monthKey(item.date);
     let bucket = byMonth.get(key);
     if (!bucket) {
-      bucket = new MonthlyExpense(new Date(item.date.getFullYear(), item.date.getMonth()), []);
+      bucket = new MonthlyExpense(utcMonthStart(item.date), []);
       byMonth.set(key, bucket);
     }
     bucket.expenses.push(item);

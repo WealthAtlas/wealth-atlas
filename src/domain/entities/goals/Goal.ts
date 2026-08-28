@@ -1,5 +1,6 @@
 import { Currency } from '../shared/Currency';
 import { Allocation } from './Allocation';
+import { utcDay } from '../../utils/DateUtils';
 
 /**
  * Goal entity representing a financial objective with inflation-adjusted targeting
@@ -40,7 +41,7 @@ export class Goal implements IGoal {
     this.id = id;
     this.name = name.trim();
     this.targetAmount = targetAmount;
-    this.maturityDate = new Date(maturityDate);
+    this.maturityDate = utcDay(maturityDate);
     this.inflationRate = inflationRate;
     this.currency = currency;
     this.allocations = assetAllocations;

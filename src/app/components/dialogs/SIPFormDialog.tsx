@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { IAsset } from '../../../domain/entities/assets/Asset';
 import { ISIP } from '../../../domain/entities/assets/SIP';
 import { Frequency } from '../../../domain/entities/shared/Frequency';
+import { parseUtcDay } from '@/domain/utils/DateUtils';
 
 export interface SIPFormDialogProps {
   open: boolean;
@@ -140,7 +141,7 @@ export function SIPFormDialog({
   const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
     onSIPChange({
       ...sip,
-      [field]: value ? new Date(value) : undefined,
+      [field]: parseUtcDay(value),
     });
   };
 
@@ -267,8 +268,9 @@ export function SIPFormDialog({
               </Typography>
               {sip.startDate && (
                 <Typography variant="body2" color="text.secondary">
-                  Starting from {sip.startDate.toLocaleDateString()}
-                  {sip.endDate && ` until ${sip.endDate.toLocaleDateString()}`}
+                  Starting from {sip.startDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                  {sip.endDate &&
+                    ` until ${sip.endDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}`}
                 </Typography>
               )}
             </Box>

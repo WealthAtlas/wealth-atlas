@@ -3,7 +3,7 @@ import { computeExpenseBreakdown } from '../services/ExpenseService';
 import { computeAllocationDrift } from '../market/AllocationDrift';
 import { computeGoalProgress } from '../services/GoalService';
 import { computeLoanPortfolioTotals } from '../services/LoanService';
-import { isoDate } from '../utils/DateUtils';
+import { addUtcMonths, isoDate } from '../utils/DateUtils';
 import { computeUpcomingCommitments } from './ChatCommitments';
 import { ChatToolContext } from './ChatToolContext';
 
@@ -121,8 +121,7 @@ export async function buildChatSnapshot(ctx: ChatToolContext): Promise<ChatSnaps
   const drift =
     targets.length > 0 ? computeAllocationDrift(assets, targets, ctx.converter) : undefined;
 
-  const spendingFrom = new Date(ctx.today);
-  spendingFrom.setMonth(spendingFrom.getMonth() - SNAPSHOT_EXPENSE_MONTHS);
+  const spendingFrom = addUtcMonths(ctx.today, -SNAPSHOT_EXPENSE_MONTHS);
   const spending = computeExpenseBreakdown(monthlyExpenses, { from: spendingFrom });
 
   return {

@@ -1,3 +1,4 @@
+import { utcDay } from '../../utils/DateUtils';
 export enum InvestmentType {
   BUY = 'buy',
   SELL = 'sell',
@@ -29,7 +30,7 @@ export class Investment implements IInvestment {
   constructor(investment: IInvestment) {
     this.id = investment.id;
     this.totalAmount = investment.totalAmount;
-    this.date = new Date(investment.date);
+    this.date = utcDay(investment.date);
     this.assetId = investment.assetId;
     this.quantity = investment.quantity;
     this.type = investment.type;

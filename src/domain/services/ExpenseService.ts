@@ -2,7 +2,7 @@ import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository
 import { currenciesByTotal, Expense, IExpense } from '../entities/expenses/Expense';
 import { MonthlyExpense } from '../entities/expenses/MonthlyExpense';
 import { Currency } from '../entities/shared/Currency';
-import { monthKey } from '../utils/DateUtils';
+import { monthKey, utcMonthStart } from '../utils/DateUtils';
 
 /**
  * Spending over a date range, reported once per currency spent in.
@@ -63,10 +63,7 @@ function rebucket(expenses: Expense[]): MonthlyExpense[] {
     const key = monthKey(expense.date);
     let bucket = byMonth.get(key);
     if (!bucket) {
-      bucket = new MonthlyExpense(
-        new Date(expense.date.getFullYear(), expense.date.getMonth()),
-        []
-      );
+      bucket = new MonthlyExpense(utcMonthStart(expense.date), []);
       byMonth.set(key, bucket);
     }
     bucket.expenses.push(expense);
@@ -179,10 +176,7 @@ export class ExpenseService {
       const key = this.generateMonthlyExpenseKey(expense);
 
       if (!monthlyExpensesMap.has(key)) {
-        monthlyExpensesMap.set(
-          key,
-          new MonthlyExpense(new Date(expense.date.getFullYear(), expense.date.getMonth()), [])
-        );
+        monthlyExpensesMap.set(key, new MonthlyExpense(utcMonthStart(expense.date), []));
       }
 
       monthlyExpensesMap.get(key)?.expenses.push(expense);

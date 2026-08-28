@@ -47,7 +47,7 @@ export function ExpenseCardView({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 120 }}>
             <CalendarToday sx={{ color: 'text.secondary', fontSize: 16 }} />
             <Typography variant="body2" color="text.secondary">
-              {new Date(expense.date).toLocaleDateString()}
+              {new Date(expense.date).toLocaleDateString(undefined, { timeZone: 'UTC' })}
             </Typography>
           </Box>
 

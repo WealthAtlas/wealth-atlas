@@ -119,17 +119,17 @@ export function SIPView({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
               <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                {new Date(sip.startDate).toLocaleDateString()}
+                {new Date(sip.startDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             </Box>
             {sip.endDate && (
               <Typography variant="caption" color="text.secondary">
-                Until {new Date(sip.endDate).toLocaleDateString()}
+                Until {new Date(sip.endDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             )}
             {active && (
               <Typography variant="caption" color="primary" sx={{ fontWeight: 'medium' }}>
-                Next: {nextPayment.toLocaleDateString()}
+                Next: {nextPayment.toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             )}
           </Stack>
@@ -156,7 +156,9 @@ export function SIPView({
                   Last generated:
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  {new Date(sip.lastGeneratedDate).toLocaleDateString()}
+                  {new Date(sip.lastGeneratedDate).toLocaleDateString(undefined, {
+                    timeZone: 'UTC',
+                  })}
                 </Typography>
               </>
             ) : (

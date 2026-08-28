@@ -485,6 +485,7 @@ export function AssetView({
                 </Box>
                 <Typography variant="body1" fontWeight={600} sx={{ mb: 1 }}>
                   {asset.maturityDate.toLocaleDateString('en-US', {
+                    timeZone: 'UTC',
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',

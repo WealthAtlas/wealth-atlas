@@ -11,7 +11,7 @@ import { MIN_REVIEW_DAYS } from '../journal/DecisionReview';
 import { THIN_SAMPLE_BELOW } from '../news/NewsSentiment';
 import { computeGoalPortfolioTotals, computeGoalProgress } from '../services/GoalService';
 import { computeLoanPortfolioTotals } from '../services/LoanService';
-import { isoDate, monthKey } from '../utils/DateUtils';
+import { addUtcMonths, isoDate, monthKey } from '../utils/DateUtils';
 import { computeUpcomingCommitments } from './ChatCommitments';
 import { ChatToolContext } from './ChatToolContext';
 import { buildSandboxData } from './SandboxData';
@@ -79,9 +79,7 @@ function round(value: number | undefined): number | undefined {
 
 /** Months back from `today`, as a `from` bound. */
 function monthsBefore(today: Date, months: number): Date {
-  const from = new Date(today);
-  from.setMonth(from.getMonth() - months);
-  return from;
+  return addUtcMonths(today, -months);
 }
 
 export const CHAT_TOOLS: ChatTool[] = [

@@ -38,4 +38,23 @@ describe('EMI occurrences', () => {
   it('leaves the reference unset for an unsaved EMI', () => {
     expect(emi(undefined).getNextOccurrenceData()?.emiId).toBeUndefined();
   });
+
+  // shouldAdd is shared with SIP, so the inclusive end date is asserted on both
+  // sides: an EMI schedule ending on its last payment date must generate it, or
+  // a loan quietly finishes one instalment short of what the user entered.
+  it('generates the payment falling on the end date', () => {
+    const endDate = new Date('2020-04-01');
+    const payments = new EMI({
+      id: 7,
+      loanId: 3,
+      name: 'Home EMI',
+      amount: 1000,
+      frequency: Frequency.MONTHLY,
+      startDate: new Date('2020-01-01'),
+      endDate,
+    }).getPendingOccurrences(new Date('2020-12-01'));
+
+    expect(payments).toHaveLength(4);
+    expect(payments.at(-1)?.date.getTime()).toBe(endDate.getTime());
+  });
 });

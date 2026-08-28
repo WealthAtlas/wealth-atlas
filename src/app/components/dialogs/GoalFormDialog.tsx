@@ -30,6 +30,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Logger } from '../../../domain/utils/Logger';
 import { UIUtils } from '../../utils/UIUtils';
+import { parseUtcDay, utcDay } from '@/domain/utils/DateUtils';
 
 export interface GoalFormDialogProps {
   goal?: Goal;
@@ -114,7 +115,7 @@ export function GoalFormDialog({
   // Calculate progress metrics based on current form values
   const progressMetrics = useMemo((): ProgressMetrics => {
     const currentDate = new Date();
-    const goalDate = maturityDate ? new Date(maturityDate) : currentDate;
+    const goalDate = parseUtcDay(maturityDate) ?? currentDate;
     const yearsToGoal = Math.max(
       0,
       (goalDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
@@ -199,7 +200,7 @@ export function GoalFormDialog({
         id: goal?.id,
         name: name.trim(),
         targetAmount,
-        maturityDate: new Date(maturityDate),
+        maturityDate: utcDay(new Date(maturityDate)),
         inflationRate: inflationRate / 100, // Convert to decimal
         currency,
         createdAt: goal?.createdAt || new Date(),
@@ -508,7 +509,8 @@ export function GoalFormDialog({
                 {name}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Target Date: {new Date(maturityDate).toLocaleDateString()}
+                Target Date:{' '}
+                {new Date(maturityDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Years to Goal: {progressMetrics.yearsToGoal.toFixed(1)}

@@ -106,11 +106,11 @@ export function PaymentView({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
               <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                {paymentDate.toLocaleDateString()}
+                {paymentDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary">
-              {paymentDate.toLocaleDateString('en-US', { weekday: 'short' })} •{' '}
+              {paymentDate.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} •{' '}
               {getRelativeTimeInfo(paymentDate)}
             </Typography>
           </Stack>

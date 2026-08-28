@@ -3,6 +3,7 @@ import { Expense, IExpense } from '../entities/expenses/Expense';
 import { MonthlyExpense } from '../entities/expenses/MonthlyExpense';
 import { Currency } from '../entities/shared/Currency';
 import { computeExpenseBreakdown, expenseCurrencies } from './ExpenseService';
+import { utcMonthStart } from '../utils/DateUtils';
 
 const EXPENSE: IExpense = {
   id: 1,
@@ -25,7 +26,7 @@ function months(expenses: Expense[]): MonthlyExpense[] {
     const key = `${item.date.getFullYear()}-${item.date.getMonth()}`;
     let bucket = byMonth.get(key);
     if (!bucket) {
-      bucket = new MonthlyExpense(new Date(item.date.getFullYear(), item.date.getMonth()), []);
+      bucket = new MonthlyExpense(utcMonthStart(item.date), []);
       byMonth.set(key, bucket);
     }
     bucket.expenses.push(item);

@@ -35,7 +35,11 @@ export function ExpenseChart({ monthlyExpenses, currency }: ExpenseChartProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const monthLabel = React.useCallback((month: Date): string => {
-    return new Date(month).toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' });
+    return new Date(month).toLocaleDateString('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      timeZone: 'UTC',
+    });
   }, []);
 
   const chartData = React.useMemo(() => {
@@ -94,6 +98,7 @@ export function ExpenseChart({ monthlyExpenses, currency }: ExpenseChartProps) {
     (month: string) => {
       const date = new Date(month + '-01');
       return date.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
         month: 'short',
         year: isMobile ? undefined : '2-digit',
       });

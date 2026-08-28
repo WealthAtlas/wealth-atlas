@@ -30,6 +30,7 @@ import {
 import { SelectChangeEvent } from '@mui/material/Select';
 import { ChangeEvent, useEffect, useState } from 'react';
 import { IExpense } from '../../../domain/entities/expenses/Expense';
+import { utcDay } from '@/domain/utils/DateUtils';
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -107,7 +108,7 @@ export function ExpenseFormDialog({
     if (field === 'date') {
       onFormDataChange({
         ...formData,
-        [field]: new Date(value),
+        [field]: utcDay(new Date(value)),
       });
     } else {
       onFormDataChange({

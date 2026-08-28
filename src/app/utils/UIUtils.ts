@@ -3,7 +3,7 @@ import { formatMoney, localeForCurrency } from '@/domain/utils/MoneyFormat';
 
 export class UIUtils {
   static formatMonth(month: Date): string {
-    return month.toLocaleString('default', { month: 'long', year: 'numeric' });
+    return month.toLocaleString('default', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   }
 
   /**
@@ -43,12 +43,29 @@ export class UIUtils {
     return parseFloat(cleanValue) || 0;
   }
 
+  /**
+   * Renders a calendar date. Pinned to UTC, and that is the whole point: the
+   * stored value is UTC midnight, so formatting it in the browser's zone shows
+   * the *previous* day anywhere behind UTC — a user in New York enters 1 Jan and
+   * the card reads 31 Dec. `timeZone: 'UTC'` is what makes the date read back as
+   * the one that was typed, on every device.
+   *
+   * This is only for the date-only fields. A machine timestamp — `updatedAt`, a
+   * value-refresh stamp, a recovery copy's `takenAt` — is a real instant and is
+   * still shown in local time, because for those the time of day is the content.
+   */
   public static formatDate(date: Date): string {
     return date.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      timeZone: 'UTC',
     });
+  }
+
+  /** A calendar date in the browser's own short format, still read as UTC. */
+  public static formatDateShort(date: Date): string {
+    return date.toLocaleDateString(undefined, { timeZone: 'UTC' });
   }
 
   public static formatDateForInput(date: Date | undefined): string {

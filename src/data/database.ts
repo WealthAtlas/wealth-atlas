@@ -24,6 +24,7 @@ import { upgradeSettingsRowToV9 } from './migrations/v9';
 import { upgradeSettingsRowToV11 } from './migrations/v11';
 import { stampRowToV12 } from './migrations/v12';
 import { hydrateAiProviderSettings } from './llm/state';
+import { calendarDateModifications, normaliseCalendarDates } from './CalendarDateFields';
 import { AutoSyncService } from './sync/AutoSyncService';
 import type { MergeableRow } from './sync/merge/MergeRows';
 import { stampOnCreate, stampOnUpdate, type IDeletion, type Synced } from './sync/merge/SyncMeta';
@@ -282,11 +283,22 @@ export class WealthAtlasDB extends Dexie {
 
     for (const table of tables) {
       table.hook('creating', (_primKey, obj) => {
+        // Date-only columns are truncated here for the same reason the sync
+        // columns are maintained here: so no repository can forget. See
+        // `CalendarDateFields` for which columns are days and which are instants.
+        normaliseCalendarDates(table.name, obj as unknown as Record<string, unknown>);
         stampOnCreate(obj, AutoSyncService.isSuppressed());
       });
-      table.hook('updating', (modifications, _primKey, obj) =>
-        stampOnUpdate(modifications as Record<string, unknown>, obj, AutoSyncService.isSuppressed())
-      );
+      table.hook('updating', (modifications, _primKey, obj) => {
+        const mods = modifications as Record<string, unknown>;
+        const days = calendarDateModifications(table.name, mods);
+        // The truncations are folded into `mods` before `stampOnUpdate` reads it,
+        // so `isNoOpUpdate` judges the values that will actually be stored: a
+        // re-save of an already-clean row stays a no-op and arms no push, while
+        // one that genuinely normalises a legacy value counts as the change it is.
+        Object.assign(mods, days);
+        return { ...days, ...stampOnUpdate(mods, obj, AutoSyncService.isSuppressed()) };
+      });
     }
   }
 

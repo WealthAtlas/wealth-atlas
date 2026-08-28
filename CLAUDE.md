@@ -52,6 +52,45 @@ Wealth Atlas is a local-first React 18 PWA for personal wealth tracking. Stack: 
 
 **Persistence invariants:**
 - `Currency` is stored as an ISO code (`INR`), never a symbol. Symbols come from `CURRENCY_SYMBOLS`/`getCurrencySymbol`.
+- **A date the user enters is a calendar day in UTC, never an instant.** Every such column is UTC
+  midnight: `maturityDate`, `investments.date`, `expenses.date`, `payments.date`, `loans.startDate`,
+  `goals.maturityDate` and the three schedule columns on `sips`/`emis`. `src/domain/utils/DateUtils.ts`
+  is the only place the arithmetic happens — `utcDay`/`parseUtcDay` produce one, `addUtcDays`/
+  `addUtcMonths`/`addUtcYears`/`utcMonthStart` step one, and `UIUtils.formatDate` renders one with
+  `timeZone: 'UTC'`. Entity constructors truncate on read; the Dexie hooks in `database.ts` truncate on
+  write (`CalendarDateFields.ts`), for the same reason they maintain `uid`/`updatedAt` — so no
+  repository can forget.
+
+  The rule exists because mixing the two readings drifts the *day*, and drifts it differently on each
+  device. A date input yields `YYYY-MM-DD`, which `new Date(...)` reads as UTC midnight, while
+  `setMonth`, `getMonth` and `toLocaleDateString` all work in the browser's zone. That is one bug with
+  four faces, and none of them is visible at or ahead of UTC, which is why it survived: a monthly SIP
+  starting 1 Jan walked 1 Jan → 3 Mar → 2 Apr in New York; an occurrence landed an hour before the
+  end date it was meant to equal under BST; a 1 Jan expense displayed as 31 Dec; and — *in IST* —
+  `ExpenseChartsView`'s bucket key disagreed with `monthKey` about which month an expense belonged to,
+  because `new Date(y, m)` is local midnight and serialises into the previous month.
+
+  Machine timestamps are **not** calendar dates and keep their time. `updatedAt` and
+  `deletions.deletedAt` are what a merge compares to order two writes: truncated to a day, every
+  same-day edit on two devices becomes a tie, which `localAhead` reads as "in step", so neither device
+  publishes and both keep a different row for ever. The `*UpdatedAt` value stamps drive one-day
+  staleness checks where the time of day *is* the content, and `createdAt`/`reviewedAt` record when
+  something happened rather than which day it is for. `CalendarDateFields.ts` lists what is a day and
+  says why each instant is excluded; that comment is the load-bearing part.
+
+  No migration, and deliberately: no repository does an indexed date-range query, so every date
+  comparison happens in memory on an entity that has already truncated. A legacy row therefore behaves
+  correctly the moment it is read and is cleaned the next time it is written, and a schema bump would
+  have bought nothing but the mesh lockout it forces on every other device.
+
+  Two behaviours follow that were previously accidental. A schedule's `endDate` is **inclusive** —
+  what the dialog's "until {endDate}" already promised, and the only reading under which a schedule
+  whose start and end are the same day produces the one instalment it describes. And a month-based
+  step is anchored to the schedule's `startDate` day-of-month, so a SIP on the 31st pays 31 Jan →
+  29 Feb → 31 Mar: clamping against the *previous* occurrence instead would lose the day-of-month for
+  good (29 Feb → 29 Mar → 29 Apr), and overflowing — the old `setMonth` behaviour — walks it forward.
+  `DateUtils.test.ts` pins the arithmetic and `SIP.test.ts`/`EMI.test.ts` the boundary; run the suite
+  under a spread of `TZ` values, because a test written with local-time constructors passes either way.
 - `IInvestment.totalAmount` is the **total** transaction value and is always positive; buy/sell direction lives in `type` (see `Investment.getSignedAmount`).
 - Any change to a persisted row shape needs a Dexie `version()` bump in `src/data/database.ts`, a transform in `src/data/migrations/`, a `SNAPSHOT_VERSION` bump in `src/data/sync/Syncer.ts`, and a `BACKUP_VERSION` bump in `BackupService` — all four, or a sync/restore will corrupt data. A new *table* needs nine (see `decisions`/`memories` below), and a new *synced entity* table also needs a row in `SYNCED_TABLES` — without it the table is never merged, so every edit to it is settled by whichever device pushes last.
 - A write that changes nothing claims nothing. `isNoOpUpdate` gates both the `updatedAt` stamp and the push: a dialog hands back the row it was given, so pressing Save without editing fires the `updating` hooks with no change in them, and the row used to come out re-dated with a push armed behind it. That made a device holding *older* data the "latest change" — merely opening a record and saving it beat a real edit made elsewhere, and last-write-wins then did exactly as it was told. `uid` and `updatedAt` are excluded from the comparison, being the bookkeeping under decision rather than the content being judged.

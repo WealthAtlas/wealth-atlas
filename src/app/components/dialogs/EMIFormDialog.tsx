@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { IEMI } from '../../../domain/entities/loans/EMI';
 import { ILoan } from '../../../domain/entities/loans/Loan';
 import { Frequency } from '../../../domain/entities/shared/Frequency';
+import { parseUtcDay } from '@/domain/utils/DateUtils';
 
 export interface EMIFormDialogProps {
   open: boolean;
@@ -100,7 +101,7 @@ export function EMIFormDialog({
   const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
     onEMIChange({
       ...emi,
-      [field]: value ? new Date(value) : undefined,
+      [field]: parseUtcDay(value),
     });
   };
 
@@ -228,8 +229,9 @@ export function EMIFormDialog({
               </Typography>
               {emi.startDate && (
                 <Typography variant="body2" color="text.secondary">
-                  Starting from {emi.startDate.toLocaleDateString()}
-                  {emi.endDate && ` until ${emi.endDate.toLocaleDateString()}`}
+                  Starting from {emi.startDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                  {emi.endDate &&
+                    ` until ${emi.endDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}`}
                 </Typography>
               )}
             </Box>

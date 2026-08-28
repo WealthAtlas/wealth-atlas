@@ -3,6 +3,7 @@ import { IRRCalculator } from '../shared/IRRCalculator';
 import { Investment } from './Investment';
 import { SIP } from './SIP';
 import { ValueModel } from './ValueModel';
+import { utcDay } from '../../utils/DateUtils';
 
 export interface IAsset {
   id: number | undefined;
@@ -67,7 +68,7 @@ export class Asset implements IAsset {
     this.currency = currency;
     this.valueModel = valueModel;
     this.interestRate = interestRate;
-    this.maturityDate = maturityDate ? new Date(maturityDate) : undefined;
+    this.maturityDate = maturityDate ? utcDay(maturityDate) : undefined;
     this.maturityAmount = maturityAmount;
     this.manualValue = manualValue;
     this.manualValueUpdatedAt = manualValueUpdatedAt ? new Date(manualValueUpdatedAt) : undefined;

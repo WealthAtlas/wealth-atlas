@@ -1,3 +1,4 @@
+import { utcDay } from '../../utils/DateUtils';
 export interface IPayment {
   id: number | undefined;
   loanId: number;
@@ -19,7 +20,7 @@ export class Payment implements IPayment {
     this.id = id;
     this.loanId = loanId;
     this.emiId = emiId;
-    this.date = new Date(date);
+    this.date = utcDay(date);
     this.amount = amount;
     this.description = description;
   }

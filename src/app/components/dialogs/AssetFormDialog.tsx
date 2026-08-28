@@ -37,6 +37,7 @@ import {
 import { useState } from 'react';
 import { IAsset } from '../../../domain/entities/assets/Asset';
 import { UIUtils } from '../../utils/UIUtils';
+import { parseUtcDay } from '@/domain/utils/DateUtils';
 
 export interface AssetFormDialogProps {
   open: boolean;
@@ -315,7 +316,7 @@ export function AssetFormDialog({
                       onChange={e =>
                         onAssetChange({
                           ...asset,
-                          maturityDate: e.target.value ? new Date(e.target.value) : undefined,
+                          maturityDate: parseUtcDay(e.target.value),
                         })
                       }
                       type="date"
