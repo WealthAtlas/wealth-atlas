@@ -92,6 +92,23 @@ describe('buildChatSystemPrompt', () => {
     expect(buildChatSystemPrompt()).toContain('does not track income');
   });
 
+  // A figure the user states carries its own currency, and rule 12 sends the
+  // model to reason from it. Observed against the real provider: with a stored
+  // "5,000 pounds a month", three replies in four either invented a rate or
+  // relabelled the amount as rupees — one of them asserting a monthly income of
+  // 5,000 rupees against a 34,833 rupee EMI without noticing. Both faults are
+  // invisible in the answer, so the rule is prose and nothing else would catch
+  // its removal.
+  it('routes a remembered figure in another currency through getExchangeRates', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('\n4a.');
+    expect(prompt).toContain('call getExchangeRates and name the rate you used');
+    expect(prompt).toContain('Never recall a rate');
+    expect(prompt).toContain('never restate an amount in a currency the user did not give it in');
+    expect(prompt).toContain('say you cannot convert it');
+  });
+
   // Earlier turns are sent, but nothing used to tell the model they were the
   // same conversation, so a bare follow-up read as a new, unanswerable question.
   it('tells the model earlier turns are the same conversation', () => {
@@ -193,6 +210,9 @@ describe('the memory block', () => {
     expect(prompt).toContain('## What you remember about this user');
     expect(prompt).toContain('[3] (context) Can invest about 50,000 a month.');
     expect(prompt).toContain('\n12.');
+    // Rule 12 is what sends the model to a remembered monthly amount, so it is
+    // where a foreign-currency one has to be handed to rule 4a.
+    expect(prompt).toContain('rule 4a governs how you may compare it');
   });
 
   // Rule 11 is referred to by number from the Conversation section, so the
