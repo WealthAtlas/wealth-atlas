@@ -14,29 +14,15 @@ import { Logger } from '@/domain/utils/Logger';
  * that copy over itself. Two silent whole-database deletions from one edit.
  *
  * The rule here is that neither side is ever discarded by inference. A push may
- * only overwrite the version it was based on, a pull may only replace local rows
- * that are already in the cloud, and anything else is handed to the user as a
- * decision with both copies still intact.
+ * only overwrite the exact version it was based on, a pull may only replace a
+ * device that has published everything it holds, and anything else is handed to
+ * the user as a decision with both copies still intact.
  */
 
 export type SyncDirection = 'push' | 'pull';
 
-/**
- * What kind of refused sync this is, and therefore whether the user has a
- * decision to make at all.
- *
- * `diverged` is the original: both copies moved, neither can be inferred away,
- * and the user picks one. `downgrade` is not a divergence and has no such
- * choice — the cloud blob was overwritten by a device running an earlier build,
- * and both destructive answers are wrong. Absent on records written before this
- * existed, which are all `diverged`.
- */
-export type SyncConflictKind = 'diverged' | 'downgrade' | 'overwrite';
-
 /** A divergence that was refused. Held until the user resolves it. */
 export interface SyncConflict {
-  /** Absent on records persisted before the kind existed; read as `diverged`. */
-  kind?: SyncConflictKind;
   /** The operation that was refused. */
   direction: SyncDirection;
   /** The remote version this device's data is based on. */
@@ -45,28 +31,51 @@ export interface SyncConflict {
   remoteVersion: number;
   /** When this device first changed something it has not pushed. */
   pendingSince?: string;
-  detectedAt: string;
-  /** `downgrade` only: the snapshot schema version the cloud now holds. */
-  snapshotVersion?: number;
-  /** `downgrade` only: the version this device had already read from this key. */
-  expectedSnapshotVersion?: number;
-  /** `overwrite` only: how many local rows the merge would replace, and remove. */
-  overwriteCount?: number;
-  removalCount?: number;
   /**
-   * `overwrite` only: a sample of the affected rows, named as the user would
-   * know them. Capped, because this record lives in local storage and a merge
-   * touching a thousand rows must not be the thing that fills it.
+   * When the cloud copy was last written, as the server reports it.
+   *
+   * The version number never answered the question the user actually has when
+   * choosing between two copies. "Saved 3 hours ago" does. Best effort: it costs
+   * a full GET to learn, so it is fetched only on the conflict path, and a
+   * failure there leaves it absent rather than blocking the conflict.
    */
-  impacts?: { table: string; label: string; removed?: boolean }[];
+  remoteUpdatedAt?: string;
+  detectedAt: string;
 }
 
-/** How many affected rows a conflict record will name before it stops. */
-export const MAX_LISTED_IMPACTS = 12;
-
-/** A conflict record's kind, defaulted for records written before it existed. */
-export function conflictKind(conflict: SyncConflict): SyncConflictKind {
-  return conflict.kind ?? 'diverged';
+/**
+ * A push that landed on top of another device's push.
+ *
+ * Deliberately *not* stored as a conflict. A conflict is a question with two
+ * answers; by the time this is recorded the cloud already holds this device's
+ * copy and there is nothing left to choose. It is a report that something was
+ * lost, and the only person who can act on it is the user, on the other device,
+ * before that device pulls.
+ *
+ * It therefore does not stop this device syncing: its base is now correct and
+ * its next push is legitimate. That is the difference from `SyncConflict`, which
+ * `AutoSyncService` treats as a full stop.
+ *
+ * How it is detected: the API's PUT takes no expected version, so the
+ * compare-and-swap in `decidePush` is a read followed by a write with a network
+ * round trip in between. Another device can write in that gap; both devices pass
+ * the check and both PUTs are accepted. The winner is handed a version *more
+ * than one step* on from the one it based on, and that gap is the evidence — it
+ * counts exactly the writes that happened in between. Without this the loser's
+ * work simply vanished: it had been told its own push succeeded, so it cleared
+ * its pending mark and its next pull took the winner's copy over the top with
+ * nothing raised.
+ *
+ * This assumes the backend assigns consecutive versions, which is the contract
+ * the client has always relied on. It detects rather than prevents; only a
+ * conditional write on the server can prevent it.
+ */
+export interface SyncOverwrite {
+  /** The version this push was based on. */
+  baseVersion: number;
+  /** The version the server assigned it. More than one step on is the evidence. */
+  resultVersion: number;
+  detectedAt: string;
 }
 
 export type PushDecision = 'push' | 'conflict';
@@ -82,47 +91,52 @@ export type PullDecision = 'skip' | 'import' | 'conflict';
  * the difference between two people editing in the same breath and a device
  * being a day behind, and the second is what actually loses data.
  *
+ * Equality, not "not ahead". The version is minted by the server — every POST
+ * and PUT answers with the number it assigned, and no device ever invents one —
+ * so a remote version *below* this device's base cannot mean "we are ahead". It
+ * means the blob this base refers to is gone: the key was recreated, or the
+ * backend was reset. Pushing over that would replace a stranger's data with
+ * ours on the strength of a counter that no longer counts the same thing.
+ *
  * An unknown `baseVersion` is a conflict rather than a push: a linked device
  * that cannot say what it is based on cannot claim to be current.
  */
 export function decidePush(input: { baseVersion?: number; remoteVersion: number }): PushDecision {
   if (input.baseVersion === undefined) return 'conflict';
-  return input.remoteVersion > input.baseVersion ? 'conflict' : 'push';
+  return input.remoteVersion === input.baseVersion ? 'push' : 'conflict';
 }
 
 /**
  * Whether a pull may replace every local table.
  *
- * Importing is a whole-database wipe, and the rule is now the blunt one: **if
- * this device holds records, it asks.** Not because the app cannot usually tell,
- * but because of what it costs when it is wrong. A merge may remove rows
- * silently, because every row it removes has a tombstone naming the delete that
- * did it — nothing disappears without a recorded reason. A replace has no
- * per-row reason for anything; it removes whatever the other copy happens not to
- * have, so the only honest question is which copy the user wants to keep.
+ * Importing is a whole-database wipe, so the question is only ever "is there
+ * anything on this device the cloud has not got?". `pendingChangeSince` is that
+ * answer: set by the change hooks on the first edit, cleared only by a push or
+ * an import that completes. A device that has published everything it holds
+ * loses nothing by taking the cloud's copy, and taking it is the whole point —
+ * every write publishes under compare-and-swap, so a device that starts up
+ * current is a device whose next edit will push cleanly instead of conflicting.
  *
- * `hasUnpushedChanges` used to be the whole guard, and it was not enough. It is
- * cleared by any completed push, so a device that pushed an hour ago and has
- * been edited since a merge cleared the mark reads as "nothing to lose"; and it
- * is never set for a write made while automatic work held the suppression flag.
- * A flag that can be wrong in the permissive direction cannot be the thing
- * standing between the user and a wiped database. It still counts — it just only
- * ever *adds* caution now, never removes it.
+ * This used to refuse on `hasLocalRecords` too, on the grounds that a replace
+ * has no per-row reason for what it removes. That belonged to the era when a
+ * row-level merge handled the ordinary case and a replace was the exception; as
+ * the ordinary path it would open almost every startup with a question about a
+ * copy the user has no reason to doubt.
  *
- * An empty device still imports without asking. There is nothing to weigh, and a
- * new device's first sync should not open with a question about a copy it does
- * not have.
+ * A remote version *below* this device's base is not "nothing to do" — see
+ * `decidePush`. The counter is the server's, so it can only have gone backwards
+ * if the blob was replaced by a different one, and importing it blind would take
+ * an unrelated database over this one.
  */
 export function decidePull(input: {
   baseVersion?: number;
   remoteVersion: number;
   hasUnpushedChanges: boolean;
-  /** Whether this device holds records of its own, counted rather than inferred. */
-  hasLocalRecords: boolean;
 }): PullDecision {
   const base = input.baseVersion ?? -1;
-  if (input.remoteVersion <= base) return 'skip';
-  return input.hasUnpushedChanges || input.hasLocalRecords ? 'conflict' : 'import';
+  if (input.remoteVersion === base) return 'skip';
+  if (input.remoteVersion < base) return 'conflict';
+  return input.hasUnpushedChanges ? 'conflict' : 'import';
 }
 
 /**
@@ -139,45 +153,6 @@ export class SyncConflictError extends Error {
             'Resolve the conflict in Settings.'
     );
     this.name = 'SyncConflictError';
-  }
-}
-
-/**
- * Raised when the cloud blob has been replaced by an older build of the app.
- *
- * Not a conflict to resolve, which is why it is its own error: neither answer
- * the conflict card offers is right. Taking the cloud copy absorbs a snapshot
- * that has already lost everything the older build does not know about — every
- * tombstone, so deleted rows come back, and the lineage, so every device drops
- * from merging to replacing. Overwriting it from here leaves the older device
- * unable to read what it finds and pushing the same downgrade again on its next
- * edit. The only fix is on the other device, so the app says so and stops.
- */
-export class SyncDowngradeError extends Error {
-  constructor(readonly conflict: SyncConflict) {
-    super(
-      'The cloud copy was last written by an older version of Wealth Atlas ' +
-        `(snapshot v${conflict.snapshotVersion} where this device has already read ` +
-        `v${conflict.expectedSnapshotVersion}). Sync is paused until that device is updated. ` +
-        'Nothing on this device has been changed or deleted.'
-    );
-    this.name = 'SyncDowngradeError';
-  }
-}
-
-/**
- * Raised when the recovery copy could not be written. The import is abandoned
- * rather than run without a net — the point of the net is that a wipe is never
- * unrecoverable.
- */
-export class SyncSafetyError extends Error {
-  constructor(cause: unknown) {
-    super(
-      'Could not save a recovery copy of this device, so nothing was replaced. ' +
-        'Export a backup from Settings, then try again. ' +
-        `(${cause instanceof Error ? cause.message : String(cause)})`
-    );
-    this.name = 'SyncSafetyError';
   }
 }
 
@@ -213,6 +188,37 @@ export function clearSyncConflict(): void {
   if (!localStorage.getItem(CONFLICT_KEY)) return;
   localStorage.removeItem(CONFLICT_KEY);
   notify(undefined);
+}
+
+/**
+ * The last push that overwrote another device, until the user dismisses it.
+ *
+ * Its own key rather than a field on the conflict record: the two have different
+ * lifetimes and different meanings, and only one of them stops syncing.
+ */
+const OVERWRITE_KEY = 'sync.overwrite';
+
+export function getSyncOverwrite(): SyncOverwrite | undefined {
+  const raw = localStorage.getItem(OVERWRITE_KEY);
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw) as SyncOverwrite;
+  } catch (error) {
+    Logger.warn('Discarding an unreadable sync overwrite record:', error);
+    localStorage.removeItem(OVERWRITE_KEY);
+    return undefined;
+  }
+}
+
+export function setSyncOverwrite(overwrite: SyncOverwrite): void {
+  localStorage.setItem(OVERWRITE_KEY, JSON.stringify(overwrite));
+  notify(getSyncConflict());
+}
+
+export function clearSyncOverwrite(): void {
+  if (!localStorage.getItem(OVERWRITE_KEY)) return;
+  localStorage.removeItem(OVERWRITE_KEY);
+  notify(getSyncConflict());
 }
 
 /** Returns its own unsubscribe, so a React effect can return it directly. */

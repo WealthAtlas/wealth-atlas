@@ -1,5 +1,4 @@
 import { db } from '@/data/database';
-import { deleteSynced } from '@/data/sync/merge/Tombstones';
 import { IMemory, Memory } from '@/domain/entities/memory/Memory';
 
 /**
@@ -33,6 +32,6 @@ export class MemoryRepository {
   }
 
   public async delete(id: number): Promise<void> {
-    await deleteSynced('memories', [id]);
+    await db.memories.delete(id);
   }
 }

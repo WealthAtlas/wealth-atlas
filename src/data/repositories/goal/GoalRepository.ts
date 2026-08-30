@@ -1,6 +1,5 @@
 import { IGoal } from '../../../domain/entities/goals/Goal';
 import { db } from '../../database';
-import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class GoalRepository {
   async create(goal: IGoal): Promise<IGoal> {
@@ -22,7 +21,7 @@ export class GoalRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await deleteSynced('goals', [id]);
+    await db.goals.delete(id);
   }
 
   public async save(goal: IGoal): Promise<IGoal> {

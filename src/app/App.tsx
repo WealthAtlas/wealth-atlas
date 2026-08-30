@@ -14,7 +14,21 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Auto-convert scheduled transactions.
+        // The cloud first, before anything on this device writes a row.
+        //
+        // Every write publishes under a compare-and-swap against the version
+        // this device is based on, so a device that starts up stale is a device
+        // whose next edit is refused. Worse, the two things that run below both
+        // *write*: converting a schedule against a stale database creates rows
+        // that the copy in the cloud already has, under ids that copy uses for
+        // something else. Learning what the other devices did is therefore the
+        // first thing worth doing, not the last.
+        const syncResult = await SyncService.autoSync();
+        if (syncResult.version) {
+          Logger.info(`Auto-sync completed, updated to version ${syncResult.version}`);
+        }
+
+        // Auto-convert scheduled transactions, now against the current data.
         //
         // Suppressed for the same reason a migration is: none of these rows is
         // the user changing their mind. They are derived from the schedules the
@@ -25,27 +39,14 @@ export default function App() {
         // Only the conversions, which are database work and over in a moment.
         // Suppression is a process-wide flag, so everything it spans is claimed
         // as automatic — a user's edit inside the window included, and such an
-        // edit gets neither a new `updatedAt` nor an unpushed mark.
+        // edit gets neither a push nor an unpushed mark.
         await AutoSyncService.withoutScheduling(async () => {
           await new AssetService().createSIPInvestments();
           await new LoanService().createEMIPayments();
         });
 
-        // Before the value scripts, not after. Learning what the other devices
-        // did is the thing worth doing first: editing a record this device has
-        // not caught up on writes the whole stale row forward under a fresh
-        // timestamp, and row-level last-write-wins then prefers it. This used to
-        // wait on `updateValues()` — one script per asset over the network —
-        // leaving the app interactive for seconds while still showing what
-        // another device had already changed.
-        const syncResult = await SyncService.autoSync();
-        if (syncResult.version) {
-          Logger.info(`Auto-sync completed, updated to version ${syncResult.version}`);
-        }
-
-        // Prices, which say nothing about the other devices, so nothing waits on
-        // them. Unawaited on purpose: a slow value script must not delay
-        // anything above it.
+        // Prices last, and unawaited: they say nothing about the other devices,
+        // and a slow value script must not delay anything above it.
         void new AssetService()
           .updateValues()
           .catch(error => Logger.warn('Could not refresh the value scripts:', error));

@@ -1,26 +1,22 @@
 import {
   ArrowBack,
   Cloud,
-  CloudDownload,
-  CloudUpload,
   ContentCopy,
   Download,
   Key,
   Link,
   LinkOff,
   Storage,
-  Sync,
-  SyncProblem,
   Upload,
 } from '@mui/icons-material';
 import {
   Alert,
+  AlertTitle,
   AppBar,
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   FormControlLabel,
   IconButton,
   Paper,
@@ -34,41 +30,44 @@ import { AiProviderSettingsContainer } from '@/app/containers/settings/AiProvide
 import { CurrencySettingsContainer } from '@/app/containers/settings/CurrencySettingsContainer';
 import { MemorySettingsContainer } from '@/app/containers/settings/MemorySettingsContainer';
 import { NewsProviderSettingsContainer } from '@/app/containers/settings/NewsProviderSettingsContainer';
-import { CloudCopyContainer } from '@/app/containers/sync/CloudCopyContainer';
-import { SyncConflictContainer } from '@/app/containers/sync/SyncConflictContainer';
 import { TargetAllocationSettingsContainer } from '@/app/containers/settings/TargetAllocationSettingsContainer';
 import { useState } from 'react';
+import type { SyncConflict, SyncOverwrite } from '@/data/sync/conflict';
 import { Logger } from '../../../domain/utils/Logger';
 
 export interface SettingsPageProps {
   // Sync status
   keyId?: string;
-  lastRemoteVersion?: number;
   lastSyncAt?: string;
-  hasStoredPassphrase: boolean;
   autoSyncEnabled?: boolean;
-  autoSyncStatus?: {
-    isListening: boolean;
-    hasPendingSync: boolean;
-    syncConfigured: boolean;
-  };
+  /** A refused sync waiting on the user. The only thing that clears it. */
+  conflict?: SyncConflict;
+  /** A push that replaced another device's work. A report, not a question. */
+  overwrite?: SyncOverwrite;
   // Handlers
   onSetup: (passphrase: string) => void;
   onLink: (keyId: string, passphrase: string) => void;
-  onPush: () => void;
-  onPull: () => void;
-  onChangePassphrase: (oldPass: string, newPass: string) => void;
   onUnlink: () => void;
   onToggleAutoSync?: (enabled: boolean) => void;
-  onForceSync?: () => void;
+  onResolveConflict: (resolution: 'keep-local' | 'take-remote') => void;
+  onDismissOverwrite: () => void;
   onExportData: () => void;
   onImportData: (file: File) => void;
   onBack: () => void;
 }
 
+/**
+ * A machine timestamp, shown in local time because for these the time of day is
+ * the content — see `UIUtils.formatDate` for why calendar days are the opposite.
+ */
+function formatInstant(iso: string | undefined): string | undefined {
+  if (!iso) return undefined;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? undefined : date.toLocaleString();
+}
+
 export function SettingsPage(props: SettingsPageProps) {
   const [pass, setPass] = useState('');
-  const [newPass, setNewPass] = useState('');
   const [kidInput, setKidInput] = useState('');
   const [mode, setMode] = useState<'setup' | 'link'>('setup');
   const [copySuccess, setCopySuccess] = useState(false);
@@ -115,12 +114,6 @@ export function SettingsPage(props: SettingsPageProps) {
           Configure your preferences and sync.
         </Typography>
 
-        {/*
-          Above the sync controls, not below them: while a conflict stands, Push
-          and Pull are the two buttons the user must not reach for first.
-        */}
-        <SyncConflictContainer />
-
         <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
           <Stack spacing={2}>
             <Typography variant="h6">
@@ -129,11 +122,69 @@ export function SettingsPage(props: SettingsPageProps) {
 
             {isLinked ? (
               <>
+                {/*
+                  First in the section, because it is the only thing here the
+                  user has to act on: a refused sync stops this device pushing
+                  and pulling until it is answered, and nothing else clears it.
+                */}
+                {props.conflict && (
+                  <Alert severity="warning">
+                    <AlertTitle>This device and the cloud have both changed</AlertTitle>
+                    <Typography variant="body2" sx={{ mb: 1.5 }}>
+                      Sync is paused. Wealth Atlas does not merge two copies — keep one, and the
+                      other is overwritten. Export a backup first if you are unsure.
+                    </Typography>
+                    {/*
+                      When the other copy was saved, not what version it is: the
+                      number never answered the question someone actually has
+                      when choosing which copy to keep.
+                    */}
+                    {formatInstant(props.conflict.remoteUpdatedAt) && (
+                      <Typography variant="body2" sx={{ mb: 1.5 }}>
+                        The cloud copy was last saved{' '}
+                        <strong>{formatInstant(props.conflict.remoteUpdatedAt)}</strong>.
+                      </Typography>
+                    )}
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="warning"
+                        onClick={() => props.onResolveConflict('keep-local')}
+                      >
+                        Keep this device
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="warning"
+                        onClick={() => props.onResolveConflict('take-remote')}
+                      >
+                        Use the cloud copy
+                      </Button>
+                    </Stack>
+                  </Alert>
+                )}
+
+                {/*
+                  A report rather than a question: the cloud already holds this
+                  device's copy and there is nothing here to choose. What it buys
+                  is the chance to rescue the other device before it pulls.
+                */}
+                {props.overwrite && (
+                  <Alert severity="error" onClose={props.onDismissOverwrite}>
+                    <AlertTitle>Another device saved at the same moment</AlertTitle>
+                    <Typography variant="body2">
+                      Two devices published at once and the cloud took both writes, so one of the
+                      two copies is gone. Which one is not knowable from here. Open Wealth Atlas on
+                      your other device and export a backup <strong>before</strong> it syncs — if
+                      its copy is the one that was replaced, that export is all there is.
+                    </Typography>
+                  </Alert>
+                )}
+
                 <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
                   <CardContent>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Sync Information
-                    </Typography>
                     <Stack spacing={1}>
                       <Stack direction="row" justifyContent="space-between" alignItems="center">
                         <Typography variant="body2" color="text.secondary">
@@ -150,73 +201,12 @@ export function SettingsPage(props: SettingsPageProps) {
                       </Stack>
                       <Stack direction="row" justifyContent="space-between">
                         <Typography variant="body2" color="text.secondary">
-                          Remote Version:
+                          Last sync:
                         </Typography>
-                        <Typography variant="body2">{props.lastRemoteVersion ?? '-'}</Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" color="text.secondary">
-                          Last Sync:
+                        <Typography variant="body2">
+                          {formatInstant(props.lastSyncAt) ?? 'Never'}
                         </Typography>
-                        <Typography variant="body2">{props.lastSyncAt ?? 'Never'}</Typography>
                       </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-
-                {/* Auto-sync controls */}
-                <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
-                  <CardContent>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Automatic Sync
-                    </Typography>
-                    <Stack spacing={2}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={props.autoSyncEnabled ?? false}
-                            onChange={e => props.onToggleAutoSync?.(e.target.checked)}
-                          />
-                        }
-                        label="Enable automatic sync on data changes"
-                      />
-
-                      {props.autoSyncStatus && (
-                        <Stack spacing={1}>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="body2" color="text.secondary">
-                              Status:
-                            </Typography>
-                            <Chip
-                              icon={props.autoSyncStatus.isListening ? <Sync /> : <SyncProblem />}
-                              label={props.autoSyncStatus.isListening ? 'Listening' : 'Not Active'}
-                              size="small"
-                              color={props.autoSyncStatus.isListening ? 'success' : 'default'}
-                            />
-                            {props.autoSyncStatus.hasPendingSync && (
-                              <Chip label="Sync Pending" size="small" color="warning" />
-                            )}
-                          </Stack>
-
-                          {props.autoSyncStatus.syncConfigured && props.onForceSync && (
-                            <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<Sync />}
-                                onClick={props.onForceSync}
-                              >
-                                Sync Now
-                              </Button>
-                              <Typography variant="caption" color="text.secondary">
-                                Merges this device with the cloud: changes made in different places
-                                are kept, and where both changed the same record the more recent
-                                edit wins.
-                              </Typography>
-                            </Stack>
-                          )}
-                        </Stack>
-                      )}
                     </Stack>
                   </CardContent>
                 </Card>
@@ -227,70 +217,26 @@ export function SettingsPage(props: SettingsPageProps) {
                   </Alert>
                 )}
 
-                {/* Before the two buttons that replace a whole database, because
-                    seeing what is up there is what tells you which one to press. */}
-                <CloudCopyContainer />
-
+                {/*
+                  The only sync control there is. Opening the app pulls and every
+                  edit publishes, so there is nothing left for a Push or a Pull
+                  button to do that this switch does not already govern.
+                */}
                 <Stack spacing={0.5}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                    <Button
-                      variant="contained"
-                      startIcon={<CloudUpload />}
-                      onClick={() => props.onPush()}
-                      fullWidth
-                    >
-                      Push to Cloud
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<CloudDownload />}
-                      onClick={() => props.onPull()}
-                      fullWidth
-                    >
-                      Pull from Cloud
-                    </Button>
-                  </Stack>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={props.autoSyncEnabled ?? false}
+                        onChange={e => props.onToggleAutoSync?.(e.target.checked)}
+                      />
+                    }
+                    label="Keep this device in sync automatically"
+                  />
                   <Typography variant="caption" color="text.secondary">
-                    These replace one side with the other rather than merging, and stop to ask if
-                    that would discard anything. Sync Now above is the everyday action.
+                    Pulls when the app opens and publishes a few seconds after each edit. If another
+                    device has saved in the meantime, sync stops and asks which copy to keep rather
+                    than replacing either one.
                   </Typography>
-                </Stack>
-
-                {!props.hasStoredPassphrase && (
-                  <Alert severity="warning">
-                    Passphrase not stored locally. Push/Pull operations will require manual
-                    passphrase entry.
-                  </Alert>
-                )}
-
-                <Typography variant="subtitle2" sx={{ mt: 2 }}>
-                  Security Actions
-                </Typography>
-
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <TextField
-                    fullWidth
-                    label="Current passphrase"
-                    type="password"
-                    value={pass}
-                    onChange={e => setPass(e.target.value)}
-                  />
-                  <TextField
-                    fullWidth
-                    label="New passphrase"
-                    type="password"
-                    value={newPass}
-                    onChange={e => setNewPass(e.target.value)}
-                  />
-                  <Button
-                    variant="outlined"
-                    startIcon={<Key />}
-                    onClick={() => props.onChangePassphrase(pass, newPass)}
-                    disabled={!pass || !newPass}
-                    sx={{ whiteSpace: 'nowrap' }}
-                  >
-                    Change
-                  </Button>
                 </Stack>
 
                 <Button
@@ -368,8 +314,8 @@ export function SettingsPage(props: SettingsPageProps) {
                     />
                     <Alert severity="warning">
                       Connecting replaces everything on this device with the data from that sync
-                      key. A recovery copy of this device is saved first, and you can download it
-                      from Settings afterwards.
+                      key. Export a backup below first if this device holds anything you want to
+                      keep.
                     </Alert>
                     <Button
                       variant="contained"

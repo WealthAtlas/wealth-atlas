@@ -2,8 +2,7 @@ import { Logger } from '@/domain/utils/Logger';
 import { db } from '../database';
 import { getSyncConflict } from './conflict';
 import { SyncService } from './Syncer';
-import type { MergeableRow } from './merge/MergeRows';
-import { isNoOpUpdate } from './merge/SyncMeta';
+import { isNoOpUpdate, type StoredRow } from './RowChanges';
 import { getAutoSyncEnabled, getKeyId, markPendingChange } from './state';
 
 export class AutoSyncService {
@@ -54,11 +53,6 @@ export class AutoSyncService {
       // assistant about themselves is their data like any other, so it should
       // wake a push.
       db.memories,
-      // A deletion is a change like any other, and the only record that it
-      // happened. Missing from this list, a delete would reach other devices
-      // only if something else happened to be edited afterwards — and until then
-      // every merge would hand the row back.
-      db.deletions,
     ];
 
     tables.forEach(table => {
@@ -68,7 +62,7 @@ export class AutoSyncService {
         // Saving a form without editing it must not wake a push, for the same
         // reason it must not re-date the row: nothing about this device changed,
         // so there is nothing the cloud has not got.
-        if (isNoOpUpdate(modifications as Record<string, unknown>, obj as unknown as MergeableRow))
+        if (isNoOpUpdate(modifications as Record<string, unknown>, obj as unknown as StoredRow))
           return;
         AutoSyncService.scheduleSync('update', table.name);
       });
@@ -105,6 +99,15 @@ export class AutoSyncService {
    * won would silently decide which device's settings survived. They reach the
    * cloud with the next real edit instead.
    */
+  static async withoutScheduling<T>(fn: () => Promise<T>): Promise<T> {
+    AutoSyncService.suppressionDepth++;
+    try {
+      return await fn();
+    } finally {
+      AutoSyncService.suppressionDepth--;
+    }
+  }
+
   /**
    * Whether a write happening right now is an automatic one.
    *
@@ -114,15 +117,6 @@ export class AutoSyncService {
    */
   static isSuppressed(): boolean {
     return AutoSyncService.suppressionDepth > 0;
-  }
-
-  static async withoutScheduling<T>(fn: () => Promise<T>): Promise<T> {
-    AutoSyncService.suppressionDepth++;
-    try {
-      return await fn();
-    } finally {
-      AutoSyncService.suppressionDepth--;
-    }
   }
 
   /**
@@ -176,13 +170,15 @@ export class AutoSyncService {
     AutoSyncService.syncTimeout = setTimeout(async () => {
       try {
         Logger.info('AutoSyncService: Performing automatic sync');
-        // Reconcile, not push: if another device has changed something in the
-        // meantime, this merges the two and publishes the result instead of
-        // stopping to ask which copy to keep.
-        const result = await SyncService.reconcile();
+        // A push, under the compare-and-swap in `decidePush`: it publishes only
+        // if the cloud is still on the version this device is based on. If
+        // another device has pushed in the meantime the write is refused, the
+        // conflict is recorded, and Settings asks which copy to keep — this app
+        // does not merge two databases on the user's behalf.
+        const result = await SyncService.push();
         Logger.info(`AutoSyncService: Sync completed successfully, version: ${result.version}`);
       } catch (error) {
-        // A conflict is recorded by the push itself and shown by the banner, so
+        // A conflict is recorded by the push itself and shown in Settings, so
         // there is nothing to retry and nothing to raise here.
         Logger.warn('AutoSyncService: Auto-sync failed:', error);
         // Don't throw - auto-sync should be non-intrusive
@@ -231,7 +227,13 @@ export class AutoSyncService {
     void AutoSyncService.pollNow();
   };
 
-  /** Pulls unless one is already in flight. Errors are swallowed by autoSync. */
+  /**
+   * Pulls unless one is already in flight. Errors are swallowed by autoSync.
+   *
+   * Polling is what keeps a long-open tab current, and that is not a nicety: a
+   * device publishes only if the cloud is still on the version it is based on,
+   * so a tab that has drifted behind is a tab whose next edit is refused.
+   */
   private static async pollNow(): Promise<void> {
     if (AutoSyncService.pollInFlight) return;
     AutoSyncService.pollInFlight = true;
@@ -243,53 +245,5 @@ export class AutoSyncService {
     } finally {
       AutoSyncService.pollInFlight = false;
     }
-  }
-
-  /**
-   * Force an immediate sync (ignores debouncing)
-   */
-  static async forceSyncNow(): Promise<{ version: number | null } | null> {
-    const keyId = getKeyId();
-    const autoSyncEnabled = getAutoSyncEnabled();
-
-    if (!keyId || !autoSyncEnabled) {
-      Logger.warn('AutoSyncService: Cannot force sync - not configured');
-      return null;
-    }
-
-    try {
-      Logger.info('AutoSyncService: Forcing immediate sync');
-
-      // Clear any pending sync
-      if (AutoSyncService.syncTimeout) {
-        clearTimeout(AutoSyncService.syncTimeout);
-        AutoSyncService.syncTimeout = null;
-      }
-
-      const result = await SyncService.reconcile();
-      Logger.info(`AutoSyncService: Force sync completed successfully, version: ${result.version}`);
-      return result;
-    } catch (error) {
-      Logger.error('AutoSyncService: Force sync failed:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get the current status of auto-sync
-   */
-  static getStatus(): {
-    isListening: boolean;
-    hasPendingSync: boolean;
-    syncConfigured: boolean;
-  } {
-    const keyId = getKeyId();
-    const autoSyncEnabled = getAutoSyncEnabled();
-
-    return {
-      isListening: AutoSyncService.isListening,
-      hasPendingSync: AutoSyncService.syncTimeout !== null,
-      syncConfigured: Boolean(keyId && autoSyncEnabled),
-    };
   }
 }

@@ -1,6 +1,5 @@
 import { IInvestment } from '../../../domain/entities/assets/Investment';
 import { db } from '../../database';
-import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class InvestmentRepository {
   async create(transaction: IInvestment): Promise<IInvestment> {
@@ -18,24 +17,14 @@ export class InvestmentRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await deleteSynced('investments', [id]);
+    await db.investments.delete(id);
   }
 
   async deleteByAssetId(assetId: number): Promise<void> {
-    // Read then delete, rather than a collection delete: a tombstone needs each
-    // row's identity, which is only knowable before the row is gone.
-    const rows = await db.investments.where('assetId').equals(assetId).toArray();
-    await deleteSynced(
-      'investments',
-      rows.map(row => row.id)
-    );
+    await db.investments.where('assetId').equals(assetId).delete();
   }
 
   async deleteBySipId(sipId: number): Promise<void> {
-    const rows = await db.investments.where('sipId').equals(sipId).toArray();
-    await deleteSynced(
-      'investments',
-      rows.map(row => row.id)
-    );
+    await db.investments.where('sipId').equals(sipId).delete();
   }
 }

@@ -1,6 +1,5 @@
 import { IAsset } from '../../../domain/entities/assets/Asset';
 import { db } from '../../database';
-import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class AssetRepository {
   async create(asset: IAsset): Promise<IAsset> {
@@ -24,9 +23,6 @@ export class AssetRepository {
   }
 
   async delete(id: number): Promise<void> {
-    // Through `deleteSynced`, not `table.delete`: the deletion has to be
-    // recorded or the next merge with another device hands the row straight
-    // back.
-    await deleteSynced('assets', [id]);
+    await db.assets.delete(id);
   }
 }

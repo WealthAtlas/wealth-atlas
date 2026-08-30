@@ -7,32 +7,20 @@
  * Rehydrate before writing.
  */
 
-/**
- * `updatedAt` is on every synced table because every synced row carries it: it
- * is what a merge compares to decide which of two versions of a row is the later
- * one, and a string compares as a string. A snapshot whose `updatedAt` arrived
- * unrehydrated would still merge — `MergeRows` parses defensively — but the
- * stored row would then hold a string where the next write expects a Date.
- */
 const DATE_FIELDS: Record<string, readonly string[]> = {
-  assets: ['maturityDate', 'manualValueUpdatedAt', 'scriptValueUpdatedAt', 'updatedAt'],
-  investments: ['date', 'updatedAt'],
-  sips: ['startDate', 'endDate', 'lastGeneratedDate', 'updatedAt'],
-  expenses: ['date', 'updatedAt'],
-  loans: ['startDate', 'updatedAt'],
-  emis: ['startDate', 'endDate', 'lastGeneratedDate', 'updatedAt'],
-  payments: ['date', 'updatedAt'],
-  goals: ['maturityDate', 'createdAt', 'updatedAt'],
-  allocations: ['updatedAt'],
-  settings: ['updatedAt'],
-  currencyRates: ['manualUpdatedAt', 'scriptUpdatedAt', 'updatedAt'],
+  assets: ['maturityDate', 'manualValueUpdatedAt', 'scriptValueUpdatedAt'],
+  investments: ['date'],
+  sips: ['startDate', 'endDate', 'lastGeneratedDate'],
+  expenses: ['date'],
+  loans: ['startDate'],
+  emis: ['startDate', 'endDate', 'lastGeneratedDate'],
+  payments: ['date'],
+  goals: ['maturityDate', 'createdAt'],
+  currencyRates: ['manualUpdatedAt', 'scriptUpdatedAt'],
   // `evidence` deliberately holds no Date: only top-level fields are walked, so
   // a nested one would arrive from a snapshot as a string and stay a string.
-  decisions: ['createdAt', 'reviewedAt', 'updatedAt'],
-  memories: ['createdAt', 'updatedAt'],
-  // Tombstones. A deletion whose date stayed a string would be compared against
-  // a real Date and lose every time, which reads as "the delete never happened".
-  deletions: ['deletedAt'],
+  decisions: ['createdAt', 'reviewedAt'],
+  memories: ['createdAt'],
 };
 
 type LooseRow = Record<string, unknown>;

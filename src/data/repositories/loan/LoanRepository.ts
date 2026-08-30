@@ -1,6 +1,5 @@
 import { ILoan } from '../../../domain/entities/loans/Loan';
 import { db } from '../../database';
-import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class LoanRepository {
   async create(loan: ILoan): Promise<ILoan> {
@@ -22,6 +21,6 @@ export class LoanRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await deleteSynced('loans', [id]);
+    await db.loans.delete(id);
   }
 }

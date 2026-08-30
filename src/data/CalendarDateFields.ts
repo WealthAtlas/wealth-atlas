@@ -9,9 +9,8 @@ import { utcDay } from '@/domain/utils/DateUtils';
  * enough to make the *arithmetic* right, but it leaves the store holding
  * whatever it was given — a legacy row written by the old local-time schedule
  * stepping, or a future repository that forgets. This normalises on the way in
- * too, in the same Dexie hooks that maintain `uid`/`updatedAt`, for the same
- * reason those live there: so no repository can forget, and so the store
- * converges on clean values as rows are rewritten, with no migration needed.
+ * too, in Dexie's own hooks, so no repository can forget and the store converges
+ * on clean values as rows are rewritten, with no migration needed.
  *
  * There is no migration precisely because nothing reads these columns raw. No
  * repository does an indexed date-range query — every date comparison in the app
@@ -23,11 +22,6 @@ import { utcDay } from '@/domain/utils/DateUtils';
  * What is deliberately NOT here matters as much as what is. Every machine
  * timestamp keeps its time:
  *
- * - `updatedAt` and `deletions.deletedAt` are what a merge compares to order two
- *   writes. Truncated to a day, every same-day edit on two devices becomes a
- *   tie — which `localAhead` reads as "in step", so neither device publishes and
- *   both keep a different version of the row for ever. Delete-versus-edit on the
- *   same day becomes unresolvable for the same reason.
  * - `assets.manualValueUpdatedAt` / `scriptValueUpdatedAt` and
  *   `currencyRates.manualUpdatedAt` / `scriptUpdatedAt` drive "is this value
  *   stale?" checks against a one-day threshold (`Asset.isScriptValueStale`), so
@@ -64,7 +58,7 @@ export function normaliseCalendarDates(tableName: string, row: Record<string, un
  *
  * Only fields actually being written are considered. Normalising a stored field
  * the write never mentioned would turn an unrelated edit into a date change —
- * and, through `isNoOpUpdate`, into a fresh `updatedAt` and a push.
+ * and, through `isNoOpUpdate`, into a push nobody asked for.
  */
 export function calendarDateModifications(
   tableName: string,

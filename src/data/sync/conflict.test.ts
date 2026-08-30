@@ -41,86 +41,58 @@ describe('deciding whether a push may overwrite the cloud', () => {
     expect(decidePush({ baseVersion: undefined, remoteVersion: 1 })).toBe('conflict');
   });
 
-  it('pushes when the cloud is somehow behind this device', () => {
-    // Nothing would be lost: the rows this device holds are a superset of a
-    // version the cloud has already been past.
-    expect(decidePush({ baseVersion: 9, remoteVersion: 7 })).toBe('push');
+  it('refuses when the cloud is somehow behind this device', () => {
+    // The version is the server's — every POST and PUT answers with the number
+    // it assigned — so a remote below this device's base cannot mean "we are
+    // ahead". It means the blob this base names is gone: the key was recreated,
+    // or the backend reset. Pushing over it would replace whatever is there now.
+    expect(decidePush({ baseVersion: 9, remoteVersion: 7 })).toBe('conflict');
   });
 });
 
 describe('deciding whether a pull may replace every local table', () => {
   it('skips when the cloud has nothing newer', () => {
-    expect(
-      decidePull({
-        baseVersion: 9,
-        remoteVersion: 9,
-        hasUnpushedChanges: false,
-        hasLocalRecords: false,
-      })
-    ).toBe('skip');
+    expect(decidePull({ baseVersion: 9, remoteVersion: 9, hasUnpushedChanges: false })).toBe(
+      'skip'
+    );
   });
 
   it('imports when everything local is already in the cloud', () => {
-    expect(
-      decidePull({
-        baseVersion: 7,
-        remoteVersion: 9,
-        hasUnpushedChanges: false,
-        hasLocalRecords: false,
-      })
-    ).toBe('import');
+    // The ordinary startup: this device published everything it holds, another
+    // device has moved on, and taking the newer copy costs nothing. It has to be
+    // silent — every write publishes under a compare-and-swap, so a device that
+    // starts up stale is a device whose next edit is refused.
+    expect(decidePull({ baseVersion: 7, remoteVersion: 9, hasUnpushedChanges: false })).toBe(
+      'import'
+    );
   });
 
   it('refuses when this device holds edits the cloud has never seen', () => {
     // The import is a whole-database wipe, and an edit made offline or inside
     // the push debounce is a row no remote snapshot can give back.
-    expect(
-      decidePull({
-        baseVersion: 7,
-        remoteVersion: 9,
-        hasUnpushedChanges: true,
-        hasLocalRecords: false,
-      })
-    ).toBe('conflict');
+    expect(decidePull({ baseVersion: 7, remoteVersion: 9, hasUnpushedChanges: true })).toBe(
+      'conflict'
+    );
   });
 
-  it('refuses when this device holds records of its own, pushed or not', () => {
-    // The blunt rule, and the one the user asked for: a replace has no per-row
-    // reason for anything it removes, so if there is something here to lose the
-    // only honest move is to ask which copy to keep. `hasUnpushedChanges` is not
-    // enough on its own — a completed push clears it, and a write made while
-    // automatic work held the suppression flag never sets it.
-    expect(
-      decidePull({
-        baseVersion: 7,
-        remoteVersion: 9,
-        hasUnpushedChanges: false,
-        hasLocalRecords: true,
-      })
-    ).toBe('conflict');
+  it('refuses when the cloud is behind the version this device is based on', () => {
+    // Not "nothing to do": the counter is the server's, so it can only go
+    // backwards if the blob was replaced by a different one. Importing it blind
+    // would take an unrelated database over this one.
+    expect(decidePull({ baseVersion: 9, remoteVersion: 7, hasUnpushedChanges: false })).toBe(
+      'conflict'
+    );
   });
 
-  it('skips rather than conflicting when the cloud is not ahead at all', () => {
+  it('skips rather than conflicting when the cloud is exactly where we left it', () => {
     // Unpushed local work is not a conflict on its own — there is nothing
     // arriving to displace it. It is settled by the next push.
-    expect(
-      decidePull({
-        baseVersion: 9,
-        remoteVersion: 9,
-        hasUnpushedChanges: true,
-        hasLocalRecords: false,
-      })
-    ).toBe('skip');
+    expect(decidePull({ baseVersion: 9, remoteVersion: 9, hasUnpushedChanges: true })).toBe('skip');
   });
 
   it('treats a device that has never synced as behind any real version', () => {
     expect(
-      decidePull({
-        baseVersion: undefined,
-        remoteVersion: 1,
-        hasUnpushedChanges: false,
-        hasLocalRecords: false,
-      })
+      decidePull({ baseVersion: undefined, remoteVersion: 1, hasUnpushedChanges: false })
     ).toBe('import');
   });
 });

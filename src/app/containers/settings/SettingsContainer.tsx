@@ -1,11 +1,11 @@
 import { SettingsPage } from '@/app/components/pages/SettingsPage';
 import { useNotification } from '@/app/components/providers/NotificationContext';
-import { AutoSyncService } from '@/data/sync/AutoSyncService';
+import { onSyncConflictChanged } from '@/data/sync/conflict';
 import { SyncService } from '@/data/sync/Syncer';
 import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { BackupService } from '@/domain/services/BackupService';
 import { Logger } from '@/domain/utils/Logger';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function SettingsContainer() {
@@ -13,11 +13,16 @@ export function SettingsContainer() {
   const { notify } = useNotification();
   const [, setStatusVersion] = useState(0); // trigger re-render only
   const status = SyncService.getStatus();
-  const autoSyncStatus = AutoSyncService.getStatus();
 
-  // Read at render, so a background pull needs a nudge for "Last Sync" and the
-  // remote version to stop showing the state from before it.
+  // Read at render, so a background pull needs a nudge for "Last sync" to stop
+  // showing the state from before it.
   useDatabaseReplaced(() => setStatusVersion(v => v + 1));
+
+  // The card in this section is the only place a refused sync is shown, and the
+  // push that raises one runs in the background with nobody watching. Without
+  // this, a conflict raised while Settings is open stays invisible until the
+  // user navigates away and back.
+  useEffect(() => onSyncConflictChanged(() => setStatusVersion(v => v + 1)), []);
 
   const wrap = useCallback(
     (fn: () => Promise<unknown>) =>
@@ -35,24 +40,23 @@ export function SettingsContainer() {
     (keyId: string, pass: string) => wrap(() => SyncService.linkSync(keyId, pass, true)), // Auto-sync is always enabled
     [wrap]
   );
-  const onPush = useCallback(() => wrap(() => SyncService.push()), [wrap]);
-  const onPull = useCallback(() => wrap(() => SyncService.pull().then(() => {})), [wrap]);
-  const onChangePassphrase = useCallback(
-    (oldPass: string, newPass: string) =>
-      wrap(() => SyncService.changePassphrase(oldPass, newPass)),
+  const onUnlink = useCallback(() => wrap(() => SyncService.unlink()), [wrap]);
+
+  const onDismissOverwrite = useCallback(() => {
+    SyncService.dismissOverwrite();
+    setStatusVersion(v => v + 1);
+  }, []);
+
+  const onResolveConflict = useCallback(
+    (resolution: 'keep-local' | 'take-remote') =>
+      wrap(() => SyncService.resolveConflict(resolution)),
     [wrap]
   );
-  const onUnlink = useCallback(() => wrap(() => SyncService.unlink()), [wrap]);
 
   const onToggleAutoSync = useCallback((enabled: boolean) => {
     SyncService.setAutoSyncEnabled(enabled);
     setStatusVersion(v => v + 1);
   }, []);
-
-  const onForceSync = useCallback(
-    () => wrap(() => AutoSyncService.forceSyncNow().then(() => {})),
-    [wrap]
-  );
 
   const onBack = useCallback(() => {
     navigate('/dashboard');
@@ -100,19 +104,16 @@ export function SettingsContainer() {
   return (
     <SettingsPage
       keyId={status.keyId}
-      lastRemoteVersion={status.lastRemoteVersion}
       lastSyncAt={status.lastSyncAt}
-      hasStoredPassphrase={status.hasStoredPassphrase}
       autoSyncEnabled={status.autoSyncEnabled}
-      autoSyncStatus={autoSyncStatus}
+      conflict={status.conflict}
+      overwrite={status.overwrite}
       onSetup={onSetup}
       onLink={onLink}
-      onPush={onPush}
-      onPull={onPull}
-      onChangePassphrase={onChangePassphrase}
       onUnlink={onUnlink}
       onToggleAutoSync={onToggleAutoSync}
-      onForceSync={onForceSync}
+      onResolveConflict={onResolveConflict}
+      onDismissOverwrite={onDismissOverwrite}
       onExportData={onExportData}
       onImportData={onImportData}
       onBack={onBack}

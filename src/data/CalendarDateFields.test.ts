@@ -14,6 +14,7 @@ vi.stubGlobal('localStorage', {
 import { ALL_TABLES, db } from '@/data/database';
 import { InvestmentType } from '@/domain/entities/assets/Investment';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
+import { isNoOpUpdate } from '@/data/sync/RowChanges';
 import { calendarDateModifications, normaliseCalendarDates } from './CalendarDateFields';
 
 /**
@@ -24,30 +25,31 @@ import { calendarDateModifications, normaliseCalendarDates } from './CalendarDat
  * and that they do not disturb `isNoOpUpdate`. That last one is the reason this
  * is an integration test rather than a unit test: a truncation folded in at the
  * wrong point would make every re-save of an untouched row look like an edit,
- * which re-dates it and arms a push — precisely the defect `isNoOpUpdate` exists
- * to prevent, and one no pure test of either piece would catch.
+ * and an edit publishes the whole database — which bumps the cloud version, makes
+ * every other device stale, and turns each of their next edits into a conflict.
+ * No pure test of either piece would catch it.
  */
 describe('CALENDAR_DATE_FIELDS as a table', () => {
-  it('truncates the listed fields of a row in place', () => {
+  it('truncates the listed fields of a row and leaves the machine stamps alone', () => {
     const row: Record<string, unknown> = {
-      date: new Date('2026-06-15T18:45:00.000Z'),
-      updatedAt: new Date('2026-06-15T18:45:00.000Z'),
+      maturityDate: new Date('2026-06-15T18:45:00.000Z'),
+      manualValueUpdatedAt: new Date('2026-06-15T18:45:00.000Z'),
     };
-    normaliseCalendarDates('investments', row);
+    normaliseCalendarDates('assets', row);
 
-    expect((row.date as Date).toISOString()).toBe('2026-06-15T00:00:00.000Z');
-    expect((row.updatedAt as Date).toISOString()).toBe('2026-06-15T18:45:00.000Z');
+    expect((row.maturityDate as Date).toISOString()).toBe('2026-06-15T00:00:00.000Z');
+    expect((row.manualValueUpdatedAt as Date).toISOString()).toBe('2026-06-15T18:45:00.000Z');
   });
 
   it('ignores a table with no date-only columns', () => {
-    const row: Record<string, unknown> = { updatedAt: new Date('2026-06-15T18:45:00.000Z') };
+    const row: Record<string, unknown> = { createdAt: new Date('2026-06-15T18:45:00.000Z') };
     normaliseCalendarDates('memories', row);
-    expect((row.updatedAt as Date).toISOString()).toBe('2026-06-15T18:45:00.000Z');
+    expect((row.createdAt as Date).toISOString()).toBe('2026-06-15T18:45:00.000Z');
   });
 
   // A partial update must not drag a field it never mentioned into the write:
   // that would turn an unrelated edit into a date change, and through
-  // `isNoOpUpdate` into a fresh `updatedAt` and a push.
+  // `isNoOpUpdate` into a push nobody asked for.
   it('reports nothing for a field the write does not touch', () => {
     expect(calendarDateModifications('investments', { totalAmount: 5 })).toEqual({});
   });
@@ -95,15 +97,17 @@ describe('the Dexie hooks', () => {
   });
 
   // The invariant this file exists for. Two writes of the same clean day are one
-  // write as far as sync is concerned, and the second must claim nothing.
+  // write as far as sync is concerned, and the second must claim nothing —
+  // judged the way the hooks judge it: fold the truncations into the
+  // modifications first, then ask whether anything is left.
   it('leaves a re-save of an unchanged row a no-op, so no push is armed', async () => {
     const id = await db.investments.add(investment(new Date('2026-06-15')) as never);
-    const first = await db.investments.get(id);
+    const stored = (await db.investments.get(id)) as unknown as Record<string, unknown>;
 
-    await db.investments.put({ ...first, date: new Date('2026-06-15') } as never);
-    const second = await db.investments.get(id);
+    const write = { ...stored, date: new Date('2026-06-15T00:00:00.000Z') };
+    Object.assign(write, calendarDateModifications('investments', write));
 
-    expect(second!.updatedAt!.getTime()).toBe(first!.updatedAt!.getTime());
+    expect(isNoOpUpdate(write, stored)).toBe(true);
   });
 
   // `Collection.modify` is what a schema upgrade is made of, and it fires the
@@ -141,12 +145,15 @@ describe('the Dexie hooks', () => {
     const planted = await db.investments.get(id);
     expect(planted!.date.toISOString()).toBe('2026-06-15T18:30:00.000Z');
 
-    await new Promise(resolve => setTimeout(resolve, 2));
-    await db.investments.put({ ...planted, date: new Date('2026-06-15T18:30:00.000Z') } as never);
-    const rewritten = await db.investments.get(id);
+    const write = { ...planted, date: new Date('2026-06-15T18:30:00.000Z') } as Record<
+      string,
+      unknown
+    >;
+    Object.assign(write, calendarDateModifications('investments', write));
+    expect(isNoOpUpdate(write, planted as unknown as Record<string, unknown>)).toBe(false);
 
-    expect(rewritten!.date.toISOString()).toBe('2026-06-15T00:00:00.000Z');
-    expect(rewritten!.updatedAt!.getTime()).toBeGreaterThan(planted!.updatedAt!.getTime());
+    await db.investments.put({ ...planted, date: new Date('2026-06-15T18:30:00.000Z') } as never);
+    expect((await db.investments.get(id))!.date.toISOString()).toBe('2026-06-15T00:00:00.000Z');
   });
 
   it('does not truncate the value-refresh stamps on an asset', async () => {

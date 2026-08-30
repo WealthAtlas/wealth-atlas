@@ -1,6 +1,5 @@
 import { ISIP } from '../../../domain/entities/assets/SIP';
 import { db } from '../../database';
-import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class SIPRepository {
   async create(transaction: ISIP): Promise<ISIP> {
@@ -18,16 +17,10 @@ export class SIPRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await deleteSynced('sips', [id]);
+    await db.sips.delete(id);
   }
 
   async deleteByAssetId(assetId: number): Promise<void> {
-    // Read then delete, rather than a collection delete: a tombstone needs each
-    // row's identity, which is only knowable before the row is gone.
-    const rows = await db.sips.where('assetId').equals(assetId).toArray();
-    await deleteSynced(
-      'sips',
-      rows.map(row => row.id)
-    );
+    await db.sips.where('assetId').equals(assetId).delete();
   }
 }

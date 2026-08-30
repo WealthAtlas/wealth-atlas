@@ -15,9 +15,23 @@ vi.stubEnv('VITE_SYNC_API_URL', 'https://sync.test');
  * counter, with no ability to merge anything — which is the constraint the whole
  * design is shaped by.
  */
-const cloud = new Map<string, { version: number; payload: string; meta: CryptoMeta }>();
+const cloud = new Map<
+  string,
+  { version: number; payload: string; meta: CryptoMeta; updatedAt: string }
+>();
 let requests = 0;
 let puts = 0;
+/**
+ * Runs once, inside the gap between a push reading the version and its PUT
+ * landing. That gap is the only place the race lives, and it is not reachable
+ * from the outside any other way.
+ */
+let insideThePushGap: (() => void) | undefined;
+/**
+ * Whether the fake honours `expectedVersion`. Turned off to stand in for a
+ * backend that predates the conditional write, or one rolled back to before it.
+ */
+let backendHonoursExpectedVersion = true;
 
 vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
   requests++;
@@ -31,7 +45,12 @@ vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
 
   if (path === '/data' && init?.method === 'POST') {
     const keyId = `key-${cloud.size + 1}`;
-    cloud.set(keyId, { version: 1, payload: body.payload, meta: body.meta });
+    cloud.set(keyId, {
+      version: 1,
+      payload: body.payload,
+      meta: body.meta,
+      updatedAt: new Date().toISOString(),
+    });
     return ok({ keyId, version: 1 });
   }
   const match = /^\/data\/([^/]+)(\/version)?$/.exec(path);
@@ -43,29 +62,60 @@ vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
   if (match[2]) return ok({ version: entry.version });
   if (init?.method === 'PUT') {
     puts++;
+    if (insideThePushGap) {
+      const run = insideThePushGap;
+      insideThePushGap = undefined;
+      run();
+    }
+    // The compare-and-swap the real handler now performs in one transaction: a
+    // write is accepted only from the version it names. A body without the field
+    // is an older client and keeps the original last-writer-wins behaviour.
+    if (
+      backendHonoursExpectedVersion &&
+      body.expectedVersion !== undefined &&
+      body.expectedVersion !== cloud.get(keyId)!.version
+    ) {
+      return {
+        ok: false,
+        status: 409,
+        text: async () => 'version mismatch',
+      };
+    }
     // Unconditional, exactly like the real backend: it takes no expected
     // version, which is why the compare-and-swap has to happen in the client.
-    const next = { version: entry.version + 1, payload: body.payload, meta: body.meta };
+    // The version is the server's, and the client only ever stores what it is
+    // handed back — nothing on a device invents one.
+    const current = cloud.get(keyId)!;
+    const next = {
+      version: current.version + 1,
+      payload: body.payload,
+      meta: body.meta,
+      updatedAt: new Date().toISOString(),
+    };
     cloud.set(keyId, next);
     return ok({ keyId, version: next.version });
   }
-  return ok({ keyId, version: entry.version, payload: entry.payload, meta: entry.meta });
+  return ok({
+    keyId,
+    version: entry.version,
+    payload: entry.payload,
+    meta: entry.meta,
+    updatedAt: entry.updatedAt,
+  });
 });
 
 import type { Table } from 'dexie';
 import { ALL_TABLES, db } from '@/data/database';
 import { AssetRepository } from '@/data/repositories/assets/AssetRepository';
 import { ExpenseRepository } from '@/data/repositories/expense/ExpenseRepository';
-import { LoanRepository } from '@/data/repositories/loan/LoanRepository';
 import { AutoSyncService } from '@/data/sync/AutoSyncService';
 import { SyncService } from '@/data/sync/Syncer';
 import { decryptJson, encryptJson, type CryptoMeta } from '@/data/sync/crypto';
 import type { Snapshot } from '@/data/sync/types';
-import { SyncConflictError, SyncDowngradeError } from '@/data/sync/conflict';
+import { SyncConflictError } from '@/data/sync/conflict';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
 import type { IAsset } from '@/domain/entities/assets/Asset';
 import type { IExpense } from '@/domain/entities/expenses/Expense';
-import type { ILoan } from '@/domain/entities/loans/Loan';
 
 /**
  * The sync feature end to end: two devices, one cloud, the real service.
@@ -78,6 +128,11 @@ import type { ILoan } from '@/domain/entities/loans/Loan';
  * The passphrase is real, the encryption is real, and the fake backend is
  * deliberately as dumb as the real one — it cannot decrypt, so it cannot merge,
  * and every decision has to be taken by the client.
+ *
+ * What is being pinned is the whole shape of the design: a write publishes only
+ * if the cloud is still on the version this device is based on, a device pulls
+ * before it does anything else, and a genuine divergence is a question the user
+ * answers rather than something the app resolves on their behalf.
  */
 
 const PASSPHRASE = 'correct horse battery staple';
@@ -94,9 +149,8 @@ async function captureDevice(): Promise<Device> {
 }
 
 async function restoreDevice(device: Device): Promise<void> {
-  // Suppressed, or `bulkAdd`'s creating hook re-dates every row to now and the
-  // restored device would outrank whatever it is being tested against. The same
-  // trap `BackupService` restores through.
+  // Suppressed, or the `bulkAdd` arms a push of the device being staged. The
+  // same trap `BackupService` restores through.
   await AutoSyncService.withoutScheduling(() =>
     db.transaction('rw', ALL_TABLES, async () => {
       for (const table of ALL_TABLES) {
@@ -139,26 +193,11 @@ function expense(description: string, amount = 100) {
   } as unknown as IExpense;
 }
 
-function loan(name: string) {
-  return {
-    name,
-    principalAmount: 1000,
-    currency: 'INR',
-    startDate: new Date('2026-01-01'),
-    description: '',
-  } as unknown as ILoan;
-}
-
 const assets = new AssetRepository();
 const expenses = new ExpenseRepository();
-const loans = new LoanRepository();
 
 async function assetNames(): Promise<string[]> {
   return (await db.assets.toArray()).map(row => row.name).sort();
-}
-
-async function loanNames(): Promise<string[]> {
-  return (await db.loans.toArray()).map(row => row.name).sort();
 }
 
 async function expenseDescriptions(): Promise<string[]> {
@@ -186,6 +225,8 @@ beforeEach(async () => {
   cloud.clear();
   requests = 0;
   puts = 0;
+  insideThePushGap = undefined;
+  backendHonoursExpectedVersion = true;
   stored.clear();
   if (!db.isOpen()) await db.open();
   await db.transaction('rw', ALL_TABLES, async () => {
@@ -194,129 +235,61 @@ beforeEach(async () => {
 });
 
 describe('linking a second device', () => {
-  it('gives it the first device data and a lineage it can merge against', async () => {
+  it('gives it the first device data', async () => {
     const { deviceB } = await twoLinkedDevices();
     await restoreDevice(deviceB);
-    expect((await db.assets.toArray()).map(row => row.name)).toEqual(['Shared gold']);
-    // Same uids, which is what makes merging meaningful at all.
-    expect(stored.get('sync.mergeLineage')).toBeDefined();
+    expect(await assetNames()).toEqual(['Shared gold']);
   });
 });
 
-describe('two devices changing different things', () => {
-  it('keeps both edits, with no question asked', async () => {
-    // The case the old sync could not survive: one edit each, and one of them
-    // silently discarded.
+describe('an edit published and picked up', () => {
+  it('reaches the other device on its next pull', async () => {
+    // The ordinary two-device day, and the whole flow in one test: A writes and
+    // publishes under the compare-and-swap, B opens and pulls before doing
+    // anything of its own.
     const { deviceA, deviceB } = await twoLinkedDevices();
 
     await restoreDevice(deviceA);
     await expenses.create(expense('A groceries'));
-    await SyncService.reconcile(PASSPHRASE);
-    const afterA = await captureDevice();
+    await SyncService.push(PASSPHRASE);
 
     await restoreDevice(deviceB);
-    await expenses.create(expense('B fuel'));
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.pull(PASSPHRASE);
 
-    expect(await expenseDescriptions()).toEqual(['A groceries', 'B fuel']);
-
-    // And the first device learns about the second's, from the cloud.
-    await restoreDevice(afterA);
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await expenseDescriptions()).toEqual(['A groceries', 'B fuel']);
+    expect(await expenseDescriptions()).toEqual(['A groceries']);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
   });
 
-  it('leaves both devices and the cloud holding the same thing', async () => {
-    const { deviceA, deviceB } = await twoLinkedDevices();
-
-    await restoreDevice(deviceA);
-    await expenses.create(expense('A one'));
-    await SyncService.reconcile(PASSPHRASE);
-    const afterA = await captureDevice();
-
-    await restoreDevice(deviceB);
-    await expenses.create(expense('B two'));
-    await SyncService.reconcile(PASSPHRASE);
-    const bDescriptions = await expenseDescriptions();
-
-    await restoreDevice(afterA);
-    await SyncService.reconcile(PASSPHRASE);
-    // A second reconcile changes nothing: convergence, not oscillation.
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await expenseDescriptions()).toEqual(bDescriptions);
-  });
-});
-
-describe('two devices changing the same thing', () => {
-  it('keeps the later edit', async () => {
-    const { deviceA, deviceB } = await twoLinkedDevices();
-
-    await restoreDevice(deviceA);
-    const [localA] = await db.assets.toArray();
-    await assets.update({ ...localA, name: 'Renamed on A' });
-    await SyncService.reconcile(PASSPHRASE);
-
-    await restoreDevice(deviceB);
-    const [localB] = await db.assets.toArray();
-    // Later by the clock, so this is the one that should stand.
-    await new Promise(resolve => setTimeout(resolve, 5));
-    await assets.update({ ...localB, name: 'Renamed on B' });
-    await SyncService.reconcile(PASSPHRASE);
-
-    const names = (await db.assets.toArray()).map(row => row.name);
-    // One row, not two: the same logical asset, recognised across devices.
-    expect(names).toEqual(['Renamed on B']);
-  });
-});
-
-describe('a deletion on one device', () => {
-  it('reaches the other', async () => {
+  it('carries a deletion, because the snapshot simply no longer holds the row', async () => {
+    // No tombstone anywhere: a delete travels by not being in the copy that is
+    // published. That is the whole reason whole-snapshot replacement needs no
+    // record of what was removed.
     const { deviceA, deviceB } = await twoLinkedDevices();
 
     await restoreDevice(deviceA);
     const created = await expenses.create(expense('Doomed'));
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.push(PASSPHRASE);
 
     await restoreDevice(deviceB);
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.pull(PASSPHRASE);
     expect(await expenseDescriptions()).toEqual(['Doomed']);
     const withRow = await captureDevice();
 
-    // Deleted on B...
-    const [rowOnB] = await db.expenses.toArray();
-    await expenses.delete(rowOnB.id!);
-    await SyncService.reconcile(PASSPHRASE);
+    await expenses.delete(created.id!);
+    await SyncService.push(PASSPHRASE);
 
-    // ...and gone on A after it syncs, rather than being handed back.
     await restoreDevice(withRow);
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.pull(PASSPHRASE);
     expect(await expenseDescriptions()).toEqual([]);
-    expect(created.id).toBeDefined();
   });
 
-  it('loses to a later edit of the same row on the other device', async () => {
-    const { deviceA, deviceB } = await twoLinkedDevices();
-
-    await restoreDevice(deviceA);
-    await expenses.create(expense('Contested'));
-    await SyncService.reconcile(PASSPHRASE);
-    await restoreDevice(deviceB);
-    await SyncService.reconcile(PASSPHRASE);
-    const bHasRow = await captureDevice();
-
-    // Deleted on B first.
-    const [onB] = await db.expenses.toArray();
-    await expenses.delete(onB.id!);
-    await SyncService.reconcile(PASSPHRASE);
-
-    // Then edited on A, later. A delete is an event with a time, not a veto.
-    await restoreDevice(bHasRow);
-    await new Promise(resolve => setTimeout(resolve, 5));
-    const [onA] = await db.expenses.toArray();
-    await expenses.update({ ...onA, description: 'Contested, edited' });
-    await SyncService.reconcile(PASSPHRASE);
-
-    expect(await expenseDescriptions()).toEqual(['Contested, edited']);
+  it('settles an idle pull against the version endpoint alone', async () => {
+    await twoLinkedDevices();
+    requests = 0;
+    await SyncService.pull(PASSPHRASE);
+    // One request: the cheap version probe. Nothing changed, so the snapshot is
+    // never downloaded.
+    expect(requests).toBe(1);
   });
 });
 
@@ -328,336 +301,238 @@ describe('the compare-and-swap on push', () => {
 
     await restoreDevice(deviceB);
     await expenses.create(expense('B work'));
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.push(PASSPHRASE);
+    const cloudAfterB = cloud.get(SyncService.getStatus().keyId!)!.version;
 
     // A is now a version behind and has not seen B's work.
     await restoreDevice(deviceA);
     await expenses.create(expense('A work'));
     await expect(SyncService.push(PASSPHRASE)).rejects.toThrow(SyncConflictError);
 
-    // Nothing was written: B's work is still what the cloud holds.
-    const status = SyncService.getStatus();
-    expect(status.conflict?.direction).toBe('push');
+    // Nothing was written, and the refusal is recorded rather than swallowed.
+    expect(cloud.get(SyncService.getStatus().keyId!)!.version).toBe(cloudAfterB);
+    expect(SyncService.getStatus().conflict?.direction).toBe('push');
+    expect(await expenseDescriptions()).toEqual(['A work']);
   });
 
-  it('is not needed by reconcile, which merges instead of refusing', async () => {
-    const { deviceA, deviceB } = await twoLinkedDevices();
-
-    await restoreDevice(deviceB);
-    await expenses.create(expense('B work'));
-    await SyncService.reconcile(PASSPHRASE);
+  it('refuses when the cloud is somehow behind the version this device is based on', async () => {
+    // The counter is the server's, so it can only go backwards if the blob was
+    // replaced by a different one — a recreated key, or a reset backend. Pushing
+    // over that would replace a stranger's data on the strength of a number that
+    // no longer counts the same thing.
+    const { keyId, deviceA } = await twoLinkedDevices();
 
     await restoreDevice(deviceA);
     await expenses.create(expense('A work'));
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.push(PASSPHRASE);
 
-    expect(await expenseDescriptions()).toEqual(['A work', 'B work']);
-    expect(SyncService.getStatus().conflict).toBeUndefined();
+    const entry = cloud.get(keyId)!;
+    cloud.set(keyId, { ...entry, version: 1 });
+
+    await expect(SyncService.push(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    await expect(SyncService.pull(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    expect(await expenseDescriptions()).toEqual(['A work']);
   });
 });
 
-describe('a pull that would discard unpushed work', () => {
-  it('is refused rather than performed', async () => {
+describe('the pull that runs at startup', () => {
+  it('replaces this device without asking when it has published everything it holds', async () => {
+    // It has to be silent. Every write publishes under a compare-and-swap, so a
+    // device that starts up stale is a device whose next edit is refused —
+    // asking here would put a prompt in front of the user on almost every
+    // session, for a copy they have no reason to doubt.
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceA);
+    await expenses.create(expense('A work'));
+    await SyncService.push(PASSPHRASE);
+
+    await restoreDevice(deviceB);
+    expect(stored.get('sync.pendingChangeSince')).toBeUndefined();
+    await SyncService.pull(PASSPHRASE);
+
+    expect(await expenseDescriptions()).toEqual(['A work']);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
+  });
+
+  it('is refused when this device holds work the cloud has never seen', async () => {
     const { deviceA, deviceB } = await twoLinkedDevices();
 
     await restoreDevice(deviceB);
     await expenses.create(expense('B work'));
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.push(PASSPHRASE);
 
     await restoreDevice(deviceA);
     await expenses.create(expense('A unpushed'));
     await expect(SyncService.pull(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+
     // Still here, which is the whole point.
     expect(await expenseDescriptions()).toEqual(['A unpushed']);
+    expect(SyncService.getStatus().conflict?.direction).toBe('pull');
   });
 });
 
-describe('a snapshot from a different lineage', () => {
-  it('is replaced rather than merged, so nothing is duplicated', async () => {
+describe('resolving a conflict', () => {
+  /** Puts the two devices in the state a refused push leaves behind. */
+  async function diverge(): Promise<{ deviceA: Device; deviceB: Device }> {
     const { deviceA, deviceB } = await twoLinkedDevices();
-
-    // B declares its own rows canonical, which mints a new lineage.
-    await restoreDevice(deviceB);
-    await expenses.create(expense('B only'));
-    await SyncService.reconcile(PASSPHRASE);
-    stored.set(
-      'sync.conflict',
-      JSON.stringify({ direction: 'push', remoteVersion: 2, detectedAt: '' })
-    );
-    await SyncService.resolveConflict('keep-local', PASSPHRASE);
-    const newLineage = stored.get('sync.mergeLineage');
-
-    // A is still on the old lineage, so it must not merge two uid spaces. It also
-    // holds records, so it asks before replacing them rather than inferring that
-    // the cloud copy is the one to keep.
-    await restoreDevice(deviceA);
-    expect(stored.get('sync.mergeLineage')).not.toBe(newLineage);
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-    await SyncService.resolveConflict('take-remote', PASSPHRASE);
-
-    // One gold asset, not two.
-    expect((await db.assets.toArray()).map(row => row.name)).toEqual(['Shared gold']);
-    expect(await expenseDescriptions()).toEqual(['B only']);
-    expect(stored.get('sync.mergeLineage')).toBe(newLineage);
-  });
-});
-
-describe('cost', () => {
-  it('settles an idle sync against the version endpoint alone', async () => {
-    await twoLinkedDevices();
-    requests = 0;
-    await SyncService.reconcile(PASSPHRASE);
-    // One request: the cheap version probe. Nothing changed on either side, so
-    // the snapshot is never downloaded.
-    expect(requests).toBe(1);
-  });
-});
-
-describe('a device that was already linked before merging existed', () => {
-  /**
-   * The state every existing multi-device user upgrades into: a key and a
-   * version in local storage, and no lineage — that key is new, and nothing
-   * backfills it.
-   */
-  function forgetLineage(...devices: Device[]): void {
-    for (const device of devices) device.state.delete('sync.mergeLineage');
-  }
-
-  it('publishes a lineage rather than none, so the pair converges after one replace', async () => {
-    // Publishing `undefined` unset the lineage in the cloud, and `mergeAllowed`
-    // then refused to merge anything at all: every sync became a whole-database
-    // replace, which keeps only what the cloud already holds. Two such devices
-    // never escaped it either — each import minted a lineage locally that the
-    // cloud was never told about, so the next snapshot mismatched again.
-    const { deviceA, deviceB } = await twoLinkedDevices();
-    forgetLineage(deviceA, deviceB);
-
-    await restoreDevice(deviceA);
-    await assets.create(asset('A only'));
-    await loans.create(loan('A loan'));
-    await SyncService.reconcile(PASSPHRASE);
-    let withA = await captureDevice();
-    const lineage = withA.state.get('sync.mergeLineage');
-    expect(lineage).toBeDefined();
-
-    // B holds records, so replacing them is a question rather than an inference —
-    // asked once, and never again after the lineage is shared.
-    await restoreDevice(deviceB);
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-    await SyncService.resolveConflict('take-remote', PASSPHRASE);
-    expect(stored.get('sync.mergeLineage')).toBe(lineage);
-
-    // From here it is a merge: B keeps what A sent and its own work too.
-    await assets.create(asset('B only'));
-    await loans.create(loan('B loan'));
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
-    const withB = await captureDevice();
-
-    await restoreDevice(withA);
-    // A merges rather than asking: the lineage is shared now, so nothing is
-    // being replaced and every row on both sides survives.
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
-    expect(await loanNames()).toEqual(['A loan', 'B loan']);
-    withA = await captureDevice();
-
-    // And it stays settled rather than replacing on every poll.
-    await restoreDevice(withB);
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
-    await restoreDevice(withA);
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await assetNames()).toEqual(['A only', 'B only', 'Shared gold']);
-  });
-
-  it('still asks rather than replacing when the second device holds unpushed work', async () => {
-    const { deviceA, deviceB } = await twoLinkedDevices();
-    forgetLineage(deviceA, deviceB);
-
-    await restoreDevice(deviceA);
-    await assets.create(asset('A only'));
-    await SyncService.reconcile(PASSPHRASE);
-    const withA = await captureDevice();
 
     await restoreDevice(deviceB);
-    await assets.create(asset('B only'));
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-    // Nothing taken away behind the user back while the question stands.
-    expect(await assetNames()).toEqual(['B only', 'Shared gold']);
-
-    await SyncService.resolveConflict('keep-local', PASSPHRASE);
-    const withB = await captureDevice();
-
-    await restoreDevice(withA);
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-    await SyncService.resolveConflict('take-remote', PASSPHRASE);
-    expect(await assetNames()).toEqual(['B only', 'Shared gold']);
-    const replacedA = await captureDevice();
-
-    // ...and the two of them merge from then on rather than replacing again.
-    await restoreDevice(replacedA);
-    await assets.create(asset('A again'));
-    await SyncService.reconcile(PASSPHRASE);
-    await restoreDevice(withB);
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await assetNames()).toEqual(['A again', 'B only', 'Shared gold']);
-  });
-});
-
-describe('a pair that has converged', () => {
-  it('stops pushing, rather than trading the same snapshot back and forth', async () => {
-    // Every row a merge leaves behind carries the same `updatedAt` on both
-    // devices. Reading that tie as "this device is ahead" had each side publish
-    // the snapshot it had just merged, and the other merge and publish that, on
-    // every poll for ever — and while the lineage was unset, every one of those
-    // pushes was another whole-database replace on the other device.
-    const { deviceA, deviceB } = await twoLinkedDevices();
+    await expenses.create(expense('B work'));
+    await SyncService.push(PASSPHRASE);
+    const divergedB = await captureDevice();
 
     await restoreDevice(deviceA);
     await expenses.create(expense('A work'));
-    await SyncService.reconcile(PASSPHRASE);
-    let withA = await captureDevice();
+    await expect(SyncService.push(PASSPHRASE)).rejects.toThrow(SyncConflictError);
 
+    return { deviceA: await captureDevice(), deviceB: divergedB };
+  }
+
+  it('keeps this device, overwriting the cloud copy', async () => {
+    const { deviceB } = await diverge();
+
+    await SyncService.resolveConflict('keep-local', PASSPHRASE);
+
+    expect(await expenseDescriptions()).toEqual(['A work']);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
+
+    // And the other device now takes it, having nothing unpushed of its own.
     await restoreDevice(deviceB);
-    await SyncService.reconcile(PASSPHRASE);
-    let withB = await captureDevice();
+    await SyncService.pull(PASSPHRASE);
+    expect(await expenseDescriptions()).toEqual(['A work']);
+  });
 
-    await restoreDevice(withA);
-    await SyncService.reconcile(PASSPHRASE);
-    withA = await captureDevice();
+  it('takes the cloud copy, discarding this device', async () => {
+    await diverge();
 
-    puts = 0;
-    await restoreDevice(withB);
-    await SyncService.reconcile(PASSPHRASE);
-    withB = await captureDevice();
-    await restoreDevice(withA);
-    await SyncService.reconcile(PASSPHRASE);
-    await restoreDevice(withB);
-    await SyncService.reconcile(PASSPHRASE);
-    expect(puts).toBe(0);
+    await SyncService.resolveConflict('take-remote', PASSPHRASE);
+
+    expect(await expenseDescriptions()).toEqual(['B work']);
+    expect(SyncService.getStatus().conflict).toBeUndefined();
+  });
+
+  it('is the only way out: until it is answered, nothing syncs either way', async () => {
+    // There is no manual Push or Pull any more, so a conflict that could not be
+    // resolved would strand the device for good. This is what stands in for
+    // both buttons.
+    const { deviceB } = await diverge();
+
+    // The refused push is still refused, and an edit does not retry past it.
+    await expenses.create(expense('A more work'));
+    await expect(SyncService.push(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+    // And the pull is refused too, because this device holds unpushed work.
+    await expect(SyncService.pull(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+
+    await SyncService.resolveConflict('keep-local', PASSPHRASE);
+
+    expect(SyncService.getStatus().conflict).toBeUndefined();
+    await restoreDevice(deviceB);
+    await SyncService.pull(PASSPHRASE);
+    expect(await expenseDescriptions()).toEqual(['A more work', 'A work']);
   });
 });
 
-describe('a cloud copy overwritten by an older build of the app', () => {
+describe('two pushes landing in the same moment', () => {
   /**
-   * What an older build's push actually leaves behind.
-   *
-   * It cannot be simulated by editing rows: the damage is in the *shape*. An
-   * older build has no `deletions` table and no `lineage` field, so it exports
-   * neither — every tombstone is gone, and every device that reads it drops from
-   * merging to replacing itself.
+   * The one hole the compare-and-swap cannot close by itself. `decidePush` reads
+   * the version and then writes, and the API accepts every PUT, so a device that
+   * writes inside that round trip is taken too — both pushes succeed and the
+   * first one is gone from the cloud without either device being told.
    */
-  async function pushFromAnOlderBuild(keyId: string): Promise<void> {
-    const entry = cloud.get(keyId)!;
-    const current = await decryptJson<Snapshot>(entry.payload, entry.meta, PASSPHRASE);
-    const older = {
-      schemaVersion: 16,
-      data: { ...current.data, deletions: [] },
-    } as unknown as Snapshot;
-    const { payload, meta } = await encryptJson(older, PASSPHRASE, 16);
-    cloud.set(keyId, { version: entry.version + 1, payload, meta });
+  /** Makes another device's push land after this one has read the version. */
+  function anotherDevicePushesInTheGap(keyId: string): void {
+    insideThePushGap = () => {
+      const entry = cloud.get(keyId)!;
+      cloud.set(keyId, { ...entry, version: entry.version + 1 });
+    };
   }
 
-  it('is refused rather than read, and nothing on this device is touched', async () => {
+  it('is refused by the server, so neither copy is silently replaced', async () => {
     const { keyId, deviceA } = await twoLinkedDevices();
 
     await restoreDevice(deviceA);
-    await assets.create(asset('Only on A'));
-    await expenses.create(expense('Only on A too'));
-    await SyncService.reconcile(PASSPHRASE);
-    const before = await assetNames();
+    await expenses.create(expense('A work'));
+    anotherDevicePushesInTheGap(keyId);
 
-    await pushFromAnOlderBuild(keyId);
+    // The client's own check passed — it read the version before the other
+    // device wrote — so this is caught by `expectedVersion` alone.
+    await expect(SyncService.push(PASSPHRASE)).rejects.toThrow(SyncConflictError);
 
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncDowngradeError);
-    expect(await assetNames()).toEqual(before);
-    expect(await expenseDescriptions()).toEqual(['Only on A too']);
-
-    // Said out loud rather than retried into silence, and not as a choice of
-    // copies: taking the cloud copy is the one answer that would lose the rows.
-    const conflict = SyncService.getStatus().conflict;
-    expect(conflict?.kind).toBe('downgrade');
-    expect(conflict?.snapshotVersion).toBe(16);
+    // A question, not a report: nothing was overwritten, so there is nothing to
+    // warn about and the user is asked which copy to keep.
+    expect(SyncService.getStatus().overwrite).toBeUndefined();
+    expect(SyncService.getStatus().conflict?.direction).toBe('push');
   });
 
-  it('resumes by itself once that device is updated', async () => {
+  it('is still caught after the fact if the backend stops honouring the condition', async () => {
+    // The server's promise is made by a deployment, not by this code. An older
+    // backend, or one rolled back, quietly accepts every PUT again — and the
+    // version gap is the only thing that would notice.
     const { keyId, deviceA } = await twoLinkedDevices();
+    backendHonoursExpectedVersion = false;
 
     await restoreDevice(deviceA);
-    await assets.create(asset('Only on A'));
-    await SyncService.reconcile(PASSPHRASE);
+    await expenses.create(expense('A work'));
+    anotherDevicePushesInTheGap(keyId);
 
-    await pushFromAnOlderBuild(keyId);
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncDowngradeError);
+    await SyncService.push(PASSPHRASE);
 
-    // The other device updates and pushes this build's shape again. Simulated
-    // the same way: re-export what a current build would write.
-    const entry = cloud.get(keyId)!;
-    const stale = await decryptJson<Snapshot>(entry.payload, entry.meta, PASSPHRASE);
-    const restored = {
-      ...stale,
-      schemaVersion: 17,
-      lineage: stored.get('sync.mergeLineage'),
-      data: { ...stale.data, deletions: [] },
-    } as unknown as Snapshot;
-    const { payload, meta } = await encryptJson(restored, PASSPHRASE, 17);
-    cloud.set(keyId, { version: entry.version + 1, payload, meta });
-
-    await SyncService.reconcile(PASSPHRASE);
+    // Based on v1, landed as v3: one write happened in between.
+    expect(SyncService.getStatus().overwrite).toMatchObject({ baseVersion: 1, resultVersion: 3 });
+    // A report, not a stop — this device is in step and keeps syncing.
     expect(SyncService.getStatus().conflict).toBeUndefined();
-    expect(await assetNames()).toEqual(['Only on A', 'Shared gold']);
   });
 
-  it('does not refuse the ordinary case of a cloud nobody has upgraded yet', async () => {
-    // An older snapshot is normal right after an upgrade and is migrated
-    // forward. Only one older than what this device has already read from this
-    // key means some device overwrote it.
-    stored.delete('sync.highestSnapshotVersion');
-    const { keyId, deviceA } = await twoLinkedDevices();
-    await pushFromAnOlderBuild(keyId);
-    stored.delete('sync.highestSnapshotVersion');
+  it('says nothing about an ordinary push, which lands exactly one step on', async () => {
+    const { deviceA } = await twoLinkedDevices();
 
     await restoreDevice(deviceA);
-    stored.delete('sync.highestSnapshotVersion');
-    // Not a downgrade, so not refused. It is still a replace of a device holding
-    // records, so it asks — and answering it goes through, which is the thing
-    // being pinned: the guard has not swallowed the ordinary case.
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-    expect(SyncService.getStatus().conflict?.kind ?? 'diverged').toBe('diverged');
-    await SyncService.resolveConflict('take-remote', PASSPHRASE);
-    expect(await assetNames()).toEqual(['Shared gold']);
+    await expenses.create(expense('A work'));
+    await SyncService.push(PASSPHRASE);
+
+    expect(SyncService.getStatus().overwrite).toBeUndefined();
+  });
+
+  it('says nothing when the user forces a push to resolve a conflict', async () => {
+    // A forced push is expected not to line up — that is the user deliberately
+    // choosing this device — so reporting it would cry wolf every time.
+    const { deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceB);
+    await expenses.create(expense('B work'));
+    await SyncService.push(PASSPHRASE);
+
+    await restoreDevice(deviceB);
+    await SyncService.resolveConflict('keep-local', PASSPHRASE);
+    expect(SyncService.getStatus().overwrite).toBeUndefined();
+  });
+});
+
+describe('the conflict card', () => {
+  it('carries when the cloud copy was last saved, which is what picks a copy', async () => {
+    // A version number never answered "which of these is the newer one".
+    const { deviceA, deviceB } = await twoLinkedDevices();
+
+    await restoreDevice(deviceB);
+    await expenses.create(expense('B work'));
+    await SyncService.push(PASSPHRASE);
+
+    await restoreDevice(deviceA);
+    await expenses.create(expense('A work'));
+    await expect(SyncService.push(PASSPHRASE)).rejects.toThrow(SyncConflictError);
+
+    const savedAt = SyncService.getStatus().conflict?.remoteUpdatedAt;
+    expect(savedAt).toBeDefined();
+    expect(Number.isNaN(new Date(savedAt!).getTime())).toBe(false);
   });
 });
 
 describe('saving a record without editing it', () => {
-  it('does not make the stale device the winner', async () => {
-    // The mechanism behind "I opened the old device and it overwrote everything".
+  it('arms no push, so an idle device does not make every other one stale', async () => {
     // A dialog hands back the row it was given, so Save fires the update hooks
-    // with no change in them — and the row used to come out re-dated. That made
-    // the *older* copy the latest change, and last-write-wins then did exactly
-    // as it was told: the real edit on the other device lost.
-    const { deviceA, deviceB } = await twoLinkedDevices();
-
-    await restoreDevice(deviceA);
-    const [onA] = await db.assets.toArray();
-    await assets.update({ ...onA, name: 'Edited on A' });
-    await SyncService.reconcile(PASSPHRASE);
-
-    // B is stale. Its user opens the asset and presses Save, changing nothing.
-    await restoreDevice(deviceB);
-    const [onB] = await db.assets.toArray();
-    await new Promise(resolve => setTimeout(resolve, 5));
-    await assets.update({ ...onB });
-    // A's edit replaces the row here, so the merge is held for confirmation.
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-    await SyncService.confirmMerge(PASSPHRASE);
-
-    // A's edit stands, because B never actually changed anything.
-    expect(await assetNames()).toEqual(['Edited on A']);
-  });
-
-  it('arms no push, so an idle device stays idle', async () => {
+    // with no change in them. Published, that write would bump the cloud version
+    // for nothing — and every other device's next edit would then be refused.
     const { deviceA } = await twoLinkedDevices();
     await restoreDevice(deviceA);
     const [row] = await db.assets.toArray();
@@ -665,81 +540,55 @@ describe('saving a record without editing it', () => {
     stored.delete('sync.pendingChangeSince');
     puts = 0;
     await assets.update({ ...row });
-    await SyncService.reconcile(PASSPHRASE);
 
     expect(stored.get('sync.pendingChangeSince')).toBeUndefined();
     expect(puts).toBe(0);
   });
 });
 
-describe('a merge that would change records already on this device', () => {
-  it('is held for confirmation, naming what it would replace', async () => {
-    const { deviceA, deviceB } = await twoLinkedDevices();
+describe('a snapshot from a build that is not this one', () => {
+  /** Rewrites the cloud blob at a given schema version, as another build would. */
+  async function republishAt(keyId: string, schemaVersion: number): Promise<void> {
+    const entry = cloud.get(keyId)!;
+    const current = await decryptJson<Snapshot>(entry.payload, entry.meta, PASSPHRASE);
+    const rewritten = { ...current, schemaVersion } as unknown as Snapshot;
+    const { payload, meta } = await encryptJson(rewritten, PASSPHRASE, schemaVersion);
+    cloud.set(keyId, {
+      version: entry.version + 1,
+      payload,
+      meta,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  it('is imported as it stands when it is older, because nothing in it is unknown', async () => {
+    // A v17 cloud is what a device finds on the first launch after this change.
+    // There is no upgrade step for it and it does not need one: the columns v17
+    // carried are ones nothing reads any more.
+    const { keyId, deviceA } = await twoLinkedDevices();
+    await republishAt(keyId, 17);
 
     await restoreDevice(deviceA);
-    const [onA] = await db.assets.toArray();
-    await assets.update({ ...onA, name: 'Renamed on A' });
-    await SyncService.reconcile(PASSPHRASE);
+    await SyncService.pull(PASSPHRASE);
 
-    await restoreDevice(deviceB);
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-
-    const conflict = SyncService.getStatus().conflict;
-    expect(conflict?.kind).toBe('overwrite');
-    expect(conflict?.overwriteCount).toBe(1);
-    // Named as the user knows it, so the dialog is about a record rather than a row id.
-    expect(conflict?.impacts?.[0]?.label).toBe('Shared gold');
-    // And nothing has happened yet, which is what makes it a question.
     expect(await assetNames()).toEqual(['Shared gold']);
-  });
-
-  it('goes through once confirmed', async () => {
-    const { deviceA, deviceB } = await twoLinkedDevices();
-
-    await restoreDevice(deviceA);
-    const [onA] = await db.assets.toArray();
-    await assets.update({ ...onA, name: 'Renamed on A' });
-    await SyncService.reconcile(PASSPHRASE);
-
-    await restoreDevice(deviceB);
-    await expect(SyncService.reconcile(PASSPHRASE)).rejects.toThrow(SyncConflictError);
-    await SyncService.confirmMerge(PASSPHRASE);
-
-    expect(await assetNames()).toEqual(['Renamed on A']);
     expect(SyncService.getStatus().conflict).toBeUndefined();
   });
 
-  it('does not ask when the merge only adds records', async () => {
-    // The ordinary state of one person with two devices. Asking here would be a
-    // prompt on almost every session, which is how a dialog stops being read.
-    const { deviceA, deviceB } = await twoLinkedDevices();
+  it('is refused when it is newer, rather than silently truncated on the way back', async () => {
+    // The asymmetry that matters. Importing a shape this build has no field for
+    // would drop what it cannot name, and the very next push would write the
+    // truncated copy back over the cloud.
+    const { keyId, deviceA } = await twoLinkedDevices();
 
     await restoreDevice(deviceA);
-    await expenses.create(expense('A groceries'));
-    await SyncService.reconcile(PASSPHRASE);
+    await expenses.create(expense('Only on A'));
+    await SyncService.push(PASSPHRASE);
 
-    await restoreDevice(deviceB);
-    await expenses.create(expense('B fuel'));
-    await SyncService.reconcile(PASSPHRASE);
+    await republishAt(keyId, 99);
 
-    expect(await expenseDescriptions()).toEqual(['A groceries', 'B fuel']);
-    expect(SyncService.getStatus().conflict).toBeUndefined();
-  });
-
-  it('does not ask about a deletion another device made on purpose', async () => {
-    // A removal carries a tombstone naming the delete behind it. Someone chose
-    // that; re-asking would nag every device about every deletion.
-    const { deviceA, deviceB } = await twoLinkedDevices();
-
-    await restoreDevice(deviceA);
-    const created = await expenses.create(expense('Doomed'));
-    await SyncService.reconcile(PASSPHRASE);
-    await expenses.delete(created.id!);
-    await SyncService.reconcile(PASSPHRASE);
-
-    await restoreDevice(deviceB);
-    await SyncService.reconcile(PASSPHRASE);
-    expect(await expenseDescriptions()).toEqual([]);
-    expect(SyncService.getStatus().conflict).toBeUndefined();
+    await expect(SyncService.pull(PASSPHRASE)).rejects.toThrow(/newer version/);
+    // Nothing here was touched, which is the point of refusing.
+    expect(await expenseDescriptions()).toEqual(['Only on A']);
   });
 });

@@ -1,6 +1,5 @@
 import { IExpense } from '../../../domain/entities/expenses/Expense';
 import { db } from '../../database';
-import { deleteSynced } from '../../sync/merge/Tombstones';
 
 export class ExpenseRepository {
   public async create(expense: IExpense): Promise<IExpense> {
@@ -22,9 +21,6 @@ export class ExpenseRepository {
   }
 
   public async delete(id: number): Promise<void> {
-    // Through `deleteSynced`, not `table.delete`: the deletion has to be
-    // recorded or the next merge with another device hands the row straight
-    // back.
-    await deleteSynced('expenses', [id]);
+    await db.expenses.delete(id);
   }
 }
