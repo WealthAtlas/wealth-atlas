@@ -5,6 +5,26 @@ import { Currency } from '../entities/shared/Currency';
 import { buildChatSnapshot } from './ChatContextBuilder';
 import { asset, expense, fakeContext, goal, loan, months, sip } from './ChatFixtures';
 
+/**
+ * A holding worth exactly `value`, whatever day the suite runs on.
+ *
+ * The `asset()` fixture defaults to MARKET_BASED, which solves an IRR from the
+ * invested amount and the last manual value and then projects it to `new Date()`.
+ * Two holdings with different implied returns therefore drift apart as the suite
+ * ages — which is how the 75/25 below became 75.58/24.42 and started failing.
+ * FIXED_INCOME at 0% carries the invested amount forward unchanged, leaving the
+ * share arithmetic as the only thing under test.
+ */
+function holding(category: string, value: number, id?: number) {
+  return asset({
+    id,
+    category,
+    valueModel: ValueModel.FIXED_INCOME,
+    interestRate: 0,
+    invested: value,
+  });
+}
+
 describe('buildChatSnapshot', () => {
   it('describes an empty database without failing', async () => {
     const snapshot = await buildChatSnapshot(fakeContext());
@@ -29,20 +49,13 @@ describe('buildChatSnapshot', () => {
 
   it('reports allocation shares by category', async () => {
     const snapshot = await buildChatSnapshot(
-      fakeContext({
-        assets: [
-          asset({ id: 1, category: 'Stock', manualValue: 750 }),
-          asset({ id: 2, category: 'Gold', manualValue: 250 }),
-        ],
-      })
+      fakeContext({ assets: [holding('Stock', 750, 1), holding('Gold', 250, 2)] })
     );
 
-    // Largest share first. A market-based value is projected from when it was
-    // last updated to the real clock, so the shares sit close to 75/25 rather
-    // than exactly on it.
+    // Largest share first, and exactly 75/25 on any day the suite runs.
     expect(snapshot.allocation.map(entry => entry.category)).toEqual(['Stock', 'Gold']);
-    expect(snapshot.allocation[0].percentage).toBeCloseTo(75, 0);
-    expect(snapshot.allocation[1].percentage).toBeCloseTo(25, 0);
+    expect(snapshot.allocation[0].percentage).toBeCloseTo(75, 6);
+    expect(snapshot.allocation[1].percentage).toBeCloseTo(25, 6);
   });
 
   // The window is relative to the injected `today`, so an old expense must not
@@ -145,15 +158,6 @@ describe('buildChatSnapshot', () => {
 });
 
 describe('the snapshot allocation drift', () => {
-  function holding(category: string, value: number) {
-    return asset({
-      category,
-      valueModel: ValueModel.FIXED_INCOME,
-      interestRate: 0,
-      invested: value,
-    });
-  }
-
   it('reports no policy when the user has set none', async () => {
     const snapshot = await buildChatSnapshot(
       fakeContext({ assets: [holding(AssetCategory.STOCK, 100000)] })
