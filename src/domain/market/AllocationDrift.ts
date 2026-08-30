@@ -7,21 +7,28 @@ import { computeAssetCategoryData } from '../services/DashboardService';
 /**
  * How far the portfolio has drifted from the allocation the user intended.
  *
- * This is the piece that decides what to buy or sell, and market news is not.
- * "Equity is cheap because of the war" is a story that argues in whichever
- * direction it is read; "equity is 52% of the portfolio against a 60% target,
- * so it is 8 points light" is a quantity, and it points the same way every time
- * it is computed. A drawdown says whether a gap is a discount or a broken
- * thesis (see `NavSeries`); the gap itself is what sizes the decision.
+ * This is what a decision is measured from, and market news is not. "Equity is
+ * cheap because of the war" is a story that argues in whichever direction it is
+ * read; "equity is 52% of the portfolio against a 60% target, so it is 8 points
+ * light" is a quantity, and it points the same way every time it is computed. A
+ * drawdown says whether a gap is a discount or a broken thesis (see
+ * `NavSeries`); the gap itself is what sizes the move. The assistant may argue
+ * for going past the policy when the tools can actually demonstrate a regime —
+ * chat prompt rule 8h — but a tilt is still stated as a distance from the
+ * number this function computes, which is why it comes first.
  *
- * Targets are passed in rather than read. There is no stored target allocation
- * yet — `Goal.allocations` is asset-to-goal earmarking ("40% of this fund is
- * for the house"), a different question from "what share of my portfolio should
- * be equity" — so this function is the engine and the persisted target is the
- * step that turns it into a tool the assistant can call. It is deliberately
- * *not* wired to the chat yet: with no stored target the model would have to
- * supply one, and a target it invented is exactly the fabricated number the
- * whole prompt forbids.
+ * `action` names the *direction* of the gap, not the remedy. An overweight
+ * category is usually overweight because it rose, and pointing new contributions
+ * at the underweight rows closes the gap without the capital gains, exit load or
+ * broken lock-in a sale costs — none of which this app records. Prompt rule 8g
+ * carries that preference; the UI's Buy/Sell chip is the same direction stated
+ * to a user who is looking at the whole table.
+ *
+ * Targets are passed in rather than read: `AllocationPolicyService` reads
+ * `ISettings.targetAllocation` and this stays pure. `Goal.allocations` is
+ * emphatically not that policy — it is asset-to-goal earmarking ("40% of this
+ * fund is for the house"), a different question from "what share of my portfolio
+ * should be equity".
  */
 
 export type DriftAction = 'buy' | 'sell' | 'hold';

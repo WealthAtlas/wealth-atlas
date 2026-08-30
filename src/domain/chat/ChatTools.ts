@@ -419,7 +419,12 @@ export const CHAT_TOOLS: ChatTool[] = [
       return {
         hasTargetAllocation: true,
         ...drift,
-        note: 'adjustmentAmount is what to move to return to target: positive means buy, negative means sell. A row with action "hold" is inside its band and needs nothing.',
+        note:
+          'adjustmentAmount is the size of the gap in base currency: positive is the amount the ' +
+          'category is short, negative the amount it is over. A row with action "hold" is inside ' +
+          'its band and needs nothing. "sell" names the direction of the gap, not the remedy — an ' +
+          'overweight category is usually overweight because it rose, and directing new ' +
+          'contributions elsewhere closes the gap without a taxable sale.',
       };
     },
   },

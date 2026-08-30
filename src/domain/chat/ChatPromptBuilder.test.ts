@@ -122,6 +122,66 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain('clarifying question');
   });
 
+  // The persona is what turns a correct answer into a useful one: without it the
+  // model answers a question about a portfolio, not this person's portfolio, and
+  // it hedges every sentence rather than recommending anything. It is prose, so
+  // nothing but a test catches its removal.
+  it("casts the model as this user's own adviser, with a view of its own", () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('## Who you are');
+    expect(prompt).toContain('Lead with the recommendation');
+    expect(prompt).toContain('Be candid rather than agreeable');
+    // The persona is the one place that could quietly turn into a licensed
+    // adviser, so the disclaimer travels with it rather than only in rule 8.
+    expect(prompt).toContain('not a licensed adviser');
+  });
+
+  // The drift row for an overweight category literally says action "sell", and a
+  // model reading it tells the user to sell — realising tax and breaking
+  // lock-ins the app cannot even see — when redirecting the next few
+  // contributions closes the same gap for nothing.
+  it('closes a drift with new contributions before a sale', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('\n8g.');
+    expect(prompt).toContain('Close a gap with new money before you close it with a sale');
+    expect(prompt).toContain('most underweight rows');
+    expect(prompt).toContain('capital gains tax, an exit load or a broken lock-in');
+    expect(prompt).toContain(
+      'Never tell someone to sell a holding purely because a percentage moved'
+    );
+  });
+
+  // A target set in calm weather is a default, not a ceiling — but the model's
+  // training ended long before today, so a macro claim it did not read in a tool
+  // result this turn is a remembered crisis quoted as current, which is the most
+  // convincing wrong sentence it can write.
+  it('allows a sized, evidenced departure from the target and nothing looser', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('\n8h.');
+    expect(prompt).toContain('Conditions can outrank the target');
+    expect(prompt).toContain('a floor and a default, not a ceiling');
+    expect(prompt).toContain('deliberate departure from what they told you they wanted');
+    expect(prompt).toContain('The evidence must be in this conversation');
+    expect(prompt).toContain('your training ended well before today');
+    expect(prompt).toContain('Never name a macro condition you were not shown');
+    // The feed has no geopolitics or commodities topic (see CATEGORY_TOPICS), so
+    // a war or a rate decision is only ever an indirect read.
+    expect(prompt).toContain('no geopolitics or commodities topic');
+  });
+
+  // 8b used to forbid a market figure deciding anything at all, which 8h now
+  // contradicts. The sequencing it was really protecting — policy first, so a
+  // tilt has something to be measured from — has to survive that.
+  it('still puts the allocation policy in front of any market figure', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('Never answer a buy-or-sell question from a market figure alone');
+    expect(prompt).toContain('a tilt is measured from the policy');
+  });
+
   // Rule 2 used to ban arithmetic outright; runCalculation replaces the ban with
   // a destination, and a model told only "do not" will still quietly guess.
   it('sends arithmetic to runCalculation rather than banning it', () => {

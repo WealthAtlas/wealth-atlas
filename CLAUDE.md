@@ -354,12 +354,12 @@ two tests and cannot be called from a page at all. AlphaVantage does send the he
 the window's high) and `returnPercent` (change across the window) answer different questions, and
 gold in Aug 2026 shows why — up 59% over a year while sitting 10.5% below the high it set inside it.
 The window is anchored to the series' own last observation, not the clock, or every weekend would
-silently shorten it. Prompt rules 8a/8b hold the line: a drawdown is never a forecast, and a market
-figure never decides a buy on its own.
+silently shorten it. Prompt rules 8a/8b hold the line: a drawdown is never a forecast, and a
+buy-or-sell question is never answered from a market figure alone.
 
 `AllocationDrift.ts` is the piece that *does* size a decision — actual share against intended share,
-with a tolerance band — and it is what `getAllocationDrift` answers from. News does not decide;
-drift decides, and a drawdown only says whether a gap is a cheaper entry or a thesis that changed.
+with a tolerance band — and it is what `getAllocationDrift` answers from. Drift is what a decision is
+measured from; a drawdown only says whether a gap is a cheaper entry or a thesis that changed.
 
 The policy itself is `ISettings.targetAllocation` (`ICategoryTarget[]`, schema v8), a field on the
 settings singleton rather than a table: the shares only mean anything as a set, so they are read and
@@ -376,6 +376,37 @@ one, because "you hold 70% equity" is a fact while "you hold too much equity" ne
 too much *of*. And **a 0% target is meaningful** and survives every round trip — it records a
 deliberate decision to hold none of something, which is why `normaliseTargetAllocation` tests for
 `undefined` rather than falsiness.
+
+**How the assistant is allowed to act on all this (`ChatPromptBuilder`, "Who you are" + rules
+8g/8h)** — the tools measure; the prompt decides what a measurement licenses. Three pieces, and each
+one is prose that only `ChatPromptBuilder.test.ts` can keep in place.
+
+The **persona** exists because a model with no role answers a question about *a* portfolio: it
+hedges, it lists considerations, and it recommends nothing. "Who you are" casts it as this user's own
+adviser — lead with the recommendation, reason from their figures, be candid rather than agreeable,
+be brief — and carries the not-a-licensed-adviser disclaimer with it, because the persona is the one
+place that could quietly grow into one.
+
+**8g: close a gap with new money before closing it with a sale.** A `DriftRow` for an overweight
+category says `action: "sell"`, and a model reading that tells the user to sell. But a category is
+usually over target because it *rose*, and the gap closes on its own once the next contributions go
+to the underweight rows instead — for nothing, where a sale realises capital gains, an exit load or a
+broken lock-in, none of which are in any record this app holds. So the default remedy is a redirect,
+and a sale is reserved for a gap contributions cannot close in about a year, a broken thesis, or a
+user who asked how to rebalance by selling. The `getAllocationDrift` note says the same thing at the
+tool boundary: `"sell"` names the direction of the gap, not the remedy.
+
+**8h: conditions can outrank the target, on evidence and with a size.** The policy was set in calmer
+weather, so it is a default rather than a ceiling — a demonstrable regime justifies buying a category
+already at target, or trimming one still inside its band. Two guards make that safe to allow. The
+deviation must be *stated as one*: how far past the policy, that it departs from what the user said
+they wanted, and what would reverse it. And **the evidence must be in the conversation** — the
+model's training ended long before today, so a war, a recession or an inflated sector is knowable
+only from `getMarketTrends` and `getNewsSentiment` results in front of it; a remembered crisis quoted
+as current is the most convincing wrong sentence it can write. Since `NEWS_TOPICS` carries no
+geopolitics or commodities topic, such an event is always an *indirect* read off the macro topics and
+the benchmark series, and 8h requires saying so rather than asserting a cause. A tilt of this kind is
+precisely what the decision journal is for, and the rule says to record it.
 
 `validateTargetAllocation` rejects the whole set, not each row: over 100% is unholdable and would
 make every drift figure wrong, while under 100% is allowed and reported as `untargeted` — a policy
@@ -421,8 +452,8 @@ fewer than five matching articles; the figure is still returned, because suppres
 model to fill the gap from memory. And the provider scores sentiment per *article*, not per category,
 so a macro piece contributes its whole-article tone to every category tagged with that topic —
 relevance weighting mitigates this but does not remove it. Prompt rules 8d/8e carry the reasoning:
-sentiment explains a move that has already happened and never decides a trade, and the useful reading
-is the four-way combination of drift, drawdown and sentiment.
+sentiment explains a move that has already happened rather than predicting the next one, and the
+useful reading is the four-way combination of drift, drawdown and sentiment.
 
 `settings.news.apiKey` (schema v9) follows `settings.ai.apiKey` exactly — it rides the encrypted sync
 snapshot, is stripped from the plaintext backup, and is carried over from the device on restore. No
