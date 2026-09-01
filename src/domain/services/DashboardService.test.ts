@@ -11,6 +11,7 @@ import {
   computeAssetCategoryData,
   computeDashboardMetrics,
   computeMonthlyInvestmentData,
+  computeTimelineData,
 } from './DashboardService';
 
 const USD_RATE = 88;
@@ -228,5 +229,112 @@ describe('computeMonthlyInvestmentData', () => {
 
     expect(monthly).toHaveLength(1);
     expect(monthly[0].amount).toBeCloseTo(1000 + 100 * USD_RATE, 1);
+  });
+});
+
+describe('computeTimelineData', () => {
+  /** A market-based fund built from `count` monthly buys of `amount`, worth `value` today. */
+  function monthlyBuys(
+    count: number,
+    amount: number,
+    value: number,
+    currency: Currency = Currency.INR
+  ): Asset {
+    const investments = Array.from(
+      { length: count },
+      (_, i) =>
+        new Investment({
+          id: i,
+          assetId: 1,
+          type: InvestmentType.BUY,
+          quantity: 100,
+          totalAmount: amount,
+          date: new Date(Date.UTC(2020, i, 1)),
+        })
+    );
+    return new Asset({
+      ...ASSET,
+      currency,
+      manualValue: value,
+      manualValueUpdatedAt: new Date(Date.UTC(2026, 0, 1)),
+      investments,
+      sips: [],
+    });
+  }
+
+  it('plots the value the asset actually had on each date', () => {
+    // The regression this pins: the value was scaled by the share of quantity
+    // held by that date, on top of `getValueOn` already being historical. That
+    // second discount pushed every early point toward zero and drew invested
+    // above value for years, on a fund that only ever gained.
+    const fund = monthlyBuys(60, 10000, 900000);
+
+    const timeline = computeTimelineData([fund], converter({}));
+
+    timeline.forEach(point => {
+      expect(point.assetValue).toBeCloseTo(fund.getValueOn(point.date)!, 6);
+      expect(point.assetValue).toBeGreaterThanOrEqual(point.cumulativeInvested);
+    });
+  });
+
+  it('converts each asset from its own currency', () => {
+    const inr = monthlyBuys(12, 10000, 200000);
+    const usd = monthlyBuys(12, 100, 2000, Currency.USD);
+
+    const [first] = computeTimelineData([inr, usd], converter({ [Currency.USD]: USD_RATE }));
+
+    expect(first.cumulativeInvested).toBeCloseTo(10000 + 100 * USD_RATE, 1);
+    expect(first.assetValue).toBeCloseTo(
+      inr.getValueOn(first.date)! + usd.getValueOn(first.date)! * USD_RATE,
+      1
+    );
+  });
+
+  it('reduces cumulative invested by a sell rather than adding it', () => {
+    // `totalAmount` is stored positive with the direction in `type`, so summing
+    // the raw totals made a sell look like more money going in.
+    const holding = new Asset({
+      ...ASSET,
+      manualValue: 60000,
+      manualValueUpdatedAt: new Date(Date.UTC(2026, 0, 1)),
+      investments: [
+        new Investment({
+          id: 1,
+          assetId: 1,
+          type: InvestmentType.BUY,
+          quantity: 100,
+          totalAmount: 100000,
+          date: new Date(Date.UTC(2020, 0, 1)),
+        }),
+        new Investment({
+          id: 2,
+          assetId: 1,
+          type: InvestmentType.SELL,
+          quantity: 40,
+          totalAmount: 50000,
+          date: new Date(Date.UTC(2023, 0, 1)),
+        }),
+      ],
+      sips: [],
+    });
+
+    const [bought, sold] = computeTimelineData([holding], converter({}));
+
+    expect(bought.cumulativeInvested).toBe(100000);
+    expect(sold.cumulativeInvested).toBe(50000);
+    // The same net figure the rest of the app reports for that date.
+    expect(sold.cumulativeInvested).toBe(holding.getTotalInvestedAmount(sold.date));
+  });
+
+  it('keys each point to the UTC day the investment was made', () => {
+    const fund = monthlyBuys(3, 10000, 40000);
+
+    const timeline = computeTimelineData([fund], converter({}));
+
+    expect(timeline.map(point => point.date.toISOString())).toEqual([
+      '2020-01-01T00:00:00.000Z',
+      '2020-02-01T00:00:00.000Z',
+      '2020-03-01T00:00:00.000Z',
+    ]);
   });
 });

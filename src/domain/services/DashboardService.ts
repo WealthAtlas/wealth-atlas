@@ -3,7 +3,7 @@ import { Loan } from '../entities/loans/Loan';
 import { Currency } from '../entities/shared/Currency';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { Logger } from '../utils/Logger';
-import { monthKey } from '../utils/DateUtils';
+import { isoDate, monthKey, parseUtcDay } from '../utils/DateUtils';
 import { AssetService } from './AssetService';
 import { LoanService } from './LoanService';
 
@@ -155,12 +155,17 @@ export function computeAssetCategoryData(
 export function computeTimelineData(assets: Asset[], converter: CurrencyConverter): TimelineData[] {
   // Investments are grouped by day, but each carries its own asset's currency
   // until it has been converted — the amount alone is not comparable.
+  //
+  // The amount is signed (`getSignedAmount`), not `getTotalAmount`: totals are
+  // stored positive and the direction lives in `type`, so summing the raw totals
+  // makes a sell *add* to the money put in. The line is net capital deployed —
+  // the same figure `Asset.getTotalInvestedAmount` reports — so a sell reduces it.
   const dailyInvested = new Map<string, number>();
 
   assets.forEach(asset => {
     asset.getInvestments(new Date(), false).forEach(investment => {
-      const dateKey = investment.date.toISOString().split('T')[0];
-      const amount = converter.toBase(investment.getTotalAmount(), asset.currency);
+      const dateKey = isoDate(investment.date);
+      const amount = converter.toBase(investment.getSignedAmount(), asset.currency);
       dailyInvested.set(dateKey, (dailyInvested.get(dateKey) || 0) + amount);
     });
   });
@@ -171,7 +176,7 @@ export function computeTimelineData(assets: Asset[], converter: CurrencyConverte
   Array.from(dailyInvested.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .forEach(([dateKey, investedAmount]) => {
-      const date = new Date(dateKey);
+      const date = parseUtcDay(dateKey)!;
       cumulativeInvested += investedAmount;
       const assetValueAtDate = calculateAssetValueAtDate(assets, date, converter);
 
@@ -187,6 +192,17 @@ export function computeTimelineData(assets: Asset[], converter: CurrencyConverte
   return timelineData;
 }
 
+/**
+ * `getValueOn` is already the value *as of* `date` — it grows only the
+ * transactions dated on or before `date` at the asset's IRR. Scaling it by the
+ * share of quantity held by then (what the removed `getWeightedValueOn` did)
+ * discounted it a second time, crushing every point except the last toward zero
+ * and drawing invested above value for years. See `computeTimelineData`'s test.
+ *
+ * The curve is a back-projection from a single IRR fitted to today's value, not
+ * recorded price history — nothing in `IAsset` stores one — so it is smooth and,
+ * for an asset with a positive IRR, never dips below the invested line.
+ */
 function calculateAssetValueAtDate(
   assets: Asset[],
   date: Date,
@@ -194,7 +210,7 @@ function calculateAssetValueAtDate(
 ): number {
   return assets.reduce((total, asset) => {
     try {
-      const value = asset.getWeightedValueOn(date);
+      const value = asset.getValueOn(date);
       return total + converter.toBase(value || 0, asset.currency);
     } catch (error) {
       Logger.error(`Failed to calculate asset value for ${asset.name} at ${date}: ${error}`);

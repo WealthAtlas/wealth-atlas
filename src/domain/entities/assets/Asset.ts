@@ -117,25 +117,6 @@ export class Asset implements IAsset {
     return this.getValueOn(new Date());
   }
 
-  public getWeightedValueOn(date: Date): number | undefined {
-    const currentValue = this.getValueOn(date);
-    if (currentValue === undefined) return undefined;
-
-    const totalQty = this.getTotalQty();
-    const currentQty = this.getTotalQty(date);
-
-    if (totalQty && currentQty) {
-      return (currentQty / totalQty) * currentValue;
-    }
-
-    // Fallback to invested amount based weighting
-    const totalInvested = this.getTotalInvestedAmount();
-    if (totalInvested === 0) return undefined;
-
-    const currentInvested = this.getTotalInvestedAmount(date);
-    return (currentInvested / totalInvested) * currentValue;
-  }
-
   public getValueOn(date: Date, includeFutureInvestments: boolean = false): number | undefined {
     switch (this.valueModel) {
       case ValueModel.MARKET_BASED: {
