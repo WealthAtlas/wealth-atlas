@@ -132,15 +132,25 @@ export class Asset implements IAsset {
         );
       }
       case ValueModel.FIXED_INCOME: {
+        // Maturity stops the interest, not the money. Growth is therefore
+        // capped at the maturity date, but a deposit made after it is still
+        // held — it is added at face value rather than dropped, because the
+        // alternative is an asset that counts the money as invested and values
+        // it at nothing for ever. Face value claims no return we cannot justify:
+        // a matured deposit earns nothing further, and what a later one earns
+        // is not something this asset records.
         const fixedIncomeEffectiveDate =
           this.maturityDate && date > this.maturityDate ? this.maturityDate : date;
-        return IRRCalculator.getInstance().calculateFutureValueOnIRR(
+        const grown = IRRCalculator.getInstance().calculateFutureValueOnIRR(
           this.getInvestments(fixedIncomeEffectiveDate, includeFutureInvestments).map(tx => ({
             date: tx.date,
             amount: tx.getSignedAmount(),
           })),
           this.interestRate!,
           fixedIncomeEffectiveDate
+        );
+        return (
+          grown + this.amountAddedAfter(fixedIncomeEffectiveDate, date, includeFutureInvestments)
         );
       }
       case ValueModel.MATURITY_BASED: {
@@ -154,18 +164,36 @@ export class Asset implements IAsset {
         });
         const maturityBasedEffectiveDate =
           this.maturityDate && date > this.maturityDate ? this.maturityDate : date;
-        return IRRCalculator.getInstance().calculateFutureValueOnIRR(
-          this.getInvestments(date, includeFutureInvestments).map(tx => ({
+        // As above: past maturity the plan stops growing, and money put in after
+        // it must not be discounted *backwards* to the maturity date, which is
+        // what passing it through the growth call did.
+        const grown = IRRCalculator.getInstance().calculateFutureValueOnIRR(
+          this.getInvestments(maturityBasedEffectiveDate, includeFutureInvestments).map(tx => ({
             date: tx.date,
             amount: tx.getSignedAmount(),
           })),
           maturityIRR,
           maturityBasedEffectiveDate
         );
+        return (
+          grown + this.amountAddedAfter(maturityBasedEffectiveDate, date, includeFutureInvestments)
+        );
       }
       default:
         return undefined;
     }
+  }
+
+  /**
+   * Net amount transacted strictly after `from` and up to `to`. This is the
+   * money a value model has stopped accounting for — see the maturity cases in
+   * `getValueOn`.
+   */
+  private amountAddedAfter(from: Date, to: Date, considerFutureTransactions: boolean): number {
+    if (from >= to) return 0;
+    return this.getInvestments(to, considerFutureTransactions)
+      .filter(tx => tx.date > from)
+      .reduce((total, tx) => total + tx.getSignedAmount(), 0);
   }
 
   public getInvestments(till: Date, considerFutureTransactions: boolean): Investment[] {
@@ -206,15 +234,24 @@ export class Asset implements IAsset {
 
   public getIRR(): number | undefined {
     switch (this.valueModel) {
-      case ValueModel.MARKET_BASED:
+      case ValueModel.MARKET_BASED: {
+        // The fit may only see the money the recorded value actually measured.
+        // A value noted in June cannot account for a deposit made in December,
+        // so including later transactions asks for the rate at which the older,
+        // smaller figure equals the larger one — and the solver answers -100%,
+        // which zeroes the asset for every date. That is not a rounding error:
+        // an asset whose value was recorded once and then added to would read as
+        // worthless while its money still counted as invested.
+        const valuedOn = this.getMarketValueDate() ?? new Date();
         return IRRCalculator.getInstance().calculateIRR({
-          transactions: this.getInvestments(new Date(), false).map(tx => ({
+          transactions: this.getInvestments(valuedOn, false).map(tx => ({
             date: tx.date,
             amount: tx.getSignedAmount(),
           })),
           value: this.getMarketValue() ?? 0,
-          valueUpdatedOn: this.getMarketValueDate() ?? new Date(),
+          valueUpdatedOn: valuedOn,
         });
+      }
       case ValueModel.MATURITY_BASED:
         if (this.maturityAmount === undefined || this.maturityDate === undefined) return undefined;
         return IRRCalculator.getInstance().calculateIRR({

@@ -128,3 +128,83 @@ describe('Investment', () => {
     expect(noQty.getSignedQuantity()).toBe(0);
   });
 });
+
+/**
+ * Both cases here produced an asset whose money counted as invested while its
+ * value accounted for none of it — which is what drew the dashboard timeline's
+ * invested line above its value line for years.
+ */
+describe('Asset valuation when money arrives after the model stops watching', () => {
+  const utc = (y: number, m: number) => new Date(Date.UTC(y, m, 1));
+
+  /** Deposits carry no quantity, as fixed-deposit-style records generally do. */
+  function deposits(...at: [number, number, number][]): Investment[] {
+    return at.map(
+      ([y, m, amount], i) =>
+        new Investment({
+          id: i,
+          assetId: 1,
+          type: InvestmentType.BUY,
+          quantity: undefined,
+          totalAmount: amount,
+          date: utc(y, m),
+        })
+    );
+  }
+
+  it('still holds money deposited after a fixed-income asset matured', () => {
+    // Maturity stops the interest, not the money. Growth was capped at the
+    // maturity date *and* the later deposit was dropped from the sum entirely,
+    // so 100,000 put in after maturity valued at nothing for ever.
+    const fd = new Asset({
+      ...BASE,
+      valueModel: ValueModel.FIXED_INCOME,
+      interestRate: 7,
+      maturityDate: utc(2020, 5),
+      investments: deposits([2019, 0, 100000], [2020, 8, 100000]),
+      sips: [],
+    });
+
+    const beforeTheLateDeposit = fd.getValueOn(utc(2020, 7))!;
+
+    // The late deposit adds its face value: it earns nothing further, and what
+    // it might earn elsewhere is not something this asset records.
+    expect(fd.getValueOn(utc(2021, 0))).toBeCloseTo(beforeTheLateDeposit + 100000, 6);
+    expect(fd.getValueOn(utc(2021, 0))).toBeGreaterThan(fd.getTotalInvestedAmount(utc(2021, 0)));
+  });
+
+  it('fits the market IRR only against the money the recorded value measured', () => {
+    // A value noted in mid-2020 cannot account for deposits made in 2022 and
+    // 2024. Fitting them against it asked for the rate at which 200,000 grows
+    // into 250,000 *and* 500,000 into 250,000; the solver answered -100%, which
+    // valued the whole asset at zero on every date.
+    const staleValue = new Asset({
+      ...BASE,
+      manualValue: 250000,
+      manualValueUpdatedAt: utc(2020, 5),
+      investments: deposits([2019, 0, 100000], [2020, 0, 100000], [2022, 0, 100000]),
+      sips: [],
+    });
+
+    expect(staleValue.getIRR()).toBeGreaterThan(0);
+    expect(staleValue.getValue()).toBeGreaterThan(0);
+    // The fit is self-consistent: valued on its own valuation date, the asset is
+    // worth what was recorded there, to the solver's 0.01% convergence tolerance.
+    expect(staleValue.getValueOn(utc(2020, 5))! / 250000).toBeCloseTo(1, 3);
+  });
+
+  it('leaves an asset whose value is current exactly as it was', () => {
+    // The guard on the fix above: it must change nothing for the ordinary case
+    // where every deposit predates the recorded value.
+    const current = new Asset({
+      ...BASE,
+      manualValue: 600000,
+      manualValueUpdatedAt: utc(2026, 8),
+      investments: deposits([2019, 0, 100000], [2020, 0, 100000], [2022, 0, 100000]),
+      sips: [],
+    });
+
+    expect(current.getIRR()).toBeCloseTo(11.4, 1);
+    expect(current.getValueOn(utc(2021, 0))).toBeCloseTo(235570, 0);
+  });
+});
