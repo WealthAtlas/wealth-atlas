@@ -1,5 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { NewsSourceError, parseNewsResponse } from './AlphaVantageNews';
+import { buildFeedUrl, NewsSourceError, parseNewsResponse } from './AlphaVantageNews';
+
+describe('buildFeedUrl', () => {
+  it('sends no topic filter, because the provider ANDs them', () => {
+    // This is the whole of the bug that once emptied the feed. The provider's
+    // docs: `topics=technology,ipo` matches articles that "simultaneously cover
+    // technology and IPO" — so asking for the union of every topic we partition
+    // on asks for an article tagged with all fifteen, which does not exist. The
+    // response was a valid `items: "0"` with an empty feed, and every layer
+    // below reported it honestly as no news.
+    expect(buildFeedUrl('k')).not.toContain('topics=');
+  });
+
+  it('asks for a page large enough to partition fifteen topics between', () => {
+    // Unfiltered, the provider's default of 50 leaves most categories below
+    // THIN_SAMPLE_BELOW — a sample too thin to read, for the same quota unit.
+    const limit = Number(/[?&]limit=(\d+)/.exec(buildFeedUrl('k'))?.[1]);
+
+    expect(limit).toBeGreaterThan(50);
+    expect(limit).toBeLessThanOrEqual(1000); // the provider's stated maximum
+  });
+
+  it('escapes the key rather than pasting it into the query raw', () => {
+    expect(buildFeedUrl('a&b=c')).toContain('apikey=a%26b%3Dc');
+  });
+
+  it('asks for the latest articles', () => {
+    expect(buildFeedUrl('k')).toContain('sort=LATEST');
+  });
+});
 
 /**
  * Shaped exactly like a real response, field names and string-typed numbers

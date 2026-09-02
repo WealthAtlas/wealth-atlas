@@ -424,12 +424,38 @@ that both sends `Access-Control-Allow-Origin: *` and returns structured sentimen
 anonymous callers and sends no CORS header; publisher RSS is almost universally CORS-blocked. Its
 free tier allows **25 requests a day**, and that quota — not latency — shapes the design:
 
-- **One request per fetch**, for the union of every topic in `NEWS_TOPICS`, partitioned to categories
-  locally by `CATEGORY_TOPICS`. One request per category would burn a day in two questions. A test
-  pins that every mapped topic is one actually fetched: a topic outside `NEWS_TOPICS` would match
-  nothing for ever and look like a quiet news day. Every topic string was *observed in a real
-  response* — the published list is behind a JS-rendered page, and an unrecognised topic risks
-  failing the only request there is.
+- **One request per fetch, carrying no topic filter at all**, partitioned to categories locally by
+  `CATEGORY_TOPICS`. One request per topic would burn a day's quota in a single question — but the
+  filter is omitted for a harder reason than cost. **AlphaVantage ANDs a multi-topic filter**: its
+  docs say `topics=technology,ipo` returns articles that "simultaneously cover technology and IPO".
+  Asking for the union of fifteen topics therefore asks for an article tagged with all fifteen, which
+  does not exist, and the provider correctly answers `items: "0"` with an empty feed. That is exactly
+  what shipped, and it was invisible: the key authenticated, HTTP 200 came back, `parseNewsResponse`
+  read a well-formed empty feed, and every category was reported — honestly — as having no news. The
+  filter was never doing the partitioning anyway; each feed item declares its own
+  `topics: [{topic, relevance_score}]`, and that is what `summariseCategoryNews` divides on.
+  `buildFeedUrl` is exported *solely* so a test can assert the absence of `topics=`, because nothing
+  else in the stack can see a query string: not `tsc`, not the parser's tests, not the aggregation's.
+- **`NEWS_TOPICS` is a vocabulary, not a query.** Nothing is sent, so it is now the provider's
+  published topic list verbatim, and `NewsTopics.test.ts` pins that every `CATEGORY_TOPICS` entry
+  falls inside it — a mistyped or remembered topic name would match nothing for ever and look like a
+  quiet news day. The earlier rule ("only topics observed in a real response") existed because an
+  unrecognised topic could fail the one request there was; with no topic sent, the published list
+  governs. That rule was also what kept `economy_monetary` — interest rates and inflation, the topic
+  that actually moves Debt and Gold — out of the table.
+- **Page size is set for the partition, not the page.** Unfiltered, the provider's default of 50
+  articles has to cover fifteen topics between them, leaving most categories under
+  `THIN_SAMPLE_BELOW`. `ARTICLE_LIMIT` is 200 (the provider's maximum is 1000); a larger page costs
+  nothing extra against the daily quota.
+- **An empty feed is never cached.** Unfiltered and sorted by recency, "no market news at all" is not
+  a state that occurs — it means the request is wrong, as it was for the whole life of the topic
+  filter. Caching it would turn a bug into a silent six-hour news blackout. For the same reason the
+  `localStorage` key carries a version (`news.feed.v2`): a bump discards what a broken query cached,
+  which is otherwise served as a perfectly valid entry until it ages out.
+- **`testConnection` fails on zero articles** rather than reporting `Fetched 0 articles.` as a
+  success. The button answers "will the assistant get news?", and a key that authenticates onto an
+  empty feed answers no. It rendered its own failure symptom as a green tick for the life of the bug,
+  which is worse than having no test button.
 - **The cache is load-bearing**, not an optimisation, and lives in `localStorage` rather than Dexie.
   A cached public feed is not the user's data: it is device-local, has nothing to add to a sync
   snapshot, and restoring it from a six-month-old backup would hand the assistant six-month-old

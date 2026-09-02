@@ -1,4 +1,4 @@
-import { fetchNewsFeed } from '@/data/news/AlphaVantageNews';
+import { fetchNewsFeed, NewsSourceError } from '@/data/news/AlphaVantageNews';
 import { clearCachedFeed } from '@/data/news/NewsCache';
 import { SettingsRepository } from '@/data/repositories/settings/SettingsRepository';
 import { INewsProviderSettings, normaliseNewsProviderSettings } from '../entities/shared/Settings';
@@ -45,9 +45,22 @@ export class NewsService {
    * The fetched feed is *not* cached: a test is a check on the credential, and
    * priming the cache from it would make the next question's freshness depend on
    * when the user last visited Settings.
+   *
+   * Zero articles fails the test rather than passing it with a count of nothing.
+   * The point of this button is to answer "will the assistant get news?", and a
+   * key that authenticates onto an empty feed answers no — which is exactly what
+   * the topic-filter bug did, while reporting "Fetched 0 articles." as a success.
+   * A test that renders its own failure symptom as a tick is worse than no test.
    */
   public async testConnection(apiKey: string): Promise<string> {
     const articles = await fetchNewsFeed(apiKey);
+
+    if (articles.length === 0) {
+      throw new NewsSourceError(
+        'The key was accepted, but the provider returned no articles — the assistant would see no news.'
+      );
+    }
+
     return `Fetched ${articles.length} articles.`;
   }
 }

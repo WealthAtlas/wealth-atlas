@@ -25,7 +25,13 @@ async function loadFeed(apiKey: string): Promise<CachedFeed> {
   // Two tools asking in the same turn must not each spend a request.
   inFlight ??= fetchNewsFeed(apiKey)
     .then(articles => {
-      writeCachedFeed(articles);
+      // An empty feed is not cached. Unfiltered and sorted by recency, the
+      // provider having *no* market news at all is not a state that happens —
+      // it means the request is wrong, the way it was wrong for the whole life
+      // of the topic filter. Holding that for six hours turns a bug into a
+      // silent day of "no news"; refetching keeps it visible, and costs a quota
+      // only in a situation where the quota is already buying nothing.
+      if (articles.length > 0) writeCachedFeed(articles);
       return { articles, fetchedAt: new Date() };
     })
     .finally(() => {

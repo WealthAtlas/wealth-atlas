@@ -1,5 +1,4 @@
 import { NewsArticle } from '@/domain/news/NewsSentiment';
-import { NEWS_TOPICS } from '@/domain/news/NewsTopics';
 import { Logger } from '@/domain/utils/Logger';
 
 /**
@@ -13,16 +12,39 @@ import { Logger } from '@/domain/utils/Logger';
  * model to judge tone from the wording, which is precisely the step worth not
  * delegating.
  *
- * One request per fetch, for the union of every topic. The free tier allows 25
- * requests a day and 5 a minute, so the quota — not latency — is what shapes
- * this: see `NewsCache`, which is load-bearing rather than an optimisation.
+ * One request per fetch, and it asks for **no topics at all**. That is not
+ * breadth for its own sake — it is the only query that can serve every category
+ * from one request, because the provider ANDs the topic filter. Its own
+ * documentation is explicit: `topics=technology,ipo` returns articles that
+ * "simultaneously cover technology and IPO". Sending the union of every topic we
+ * partition on therefore asks for an article tagged with all of them at once,
+ * which nothing ever is, and the provider correctly answers `items: "0"` with an
+ * empty feed — a total blackout that reads downstream as a quiet news day.
+ *
+ * The filter was never doing the partitioning anyway. Every feed item carries
+ * its own `topics: [{ topic, relevance_score }]`, and `summariseCategoryNews`
+ * divides the feed on exactly that. So the filter is dropped, `NEWS_TOPICS`
+ * remains as the vocabulary the partition recognises, and one request still
+ * answers a question about any number of categories.
+ *
+ * The free tier allows 25 requests a day and 5 a minute, so the quota — not
+ * latency — is what shapes this: see `NewsCache`, which is load-bearing rather
+ * than an optimisation.
  */
 
 const ENDPOINT = 'https://www.alphavantage.co/query';
 const FETCH_TIMEOUT_MS = 15_000;
 
-/** The most the free tier returns in one response. */
-const ARTICLE_LIMIT = 50;
+/**
+ * Well above the provider's default of 50, well below its maximum of 1000.
+ *
+ * Unfiltered, the latest 50 articles have to cover fifteen topics between them,
+ * which leaves most categories under `THIN_SAMPLE_BELOW` — a sample too small to
+ * read, from a request that spent a quota unit regardless. A larger page costs
+ * nothing extra against the daily limit, so the only real ceiling is the size of
+ * the cached copy in `localStorage`.
+ */
+const ARTICLE_LIMIT = 200;
 
 export class NewsSourceError extends Error {
   constructor(message: string) {
@@ -128,19 +150,33 @@ export function parseNewsResponse(body: unknown): NewsArticle[] {
 }
 
 /**
+ * The request URL.
+ *
+ * Exported so a test can assert what is actually asked for. The entire feed once
+ * came back empty because of one query parameter, and nothing could see it —
+ * not `tsc`, not the parser's tests, not the aggregation's, because every layer
+ * below this handled the empty feed correctly and dutifully reported no news.
+ *
+ * `topics` is deliberately absent; see the note at the top of this file.
+ */
+export function buildFeedUrl(apiKey: string): string {
+  return (
+    `${ENDPOINT}?function=NEWS_SENTIMENT` +
+    `&sort=LATEST&limit=${ARTICLE_LIMIT}` +
+    `&apikey=${encodeURIComponent(apiKey)}`
+  );
+}
+
+/**
  * Fetches the feed. Throws `NewsSourceError` with a message fit to show the
  * user — a spent quota is the expected failure here, not an exceptional one.
  */
 export async function fetchNewsFeed(apiKey: string): Promise<NewsArticle[]> {
-  const url =
-    `${ENDPOINT}?function=NEWS_SENTIMENT` +
-    `&topics=${NEWS_TOPICS.join(',')}` +
-    `&sort=LATEST&limit=${ARTICLE_LIMIT}` +
-    `&apikey=${encodeURIComponent(apiKey)}`;
-
   let response: Response;
   try {
-    response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    response = await fetch(buildFeedUrl(apiKey), {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
   } catch (error) {
     throw new NewsSourceError(
       error instanceof Error && error.name === 'TimeoutError'

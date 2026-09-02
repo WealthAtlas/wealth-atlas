@@ -3,15 +3,16 @@ import { AssetCategory } from '../entities/assets/AssetCategory';
 import { CATEGORY_TOPICS, categoriesWithNews, NEWS_TOPICS, topicsForCategory } from './NewsTopics';
 
 describe('the news topic mapping', () => {
-  it('only maps categories to topics that are actually fetched', () => {
-    // The single request asks for NEWS_TOPICS. A category mapped to a topic
-    // outside that set would match nothing, for ever, with no error anywhere —
-    // it would simply report "no news" and look like a quiet news day.
-    const fetched = new Set<string>(NEWS_TOPICS);
+  it('only maps categories to topics the provider actually emits', () => {
+    // NEWS_TOPICS is the provider's published vocabulary. A category mapped to a
+    // topic outside it — a typo, or a name invented from memory — would match
+    // nothing, for ever, with no error anywhere: it would simply report "no
+    // news" and look like a quiet news day.
+    const vocabulary = new Set<string>(NEWS_TOPICS);
 
     for (const [category, topics] of Object.entries(CATEGORY_TOPICS)) {
       for (const topic of topics) {
-        expect(fetched, `${category} -> "${topic}" is never fetched`).toContain(topic);
+        expect(vocabulary, `${category} -> "${topic}" is not a real topic`).toContain(topic);
       }
     }
   });
@@ -49,7 +50,17 @@ describe('the news topic mapping', () => {
     }
   });
 
-  it('asks for no duplicate topics, since the quota is 25 requests a day', () => {
+  it('lists no duplicate topics', () => {
     expect(new Set(NEWS_TOPICS).size).toBe(NEWS_TOPICS.length);
+  });
+
+  it('reads the rate-sensitive categories off monetary policy', () => {
+    // Interest rates and inflation are what move a bond fund and the gold price,
+    // and `economy_monetary` is the topic carrying them. Its earlier absence
+    // left Debt and Gold reading the metal and the curve through fiscal and
+    // macro coverage only.
+    for (const category of [AssetCategory.DEBT, AssetCategory.GOLD]) {
+      expect(topicsForCategory(category), category).toContain('economy_monetary');
+    }
   });
 });

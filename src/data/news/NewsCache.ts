@@ -17,7 +17,16 @@ import { Logger } from '@/domain/utils/Logger';
  * bump that a persisted row costs, which would buy nothing here.
  */
 
-const STORAGE_KEY = 'news.feed.v1';
+/**
+ * Bumped to v2 to discard what the topic-filter bug cached.
+ *
+ * Every device that asked a question under the old query string holds an empty
+ * feed here, and `readCachedFeed` would serve it as a perfectly valid six-hour
+ * cache — so the fix would appear not to work until the entry aged out. There is
+ * no migration to write: a stale key is simply never read again, and a cached
+ * public feed is the one kind of data this app can afford to throw away.
+ */
+const STORAGE_KEY = 'news.feed.v2';
 
 /**
  * Comfortably shorter than the quota window, so a day's normal use is a handful
