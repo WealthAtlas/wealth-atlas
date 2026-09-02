@@ -6,6 +6,8 @@ import {
   computeMonthlyInvestmentData,
 } from '../services/DashboardService';
 import { computeExpenseBreakdown } from '../services/ExpenseService';
+import { segmentsForCategory } from '../funds/FundSegments';
+import { STALE_AFTER_DAYS } from '../funds/FundScreen';
 import { computeAllocationDrift } from '../market/AllocationDrift';
 import { MIN_REVIEW_DAYS } from '../journal/DecisionReview';
 import { THIN_SAMPLE_BELOW } from '../news/NewsSentiment';
@@ -534,6 +536,158 @@ export const CHAT_TOOLS: ChatTool[] = [
           'figure as a thin sample or not at all. Sentiment describes what has already been written, ' +
           'so never state or imply where a price will go next. Cite a headline from this list rather ' +
           'than recalling one.',
+      };
+    },
+  },
+
+  {
+    name: 'screenFunds',
+    description:
+      "Real funds currently on the market in a segment — the whole published universe, not the user's holdings. This is the only way to name a fund they do not already own: it returns live schemes with their fund house, the provider's own category and the latest NAV with its date. It reports no performance figure by design; use compareFunds on a shortlist for that. Default segments are the ones matching the categories the user is underweight in, which is where a new holding actually belongs.",
+    argsHint:
+      'segments?: string[] of segment names, default the segments of the categories the user is most underweight in; if you do not know the segment names, call with no arguments',
+    async run(args, ctx) {
+      const available = ctx.funds.screenableSegments();
+      if (available.length === 0) {
+        return {
+          segments: [],
+          note: 'The fund list could not be reached, so no fund can be named. Say that rather than naming one from memory.',
+        };
+      }
+
+      const requested = Array.isArray(args.segments)
+        ? args.segments.map(asString).filter((value): value is string => value !== undefined)
+        : undefined;
+
+      // Defaulting to the underweight categories is what keeps a suggestion
+      // attached to a reason. A fund is worth adding where the policy says the
+      // user is short, not because the segment came to mind.
+      let segments = requested;
+      if (!segments) {
+        const [assets, targets] = await Promise.all([ctx.assets(), ctx.targetAllocation()]);
+        const drift = computeAllocationDrift(assets, targets, ctx.converter);
+        const underweight = drift.rows
+          .filter(row => row.action === 'buy')
+          .sort((left, right) => left.driftPercent - right.driftPercent)
+          .flatMap(row => segmentsForCategory(row.category).map(segment => segment.name));
+        segments = Array.from(new Set(underweight)).slice(0, 3);
+      }
+
+      if (segments.length === 0) {
+        return {
+          segments: [],
+          availableSegments: available,
+          note:
+            'No segment was asked for and no category is underweight, so there is no segment a new ' +
+            'holding obviously belongs in. Ask which segment they are considering, or what the money ' +
+            'is for. Choose only from availableSegments — a fund outside this list cannot be checked.',
+        };
+      }
+
+      const outcomes = await Promise.allSettled(
+        segments.map(segment => ctx.funds.screenSegment(segment, ctx.today))
+      );
+
+      const screens: unknown[] = [];
+      const unavailable: { segment: string; reason: string }[] = [];
+
+      outcomes.forEach((outcome, index) => {
+        if (outcome.status === 'rejected') {
+          unavailable.push({
+            segment: segments[index],
+            reason: outcome.reason instanceof Error ? outcome.reason.message : 'the lookup failed',
+          });
+          return;
+        }
+
+        const screen = outcome.value;
+        screens.push({
+          segment: screen.segment,
+          category: screen.category,
+          expectedProviderCategory: screen.sebiCategoryHint,
+          source: screen.source,
+          listFetchedAt: isoDate(screen.universeFetchedAt),
+          liveSchemeCount: screen.candidates.length,
+          discardedAsStale: screen.discardedAsStale,
+          totalMatched: screen.totalMatched,
+          // Two different truncations, so neither is called `truncated`: the
+          // port caps how many schemes it screens, and `capped` then caps how
+          // many of the survivors fit in the context window.
+          segmentTruncatedByPort: screen.truncated,
+          candidates: capped(
+            screen.candidates.map(candidate => ({
+              schemeCode: candidate.code,
+              name: candidate.name,
+              fundHouse: candidate.fundHouse,
+              providerCategory: candidate.schemeCategory,
+              latestNav: round(candidate.latestNav),
+              navAsOf: candidate.navAsOf,
+            }))
+          ),
+        });
+      });
+
+      return {
+        segments: screens,
+        unavailable,
+        availableSegments: available,
+        note:
+          'Every scheme here exists and was publishing a NAV within the last ' +
+          `${STALE_AFTER_DAYS} days; discardedAsStale counts schemes that matched the segment but have ` +
+          'stopped publishing, which means they were wound up or merged. Name only funds from this ' +
+          'list — never one you remember, because it may have merged or closed. These are direct-plan ' +
+          'growth schemes. This list carries no expense ratio, no fund size and no past return: it ' +
+          'says which funds exist, not which is good. Call compareFunds on a shortlist before you ' +
+          'recommend one, and say that the expense ratio is not in these records and should be ' +
+          'checked on the AMC or AMFI site.',
+      };
+    },
+  },
+
+  {
+    name: 'compareFunds',
+    description:
+      "NAV-derived figures for named schemes from screenFunds: the latest NAV and its date, the window's high, how far below that high it sits now, and the return over the window. Fetches real history per scheme, so pass a shortlist rather than a segment. Read the drawdown and the return together — they answer different questions.",
+    argsHint:
+      'schemeCodes: number[] of up to 10 codes from screenFunds; windowDays?: number, default 365',
+    async run(args, ctx) {
+      const codes = Array.isArray(args.schemeCodes)
+        ? args.schemeCodes.map(asNumber).filter((value): value is number => value !== undefined)
+        : [];
+
+      if (codes.length === 0) {
+        return {
+          funds: [],
+          note: 'No scheme code was given. Call screenFunds first and pass codes from its list — a code you recall is not a code.',
+        };
+      }
+
+      const windowDays = Math.min(Math.max(asNumber(args.windowDays) ?? 365, 30), 3650);
+      const { funds, unavailable, source } = await ctx.funds.compareFunds(codes, windowDays);
+
+      return {
+        source,
+        funds: funds.map(entry => ({
+          schemeCode: entry.code,
+          name: entry.name,
+          fundHouse: entry.fundHouse,
+          providerCategory: entry.schemeCategory,
+          asOf: entry.asOf,
+          latestNav: round(entry.trend.latest),
+          windowHigh: round(entry.trend.high),
+          windowHighOn: isoDate(entry.trend.highOn),
+          drawdownFromHighPercent: entry.trend.drawdownPercent,
+          returnOverWindowPercent: entry.trend.returnPercent,
+          observations: entry.trend.observations,
+          windowDays: entry.trend.windowDays,
+        })),
+        unavailable,
+        note:
+          'Past NAV only, and it describes the past only — never turn one of these into a forecast. ' +
+          'A fund with the highest return over one window is not therefore the one to buy; compare it ' +
+          'against the segment benchmark from getMarketTrends and against a longer window before you ' +
+          'say anything about it. Expense ratio, fund size, manager tenure and exit load are not in ' +
+          'these records; say so rather than guessing them.',
       };
     },
   },

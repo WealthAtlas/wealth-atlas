@@ -1,6 +1,7 @@
 import { Logger } from '@/domain/utils/Logger';
 import { chatJsonTurns, LlmMessage } from '@/data/llm/LlmClient';
 import { getProviderHost, isLlmConfigured } from '@/data/llm/state';
+import { createFundUniverse } from '@/data/funds/FundUniverse';
 import { createMarketData } from '@/data/market/MarketData';
 import { createNewsData } from '@/data/news/NewsData';
 import { runInSandbox } from '@/data/sandbox/CodeSandbox';
@@ -10,6 +11,7 @@ import { ChatAnswer, runChatLoop, TurnsChatFn } from '../chat/ChatLoop';
 import { CodeRunner, createChatToolContext } from '../chat/ChatToolContext';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { Memory } from '../entities/memory/Memory';
+import { FundUniversePort } from '../funds/FundUniversePort';
 import { MarketDataPort } from '../market/MarketDataPort';
 import { NewsPort } from '../news/NewsPort';
 import { AllocationPolicyService } from './AllocationPolicyService';
@@ -41,6 +43,7 @@ export interface ChatDeps {
   /** Overridden in tests, which must not reach the network. */
   market?: MarketDataPort;
   news?: NewsPort;
+  funds?: FundUniversePort;
 }
 
 export interface AskOptions {
@@ -62,6 +65,7 @@ export class ChatService {
   private readonly runCode: CodeRunner;
   private readonly market: MarketDataPort;
   private readonly news: NewsPort;
+  private readonly funds: FundUniversePort;
 
   constructor(deps: ChatDeps = {}) {
     this.assetService = new AssetService();
@@ -75,6 +79,7 @@ export class ChatService {
     this.runCode = deps.runCode ?? runInSandbox;
     this.market = deps.market ?? createMarketData();
     this.news = deps.news ?? createNewsData();
+    this.funds = deps.funds ?? createFundUniverse();
     // After `market`, and sharing it: the journal's verdicts are computed from
     // benchmark levels, so a test that injects a fake market must control these
     // too rather than reaching the network through the back door.
@@ -135,7 +140,8 @@ export class ChatService {
       converter,
       this.runCode,
       this.market,
-      this.news
+      this.news,
+      this.funds
     );
 
     const [snapshot, memories] = await Promise.all([

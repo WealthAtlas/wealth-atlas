@@ -27,10 +27,16 @@ export class MarketSourceError extends Error {
   }
 }
 
-async function getJson(url: string): Promise<unknown> {
+/**
+ * Exported for `src/data/funds/`, which reads the same host under the same
+ * failure semantics. Shared rather than copied because the interesting part is
+ * not the fetch — it is that a CORS rejection and an offline device are
+ * indistinguishable here, and both must be reported as what is verifiable.
+ */
+export async function fetchMarketJson(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   } catch (error) {
     // A CORS rejection and an offline device are indistinguishable here, so the
     // message says what is verifiable rather than guessing which it was.
@@ -65,8 +71,9 @@ interface MfApiResponse {
 }
 
 async function fetchMfApiSeries(schemeCode: string): Promise<SeriesPoint[]> {
-  const body = (await getJson(`https://api.mfapi.in/mf/${encodeURIComponent(schemeCode)}`)) as
-    MfApiResponse | undefined;
+  const body = (await fetchMarketJson(
+    `https://api.mfapi.in/mf/${encodeURIComponent(schemeCode)}`
+  )) as MfApiResponse | undefined;
 
   const rows = body?.data;
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -86,7 +93,7 @@ interface CoinGeckoResponse {
 }
 
 async function fetchCoinGeckoSeries(coinId: string, currency: string): Promise<SeriesPoint[]> {
-  const body = (await getJson(
+  const body = (await fetchMarketJson(
     `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}/market_chart` +
       `?vs_currency=${encodeURIComponent(currency.toLowerCase())}&days=365&interval=daily`
   )) as CoinGeckoResponse | undefined;

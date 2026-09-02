@@ -6,6 +6,7 @@ import { BenchmarkTrend, MarketDataPort } from '../market/MarketDataPort';
 import { DecisionEntry, IDecisionEntry } from '../entities/journal/DecisionEntry';
 import { reviewDecision, summariseJournal } from '../journal/DecisionReview';
 import { JournalEntryWithReview } from '../services/DecisionJournalService';
+import { FundTrends, FundUniversePort, SegmentScreen } from '../funds/FundUniversePort';
 import { NewsPort, NewsSummary } from '../news/NewsPort';
 import { CategoryNewsSentiment } from '../news/NewsSentiment';
 import {
@@ -68,6 +69,53 @@ function stubMarket(
       };
     },
     supportedCategories: () => supported,
+  };
+}
+
+function segmentScreen(overrides: Partial<SegmentScreen> = {}): SegmentScreen {
+  return {
+    segment: 'Flexi Cap',
+    category: AssetCategory.MUTUAL_FUNDS,
+    sebiCategoryHint: 'Equity Scheme - Flexi Cap Fund',
+    candidates: [
+      {
+        code: 118275,
+        name: 'Canara Robeco Flexi Cap Fund - Direct Plan - GROWTH OPTION',
+        fundHouse: 'Canara Robeco Mutual Fund',
+        schemeCategory: 'Equity Scheme - Flexi Cap Fund',
+        latestNav: 123.4567,
+        navAsOf: '2026-09-01',
+      },
+    ],
+    discardedAsStale: 2,
+    truncated: false,
+    totalMatched: 3,
+    source: 'api.mfapi.in',
+    universeFetchedAt: new Date('2026-08-30T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function stubFunds(
+  screens: Record<string, SegmentScreen> = { 'Flexi Cap': segmentScreen() },
+  trends: FundTrends = { funds: [], unavailable: [], source: 'api.mfapi.in' }
+): FundUniversePort & { screened: string[]; compared: { codes: number[]; windowDays?: number }[] } {
+  const screened: string[] = [];
+  const compared: { codes: number[]; windowDays?: number }[] = [];
+  return {
+    screened,
+    compared,
+    screenableSegments: () => Object.keys(screens),
+    async screenSegment(segment) {
+      screened.push(segment);
+      const screen = screens[segment];
+      if (!screen) throw new Error(`"${segment}" is not a segment this app can screen.`);
+      return screen;
+    },
+    async compareFunds(codes, windowDays) {
+      compared.push({ codes, windowDays });
+      return trends;
+    },
   };
 }
 
@@ -935,5 +983,214 @@ describe('getDecisionJournal', () => {
     expect(result.entries.items).toHaveLength(5);
     expect(result.entries.truncated).toBe(true);
     expect(result.entries.totalCount).toBe(30);
+  });
+});
+
+describe('screenFunds', () => {
+  it('screens the segments of the categories the user is underweight in', async () => {
+    // The default is what attaches a suggestion to a reason: a fund is worth
+    // adding where the policy says the user is short, not because a segment came
+    // to mind. Gold is 30 points under target here and equity is over.
+    const funds = stubFunds({
+      Gold: segmentScreen({ segment: 'Gold', category: AssetCategory.GOLD }),
+      'Flexi Cap': segmentScreen(),
+    });
+
+    await tool('screenFunds').run(
+      {},
+      fakeContext({
+        assets: [asset({ id: 1, category: AssetCategory.MUTUAL_FUNDS, manualValue: 100000 })],
+        targetAllocation: [
+          { category: AssetCategory.MUTUAL_FUNDS, targetPercent: 70 },
+          { category: AssetCategory.GOLD, targetPercent: 30 },
+        ],
+        funds,
+      })
+    );
+
+    expect(funds.screened).toEqual(['Gold']);
+  });
+
+  it('asks rather than screening when nothing is underweight and nothing was asked for', async () => {
+    // No segment and no reason to pick one is a question, not an arbitrary
+    // screen — and the reply has to be able to name what it could screen.
+    const funds = stubFunds();
+
+    const result = (await tool('screenFunds').run(
+      {},
+      fakeContext({ assets: [], targetAllocation: [], funds })
+    )) as { segments: unknown[]; availableSegments: string[]; note: string };
+
+    expect(funds.screened).toEqual([]);
+    expect(result.segments).toEqual([]);
+    expect(result.availableSegments).toContain('Flexi Cap');
+    expect(result.note).toContain('Ask');
+  });
+
+  it('reports a segment it cannot screen without failing the others', async () => {
+    // A model will invent a plausible segment name. One bad name must not cost
+    // the whole screen, and it must come back as a reason rather than silence.
+    const funds = stubFunds();
+
+    const result = (await tool('screenFunds').run(
+      { segments: ['Flexi Cap', 'Thematic Infrastructure'] },
+      fakeContext({ funds })
+    )) as { segments: { segment: string }[]; unavailable: { segment: string; reason: string }[] };
+
+    expect(result.segments.map(entry => entry.segment)).toEqual(['Flexi Cap']);
+    expect(result.unavailable).toHaveLength(1);
+    expect(result.unavailable[0].segment).toBe('Thematic Infrastructure');
+  });
+
+  it('passes on how many schemes were discarded for having stopped publishing', async () => {
+    // The count is the honesty: it says the screen excluded funds rather than
+    // that the segment is small, and it is what lets the reply explain why a
+    // fund the user half-remembers is not in the list.
+    const result = (await tool('screenFunds').run(
+      { segments: ['Flexi Cap'] },
+      fakeContext({ funds: stubFunds() })
+    )) as {
+      segments: {
+        discardedAsStale: number;
+        liveSchemeCount: number;
+        candidates: { items: { schemeCode: number; navAsOf: string; latestNav: number }[] };
+      }[];
+    };
+
+    const screen = result.segments[0];
+    expect(screen.discardedAsStale).toBe(2);
+    expect(screen.liveSchemeCount).toBe(1);
+    expect(screen.candidates.items[0].schemeCode).toBe(118275);
+    expect(screen.candidates.items[0].navAsOf).toBe('2026-09-01');
+    expect(screen.candidates.items[0].latestNav).toBe(123.46);
+  });
+
+  it('reports no performance figure at all', async () => {
+    // Load-bearing: a segment listed with returns reads as a ranking of fund
+    // quality, and position one gets recommended for having already run. The
+    // figures live in compareFunds, over a shortlist, with the drawdown beside
+    // them.
+    const result = (await tool('screenFunds').run(
+      { segments: ['Flexi Cap'] },
+      fakeContext({ funds: stubFunds() })
+    )) as { segments: { candidates: { items: Record<string, unknown>[] } }[] };
+
+    const fields = Object.keys(result.segments[0].candidates.items[0]);
+    expect(fields).not.toContain('returnOverWindowPercent');
+    expect(fields).not.toContain('drawdownFromHighPercent');
+  });
+
+  it('says a fund cannot be named when the list is unreachable', async () => {
+    // The default port when nothing is configured. "No funds" and "the list did
+    // not load" must never look the same, or the model fills the gap.
+    const result = (await tool('screenFunds').run({}, fakeContext({ funds: stubFunds({}) }))) as {
+      segments: unknown[];
+      note: string;
+    };
+
+    expect(result.segments).toEqual([]);
+    expect(result.note).toContain('from memory');
+  });
+
+  it('tells the reply that the expense ratio is not in these records', async () => {
+    // The variable that most decides between two funds in a segment is absent
+    // from the feed, so the note has to say so — otherwise it gets filled in.
+    const result = (await tool('screenFunds').run(
+      { segments: ['Flexi Cap'] },
+      fakeContext({ funds: stubFunds() })
+    )) as { note: string };
+
+    expect(result.note).toContain('expense ratio');
+    expect(result.note).toContain('direct-plan');
+  });
+});
+
+describe('compareFunds', () => {
+  const trend = {
+    latest: 90.7896,
+    latestOn: new Date('2026-09-01T00:00:00.000Z'),
+    high: 101.5,
+    highOn: new Date('2026-06-15T00:00:00.000Z'),
+    low: 70,
+    lowOn: new Date('2025-10-01T00:00:00.000Z'),
+    drawdownPercent: -10.55,
+    returnPercent: 22.4,
+    observations: 248,
+    windowDays: 364,
+  };
+
+  it('reports the drawdown and the window return as separate figures', async () => {
+    // The pair that must never be conflated: this fund is up 22% over the year
+    // and still 10.5% below a high it set inside it.
+    const result = (await tool('compareFunds').run(
+      { schemeCodes: [122639] },
+      fakeContext({
+        funds: stubFunds(undefined, {
+          funds: [
+            {
+              code: 122639,
+              name: 'Parag Parikh Flexi Cap Fund - Direct Plan - Growth',
+              fundHouse: 'PPFAS Mutual Fund',
+              asOf: '2026-09-01',
+              trend,
+            },
+          ],
+          unavailable: [],
+          source: 'api.mfapi.in',
+        }),
+      })
+    )) as {
+      funds: {
+        drawdownFromHighPercent: number;
+        returnOverWindowPercent: number;
+        asOf: string;
+        windowHighOn: string;
+      }[];
+    };
+
+    expect(result.funds[0].drawdownFromHighPercent).toBe(-10.55);
+    expect(result.funds[0].returnOverWindowPercent).toBe(22.4);
+    expect(result.funds[0].asOf).toBe('2026-09-01');
+    expect(result.funds[0].windowHighOn).toBe('2026-06-15');
+  });
+
+  it('sends the user back to the screen when given no code', async () => {
+    // A scheme code the model recalls is not a scheme code. Without this the
+    // tool would answer an empty comparison, which reads as "these funds have no
+    // history" rather than "you did not name one".
+    const funds = stubFunds();
+
+    const result = (await tool('compareFunds').run({}, fakeContext({ funds }))) as {
+      funds: unknown[];
+      note: string;
+    };
+
+    expect(funds.compared).toEqual([]);
+    expect(result.funds).toEqual([]);
+    expect(result.note).toContain('screenFunds');
+  });
+
+  it('clamps an absurd window rather than refusing it', async () => {
+    const funds = stubFunds();
+
+    await tool('compareFunds').run({ schemeCodes: [1], windowDays: 5 }, fakeContext({ funds }));
+    await tool('compareFunds').run({ schemeCodes: [1], windowDays: 99999 }, fakeContext({ funds }));
+
+    expect(funds.compared.map(entry => entry.windowDays)).toEqual([30, 3650]);
+  });
+
+  it('passes on the schemes whose history could not be read', async () => {
+    const result = (await tool('compareFunds').run(
+      { schemeCodes: [1, 2] },
+      fakeContext({
+        funds: stubFunds(undefined, {
+          funds: [],
+          unavailable: [{ code: 2, reason: 'the source returned no history' }],
+          source: 'api.mfapi.in',
+        }),
+      })
+    )) as { unavailable: { code: number }[] };
+
+    expect(result.unavailable).toEqual([{ code: 2, reason: 'the source returned no history' }]);
   });
 });

@@ -16,6 +16,7 @@ import { ICategoryTarget } from '../entities/shared/Settings';
 import { JournalSummary, summariseJournal } from '../journal/DecisionReview';
 import { JournalEntryWithReview } from '../services/DecisionJournalService';
 import { Frequency } from '../entities/shared/Frequency';
+import { FundUniversePort, unavailableFundUniverse } from '../funds/FundUniversePort';
 import { MarketDataPort, unavailableMarketData } from '../market/MarketDataPort';
 import { NewsPort, unavailableNews } from '../news/NewsPort';
 import { monthKey, utcMonthStart } from '../utils/DateUtils';
@@ -242,6 +243,7 @@ export function fakeContext(
     /** Defaults to reporting everything unavailable, so a test opts in. */
     market?: MarketDataPort;
     news?: NewsPort;
+    funds?: FundUniversePort;
   } = {}
 ): FakeChatToolContext {
   const loadCounts: Record<string, number> = {
@@ -296,5 +298,6 @@ export function fakeContext(
       (async () => ({ ok: false, error: 'No code runner in this test.', logs: [] })),
     market: data.market ?? unavailableMarketData('no market data in this test'),
     news: data.news ?? unavailableNews('no news provider in this test'),
+    funds: data.funds ?? unavailableFundUniverse('no fund list in this test'),
   };
 }

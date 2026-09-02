@@ -302,4 +302,31 @@ describe('the memory block', () => {
   it('defaults to no memory, so an unmigrated caller cannot leak a stale block', () => {
     expect(buildChatSystemPrompt()).toBe(buildChatSystemPrompt([]));
   });
+
+  it('forbids naming a fund from memory and keeps screening apart from judging', () => {
+    // Rule 8i is prose, and prose is what nothing else can keep in place. The
+    // failure it prevents is the most convincing wrong sentence the assistant
+    // can write: a remembered scheme name, quoted with a performance figure, for
+    // a fund that has since been renamed, merged or wound up.
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('\n8i.');
+    expect(prompt).toContain('A fund you remember is not a fund');
+    expect(prompt).toContain('screenFunds');
+    expect(prompt).toContain('discardedAsStale');
+
+    // The screen names funds; it does not rank them. Losing this sentence is how
+    // "here are the flexi cap funds" becomes "buy the first one".
+    expect(prompt).toContain('which funds exist, not which is good');
+
+    // The variable that actually decides between two funds in a segment is not
+    // in the feed, so the prompt has to say it must be checked elsewhere.
+    expect(prompt).toContain('expense ratio');
+
+    // A new fund answers "where should new money go", so it hangs off 8g rather
+    // than replacing it — and a second fund in a segment already held is usually
+    // cost and overlap rather than diversification.
+    expect(prompt).toContain('8g');
+    expect(prompt).toContain('overlap');
+  });
 });

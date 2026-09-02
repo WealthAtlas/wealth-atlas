@@ -8,6 +8,7 @@ import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { ICategoryTarget } from '../entities/shared/Settings';
 import { JournalEntryWithReview } from '../services/DecisionJournalService';
 import { JournalSummary } from '../journal/DecisionReview';
+import { FundUniversePort, unavailableFundUniverse } from '../funds/FundUniversePort';
 import { MarketDataPort, unavailableMarketData } from '../market/MarketDataPort';
 import { NewsPort, unavailableNews } from '../news/NewsPort';
 import { AllocationPolicyService } from '../services/AllocationPolicyService';
@@ -76,6 +77,14 @@ export interface ChatToolContext {
   market: MarketDataPort;
   /** Outside news, injected for the same reason as `market`. */
   news: NewsPort;
+  /**
+   * Every fund on the market, not just the ones the user holds — injected for
+   * the same reason as `market`. This is the only source the assistant has for
+   * a fund the user does not already own; without it a suggestion could only
+   * come from training memory, where the scheme may have merged or closed and
+   * its performance is quoted as of a date the model cannot state.
+   */
+  funds: FundUniversePort;
 }
 
 export interface ChatToolServices {
@@ -100,6 +109,7 @@ export function createChatToolContext(
   runCode: CodeRunner,
   market: MarketDataPort = unavailableMarketData('market data is not configured'),
   news: NewsPort = unavailableNews('no news provider is configured'),
+  funds: FundUniversePort = unavailableFundUniverse('the fund list is not reachable'),
   today: Date = utcToday()
 ): ChatToolContext {
   const sipCache = new Map<number, Promise<SIP[]>>();
@@ -125,5 +135,6 @@ export function createChatToolContext(
     runCode,
     market,
     news,
+    funds,
   };
 }
