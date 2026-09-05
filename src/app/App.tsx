@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { CurrencyProvider } from './components/providers/CurrencyProvider';
 import { NotificationProvider } from './components/providers/NotificationProvider';
 import { AppFailureBoundary } from './containers/shell/AppFailureBoundary';
+import { AssetValueFailureReporter } from './containers/shell/AssetValueFailureReporter';
 import { AppRouter } from './router/AppRouter';
 import { AppThemeProvider } from './theme/AppThemeProvider';
 
@@ -46,7 +47,10 @@ export default function App() {
         });
 
         // Prices last, and unawaited: they say nothing about the other devices,
-        // and a slow value script must not delay anything above it.
+        // and a slow value script must not delay anything above it. Which is
+        // exactly why `updateValues` announces itself when it lands rather than
+        // returning to a caller that is no longer waiting — by then the pages
+        // have long since read their copy.
         void new AssetService()
           .updateValues()
           .catch(error => Logger.warn('Could not refresh the value scripts:', error));
@@ -73,6 +77,9 @@ export default function App() {
           else so a provider that throws is caught rather than blanking the app. */}
       <AppFailureBoundary>
         <NotificationProvider>
+          {/* Inside the provider so it can toast, outside the router so a
+              failure raised on any route is reported. */}
+          <AssetValueFailureReporter />
           <CurrencyProvider>
             <AppRouter />
           </CurrencyProvider>

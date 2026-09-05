@@ -18,8 +18,13 @@ const DEFAULT_CACHE_TTL = 5 * 60 * 1000;
  */
 export async function executeValueScript(scriptCode: string): Promise<number> {
   try {
-    const scriptHash = btoa(scriptCode);
-    const cacheKey = `${scriptHash}`;
+    // The script text itself, not `btoa` of it. `btoa` throws
+    // `InvalidCharacterError` on anything outside Latin-1, so a single ₹, curly
+    // quote, em dash or emoji — in a comment, even — made the whole call throw
+    // before the script ran. The failure was swallowed into a `Logger.warn`, so
+    // that asset simply never populated while its neighbours worked. A Map takes
+    // any string as a key; there was nothing to encode for.
+    const cacheKey = scriptCode;
 
     // Check cache if not bypassing
     const cachedEntry = scriptExecutionCache.get(cacheKey);

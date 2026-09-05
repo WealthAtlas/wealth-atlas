@@ -43,7 +43,7 @@ const LIST_TIMEOUT_MS = 60_000;
  * published as a courtesy, and the difference between six concurrent requests
  * and eighty is invisible to the user but not to the host.
  */
-const META_CONCURRENCY = 6;
+export const META_CONCURRENCY = 6;
 
 interface ListRow {
   schemeCode?: number;
@@ -115,34 +115,4 @@ export async function fetchSchemeHistory(code: number): Promise<SeriesPoint[]> {
     date: new Date(`${toIsoDay(row.date) ?? ''}T00:00:00.000Z`),
     value: Number(row.nav),
   }));
-}
-
-/**
- * Runs `work` over every item with at most `limit` in flight.
- *
- * Results are positional, and a rejection is returned rather than thrown: one
- * scheme whose metadata will not load must not take a whole segment's screen
- * down with it — the same reason `MarketData` uses `allSettled`.
- */
-export async function mapWithConcurrency<T, R>(
-  items: T[],
-  work: (item: T) => Promise<R>,
-  limit = META_CONCURRENCY
-): Promise<PromiseSettledResult<R>[]> {
-  const results: PromiseSettledResult<R>[] = new Array(items.length);
-  let next = 0;
-
-  async function worker(): Promise<void> {
-    while (next < items.length) {
-      const index = next++;
-      try {
-        results[index] = { status: 'fulfilled', value: await work(items[index]) };
-      } catch (reason) {
-        results[index] = { status: 'rejected', reason };
-      }
-    }
-  }
-
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
 }

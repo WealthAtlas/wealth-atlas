@@ -96,12 +96,28 @@ export class Asset implements IAsset {
       .reduce((total, transaction) => total + transaction.getSignedQuantity(), 0);
   }
 
+  /**
+   * Units held now, or `undefined` for an asset that does not record units at
+   * all.
+   *
+   * The distinction is load-bearing because `getMarketValue` multiplies by this.
+   * A script returning a NAV needs the unit count; one returning a whole
+   * position's worth — several of the shipped templates do exactly that, as does
+   * any asset whose transactions carry amounts and no quantities — has nothing
+   * to multiply, and `undefined` is what tells the two apart.
+   *
+   * Zero is therefore a real answer, reached only by an asset that did record
+   * units and has since sold them all. A `< 1` test used to fold that in with
+   * "no units recorded", and swallowed every fractional holding with it: 0.6
+   * units of a fund was valued at one whole unit's NAV, and a position sold in
+   * full still showed a unit's worth rather than nothing.
+   */
   public getCurrentHoldings(): number | undefined {
-    const holding = this.investments.reduce(
+    if (!this.investments.some(transaction => transaction.quantity !== 0)) return undefined;
+    return this.investments.reduce(
       (total, transaction) => total + transaction.getSignedQuantity(),
       0
     );
-    return holding < 1 ? undefined : holding;
   }
 
   public getProfitLoss(): number | undefined {
@@ -120,10 +136,19 @@ export class Asset implements IAsset {
   public getValueOn(date: Date, includeFutureInvestments: boolean = false): number | undefined {
     switch (this.valueModel) {
       case ValueModel.MARKET_BASED: {
+        const investments = this.getInvestments(date, includeFutureInvestments);
+        // Nothing to fit a rate to and nothing to grow, so the recorded value is
+        // the whole story. Going through the solver anyway returned 0 — it has
+        // no transactions to discount — which reported an asset with a perfectly
+        // good price on it as worthless, and dragged the portfolio total down
+        // with it. An asset whose units are all held elsewhere, or one imported
+        // before its transactions were, is exactly this case.
+        if (investments.length === 0) return this.getMarketValue();
+
         const irr = this.getIRR();
         if (irr === undefined) return undefined;
         return IRRCalculator.getInstance().calculateFutureValueOnIRR(
-          this.getInvestments(date, includeFutureInvestments).map(tx => ({
+          investments.map(tx => ({
             date: tx.date,
             amount: tx.getSignedAmount(),
           })),
@@ -273,16 +298,22 @@ export class Asset implements IAsset {
   }
 
   public needsScriptExecution(): boolean {
-    if (this.valueModel === ValueModel.MARKET_BASED && !!this.script) {
-      if (this.scriptValue === undefined || this.scriptValueUpdatedAt === undefined) {
-        return true;
-      }
-      // Re-execute script if last execution was more than a day ago
-      const oneDayMs = 24 * 60 * 60 * 1000;
-      if (new Date().getTime() - this.scriptValueUpdatedAt.getTime() > oneDayMs) {
-        return true;
-      }
-    }
-    return false;
+    return needsScriptExecution(this);
   }
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whether this asset's value script is due a run.
+ *
+ * A free function as well as a method because the startup refresh decides from
+ * the stored rows: loading every asset's transactions and SIPs — two queries
+ * each — only to ask which scripts are stale is N+1 for data the question never
+ * reads.
+ */
+export function needsScriptExecution(asset: IAsset): boolean {
+  if (asset.valueModel !== ValueModel.MARKET_BASED || !asset.script) return false;
+  if (asset.scriptValue === undefined || asset.scriptValueUpdatedAt === undefined) return true;
+  return Date.now() - asset.scriptValueUpdatedAt.getTime() > ONE_DAY_MS;
 }

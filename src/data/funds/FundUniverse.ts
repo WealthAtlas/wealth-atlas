@@ -29,8 +29,9 @@ import {
   fetchSchemeList,
   fetchSchemeMeta,
   FUND_SOURCE,
-  mapWithConcurrency,
+  META_CONCURRENCY,
 } from './FundSources';
+import { mapWithConcurrency } from '@/domain/utils/Concurrency';
 
 /**
  * The real `FundUniversePort`: the published scheme list, the segment table,
@@ -98,7 +99,7 @@ async function loadMeta(codes: number[]): Promise<Map<number, SchemeMeta>> {
   const missing = codes.filter(code => !cached.has(code));
   if (missing.length === 0) return cached;
 
-  const outcomes = await mapWithConcurrency(missing, fetchSchemeMeta);
+  const outcomes = await mapWithConcurrency(missing, fetchSchemeMeta, META_CONCURRENCY);
   const fetched = new Map<number, SchemeMeta>();
 
   outcomes.forEach((outcome, index) => {
@@ -173,23 +174,27 @@ export function createFundUniverse(): FundUniversePort {
       const byCode = new Map(schemes.map(scheme => [scheme.code, scheme.name]));
       const meta = await loadMeta(requested);
 
-      const outcomes = await mapWithConcurrency(requested, async code => {
-        const series = await loadHistory(code);
-        const trend = computeSeriesTrend(series, windowDays);
-        if (!trend) throw new MarketSourceError('the history contained no usable observations');
+      const outcomes = await mapWithConcurrency(
+        requested,
+        async code => {
+          const series = await loadHistory(code);
+          const trend = computeSeriesTrend(series, windowDays);
+          if (!trend) throw new MarketSourceError('the history contained no usable observations');
 
-        const entry = meta.get(code);
-        return {
-          code,
-          name: byCode.get(code) ?? `scheme ${code}`,
-          fundHouse: entry?.fundHouse,
-          schemeCategory: entry?.schemeCategory,
-          // The series' own last observation, never the clock: NAVs lag by a day
-          // or more and the reply has to be able to say how stale the figure is.
-          asOf: isoDate(trend.latestOn),
-          trend,
-        } satisfies FundTrend;
-      });
+          const entry = meta.get(code);
+          return {
+            code,
+            name: byCode.get(code) ?? `scheme ${code}`,
+            fundHouse: entry?.fundHouse,
+            schemeCategory: entry?.schemeCategory,
+            // The series' own last observation, never the clock: NAVs lag by a day
+            // or more and the reply has to be able to say how stale the figure is.
+            asOf: isoDate(trend.latestOn),
+            trend,
+          } satisfies FundTrend;
+        },
+        META_CONCURRENCY
+      );
 
       const funds: FundTrend[] = [];
       const unavailable: { code: number; reason: string }[] = [];

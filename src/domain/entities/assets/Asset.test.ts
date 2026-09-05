@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Currency } from '../shared/Currency';
-import { Asset, IAsset } from './Asset';
+import { Asset, IAsset, needsScriptExecution } from './Asset';
 import { Investment, InvestmentType } from './Investment';
 import { ValueModel } from './ValueModel';
 
@@ -67,11 +67,26 @@ describe('Asset buy/sell aggregation', () => {
     expect(asset.getCurrentHoldings()).toBe(60);
   });
 
-  it('reports no holdings once everything is sold', () => {
+  it('reports zero holdings once everything is sold, not "no units recorded"', () => {
     const asset = assetWith([
       tx(InvestmentType.BUY, 10, 1000, daysAgo(60)),
       tx(InvestmentType.SELL, 10, 1200, daysAgo(5)),
     ]);
+
+    // `undefined` here means "this asset does not count units", which
+    // `getMarketValue` reads as a licence to take the script value whole. A
+    // position that has been sold in full is the opposite of that.
+    expect(asset.getCurrentHoldings()).toBe(0);
+  });
+
+  it('keeps a fractional holding rather than rounding it away', () => {
+    const asset = assetWith([tx(InvestmentType.BUY, 0.6, 1000, daysAgo(60))]);
+
+    expect(asset.getCurrentHoldings()).toBe(0.6);
+  });
+
+  it('records no units for an asset whose transactions carry only amounts', () => {
+    const asset = assetWith([tx(InvestmentType.BUY, 0, 1000, daysAgo(60))]);
 
     expect(asset.getCurrentHoldings()).toBeUndefined();
   });
@@ -206,5 +221,85 @@ describe('Asset valuation when money arrives after the model stops watching', ()
 
     expect(current.getIRR()).toBeCloseTo(11.4, 1);
     expect(current.getValueOn(utc(2021, 0))).toBeCloseTo(235570, 0);
+  });
+});
+
+describe('needsScriptExecution', () => {
+  const SCRIPTED: IAsset = { ...BASE, script: 'exports.getValue = async () => 1;' };
+
+  it('is answerable from a stored row, without its transactions', () => {
+    // The startup refresh asks this of every asset. Building the entities to ask
+    // it costs two extra queries each — for data the question never reads.
+    expect(needsScriptExecution(SCRIPTED)).toBe(true);
+  });
+
+  it('agrees with the method on the entity', () => {
+    const asset = new Asset({ ...SCRIPTED, investments: [], sips: [] });
+
+    expect(asset.needsScriptExecution()).toBe(needsScriptExecution(SCRIPTED));
+  });
+
+  it('is false without a script, whatever the value model', () => {
+    expect(needsScriptExecution(BASE)).toBe(false);
+  });
+
+  it('is false for a value model no script feeds', () => {
+    expect(needsScriptExecution({ ...SCRIPTED, valueModel: ValueModel.FIXED_INCOME })).toBe(false);
+  });
+
+  it('waits a day between runs, and no longer', () => {
+    const hourOld = { ...SCRIPTED, scriptValue: 12, scriptValueUpdatedAt: daysAgo(0.5) };
+    const twoDaysOld = { ...SCRIPTED, scriptValue: 12, scriptValueUpdatedAt: daysAgo(2) };
+
+    expect(needsScriptExecution(hourOld)).toBe(false);
+    expect(needsScriptExecution(twoDaysOld)).toBe(true);
+  });
+
+  it('runs when a value was stamped but never recorded', () => {
+    expect(needsScriptExecution({ ...SCRIPTED, scriptValueUpdatedAt: daysAgo(0) })).toBe(true);
+  });
+});
+
+describe('a market-based asset valued by script', () => {
+  const NAV = 250;
+  const SCRIPTED: IAsset = {
+    ...BASE,
+    script: 'exports.getValue = async () => 250;',
+    scriptValue: NAV,
+    scriptValueUpdatedAt: daysAgo(0),
+  };
+
+  it('multiplies a fractional holding by the unit price', () => {
+    const asset = new Asset({
+      ...SCRIPTED,
+      investments: [tx(InvestmentType.BUY, 0.6, 120, daysAgo(30))],
+      sips: [],
+    });
+
+    expect(asset.getMarketValue()).toBeCloseTo(NAV * 0.6, 6);
+  });
+
+  it('takes the script value whole when the asset records no units', () => {
+    const asset = new Asset({
+      ...SCRIPTED,
+      investments: [tx(InvestmentType.BUY, 0, 200, daysAgo(30))],
+      sips: [],
+    });
+
+    expect(asset.getMarketValue()).toBe(NAV);
+  });
+
+  it('is worth its recorded value with no transactions to fit a rate to', () => {
+    // The solver has nothing to discount and answered 0, so an asset carrying a
+    // perfectly good price read as worthless and pulled the portfolio down.
+    const asset = new Asset({ ...SCRIPTED, investments: [], sips: [] });
+
+    expect(asset.getValue()).toBe(NAV);
+  });
+
+  it('has no value when neither a script nor a manual figure has produced one', () => {
+    const asset = new Asset({ ...BASE, investments: [], sips: [] });
+
+    expect(asset.getValue()).toBeUndefined();
   });
 });

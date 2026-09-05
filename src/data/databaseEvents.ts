@@ -13,6 +13,12 @@ import { Logger } from '@/domain/utils/Logger';
  * per replacement is all anyone needs, and a typed function is easier to follow
  * than a string channel.
  *
+ * The startup value-script refresh emits this too. It rewrites one column on a
+ * handful of rows rather than every table, but it is the same situation from a
+ * container's side — rows changed underneath the copy it is holding, and it did
+ * not make the change itself — and one event the whole app already listens for
+ * beats a second subscription in every view that shows an asset.
+ *
  * This is not a substitute for reloading after a mutation the UI made itself —
  * a container still refreshes after its own writes.
  */
