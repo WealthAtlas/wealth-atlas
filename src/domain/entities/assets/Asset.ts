@@ -141,9 +141,20 @@ export class Asset implements IAsset {
         // the whole story. Going through the solver anyway returned 0 — it has
         // no transactions to discount — which reported an asset with a perfectly
         // good price on it as worthless, and dragged the portfolio total down
-        // with it. An asset whose units are all held elsewhere, or one imported
-        // before its transactions were, is exactly this case.
-        if (investments.length === 0) return this.getMarketValue();
+        // with it. An asset whose units are all held elsewhere is exactly this
+        // case: it never records a transaction, at any date.
+        //
+        // An asset that does record transactions but whose first one falls
+        // after `date` is a different question: nothing was held yet on that
+        // date, so the value on it is zero. Falling through to
+        // `getMarketValue()` here priced it at *today's* holdings and *today's*
+        // script value instead — every date before an asset's first recorded
+        // purchase showed it already fully bought at today's price, which is
+        // what turned a brand-new holding into a multi-year, multi-crore step
+        // in the investment timeline chart the moment its first transaction
+        // landed.
+        if (this.investments.length === 0) return this.getMarketValue();
+        if (investments.length === 0) return 0;
 
         const irr = this.getIRR();
         if (irr === undefined) return undefined;

@@ -302,4 +302,19 @@ describe('a market-based asset valued by script', () => {
 
     expect(asset.getValue()).toBeUndefined();
   });
+
+  it('is worth nothing on a date before its first recorded purchase', () => {
+    // Distinct from the no-transactions-ever case above: this asset does
+    // record transactions, just none yet as of the queried date. Pricing it
+    // at today's holdings and today's script value here is what turned a
+    // brand-new holding's first purchase into a cliff in the investment
+    // timeline chart — every earlier date showed it already fully bought.
+    const asset = new Asset({
+      ...SCRIPTED,
+      investments: [tx(InvestmentType.BUY, 10, 1000, daysAgo(5))],
+      sips: [],
+    });
+
+    expect(asset.getValueOn(daysAgo(10))).toBe(0);
+  });
 });
