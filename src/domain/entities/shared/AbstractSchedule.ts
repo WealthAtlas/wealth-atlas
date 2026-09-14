@@ -15,6 +15,87 @@ export interface IScheduleBase {
   lastGeneratedDate?: Date;
 }
 
+/**
+ * Steps a UTC-midnight date forward by one occurrence of `frequency`.
+ *
+ * Every month-based step is anchored to `anchorDay` (the schedule's own
+ * `startDate` day-of-month), not to the previous occurrence: clamping 31 Jan
+ * into February and then stepping from *that* gives 29 Feb → 29 Mar → 29 Apr,
+ * silently moving a month-end schedule to the 29th for ever. See `addUtcMonths`.
+ *
+ * Exported so occurrence-count math (`countScheduleOccurrences`,
+ * `computeScheduleEndDate`) can walk the same schedule a draft entity hasn't
+ * been constructed for yet, without duplicating this switch.
+ */
+export function stepByFrequency(date: Date, frequency: Frequency, anchorDay: number): Date {
+  switch (frequency) {
+    case Frequency.DAILY:
+      return addUtcDays(date, 1);
+    case Frequency.WEEKLY:
+      return addUtcDays(date, 7);
+    case Frequency.BIWEEKLY:
+      return addUtcDays(date, 14);
+    case Frequency.MONTHLY:
+      return addUtcMonths(date, 1, anchorDay);
+    case Frequency.QUARTERLY:
+      return addUtcMonths(date, 3, anchorDay);
+    case Frequency.SEMI_ANNUALLY:
+      return addUtcMonths(date, 6, anchorDay);
+    case Frequency.ANNUALLY:
+      return addUtcYears(date, 1, anchorDay);
+    default:
+      throw new Error('Invalid frequency');
+  }
+}
+
+/**
+ * Counts how many occurrences a schedule produces between `startDate` and
+ * `endDate` inclusive, matching `AbstractSchedule.shouldAdd`'s semantics: the
+ * first occurrence *is* `startDate`, and one landing exactly on `endDate`
+ * counts. Returns 0 for an `endDate` before `startDate` (the validator
+ * rejects that at submit time, but a dialog computing this live while the
+ * user edits fields must not throw on a transient invalid range).
+ */
+export function countScheduleOccurrences(
+  startDate: Date,
+  endDate: Date,
+  frequency: Frequency
+): number {
+  const start = utcDay(startDate);
+  const end = utcDay(endDate);
+  if (end < start) return 0;
+  const anchorDay = start.getUTCDate();
+  let count = 0;
+  let cursor = start;
+  while (cursor <= end) {
+    count++;
+    cursor = stepByFrequency(cursor, frequency, anchorDay);
+  }
+  return count;
+}
+
+/**
+ * Returns the date of the Nth (last) occurrence of a schedule starting on
+ * `startDate`, the inverse of `countScheduleOccurrences`. `occurrenceCount`
+ * must be >= 1 -- there is no schedule with zero occurrences.
+ */
+export function computeScheduleEndDate(
+  startDate: Date,
+  frequency: Frequency,
+  occurrenceCount: number
+): Date {
+  if (occurrenceCount < 1) {
+    throw new Error('occurrenceCount must be at least 1');
+  }
+  const start = utcDay(startDate);
+  const anchorDay = start.getUTCDate();
+  let cursor = start;
+  for (let i = 1; i < occurrenceCount; i++) {
+    cursor = stepByFrequency(cursor, frequency, anchorDay);
+  }
+  return cursor;
+}
+
 export abstract class AbstractSchedule<T> implements IScheduleBase {
   public readonly id: number | undefined;
   public readonly startDate: Date;
@@ -76,30 +157,7 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
    * @param frequency The frequency enum
    */
   protected getNextOccurrenceDateTime(dateTime: Date, frequency: Frequency): Date {
-    const from = utcDay(dateTime);
-    // Every month-based step is anchored to the day the schedule started on, not
-    // to the previous occurrence: clamping 31 Jan into February and then stepping
-    // from *that* gives 29 Feb → 29 Mar → 29 Apr, silently moving a month-end
-    // schedule to the 29th for ever. See `addUtcMonths`.
-    const anchorDay = this.startDate.getUTCDate();
-    switch (frequency) {
-      case Frequency.DAILY:
-        return addUtcDays(from, 1);
-      case Frequency.WEEKLY:
-        return addUtcDays(from, 7);
-      case Frequency.BIWEEKLY:
-        return addUtcDays(from, 14);
-      case Frequency.MONTHLY:
-        return addUtcMonths(from, 1, anchorDay);
-      case Frequency.QUARTERLY:
-        return addUtcMonths(from, 3, anchorDay);
-      case Frequency.SEMI_ANNUALLY:
-        return addUtcMonths(from, 6, anchorDay);
-      case Frequency.ANNUALLY:
-        return addUtcYears(from, 1, anchorDay);
-      default:
-        throw new Error('Invalid frequency');
-    }
+    return stepByFrequency(utcDay(dateTime), frequency, this.startDate.getUTCDate());
   }
 
   public getNextOccurrenceData(): T | undefined {

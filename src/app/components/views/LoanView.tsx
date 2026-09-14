@@ -104,11 +104,20 @@ export function LoanView({
   const totalLoanAmount = loan.getTotalAmount();
   const repaymentProgress = totalLoanAmount > 0 ? (totalPaid / totalLoanAmount) * 100 : 0;
 
+  // A loan's IRR is its cost of borrowing, so the coloring runs the opposite
+  // way from an asset's: low is good (green), high is bad (red). Shared
+  // between the header trend icon and the "IRR (Annual)" metric tile below so
+  // the two can never disagree about what counts as a "high" rate.
+  const getIrrColor = (irr: number) => {
+    if (irr > 15) return 'error.main';
+    if (irr > 8) return 'warning.main';
+    return 'success.main';
+  };
+
   const getTrendIcon = () => {
     const irr = loan.getIRR();
-    if (irr > 15) return <TrendingUp sx={{ color: 'error.main' }} />;
-    if (irr > 8) return <TrendingUp sx={{ color: 'warning.main' }} />;
-    return <TrendingFlat sx={{ color: 'success.main' }} />;
+    const color = getIrrColor(irr);
+    return irr > 8 ? <TrendingUp sx={{ color }} /> : <TrendingFlat sx={{ color }} />;
   };
 
   // Days until next payment
@@ -392,6 +401,21 @@ export function LoanView({
                   </Typography>
                   <Typography variant="body1" fontWeight={600}>
                     {loan.payments.length}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    IRR (Annual)
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    fontWeight={600}
+                    sx={{ color: getIrrColor(loan.getIRR()) }}
+                  >
+                    {UIUtils.formatPercentage(loan.getIRR())}
                   </Typography>
                 </Box>
               </Grid>

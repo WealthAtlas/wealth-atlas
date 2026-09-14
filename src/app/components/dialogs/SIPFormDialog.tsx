@@ -21,6 +21,7 @@ import { IAsset } from '../../../domain/entities/assets/Asset';
 import { ISIP } from '../../../domain/entities/assets/SIP';
 import { Frequency } from '../../../domain/entities/shared/Frequency';
 import { parseUtcDay } from '@/domain/utils/DateUtils';
+import { ScheduleDurationFields } from './ScheduleDurationFields';
 
 export interface SIPFormDialogProps {
   open: boolean;
@@ -169,29 +170,26 @@ export function SIPFormDialog({
 
       <DialogContent>
         <Stack spacing={3} sx={{ pt: 2 }}>
-          {/* Date Range */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="Start Date"
-              value={formatDateForInput(sip.startDate)}
-              onChange={e => handleDateChange('startDate', e.target.value)}
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              required
-              fullWidth
-              helperText="When SIP investments begin"
-            />
+          {/* Start Date */}
+          <TextField
+            label="Start Date"
+            value={formatDateForInput(sip.startDate)}
+            onChange={e => handleDateChange('startDate', e.target.value)}
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            required
+            fullWidth
+            helperText="When SIP investments begin"
+          />
 
-            <TextField
-              label="End Date"
-              value={formatDateForInput(sip.endDate)}
-              onChange={e => handleDateChange('endDate', e.target.value)}
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-              helperText="Optional: When SIP investments end"
-            />
-          </Stack>
+          {/* Duration: by end date or by number of occurrences */}
+          <ScheduleDurationFields
+            startDate={sip.startDate}
+            endDate={sip.endDate}
+            frequency={sip.frequency}
+            occurrenceNoun="investments"
+            onEndDateChange={endDate => onSIPChange({ ...sip, endDate })}
+          />
 
           {/* Frequency */}
           <TextField

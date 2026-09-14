@@ -21,6 +21,7 @@ import { IEMI } from '../../../domain/entities/loans/EMI';
 import { ILoan } from '../../../domain/entities/loans/Loan';
 import { Frequency } from '../../../domain/entities/shared/Frequency';
 import { parseUtcDay } from '@/domain/utils/DateUtils';
+import { ScheduleDurationFields } from './ScheduleDurationFields';
 
 export interface EMIFormDialogProps {
   open: boolean;
@@ -147,29 +148,26 @@ export function EMIFormDialog({
             helperText="Descriptive name for this EMI schedule"
           />
 
-          {/* Date Range */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="Start Date"
-              value={formatDateForInput(emi.startDate)}
-              onChange={e => handleDateChange('startDate', e.target.value)}
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              required
-              fullWidth
-              helperText="When EMI payments begin"
-            />
+          {/* Start Date */}
+          <TextField
+            label="Start Date"
+            value={formatDateForInput(emi.startDate)}
+            onChange={e => handleDateChange('startDate', e.target.value)}
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            required
+            fullWidth
+            helperText="When EMI payments begin"
+          />
 
-            <TextField
-              label="End Date"
-              value={formatDateForInput(emi.endDate)}
-              onChange={e => handleDateChange('endDate', e.target.value)}
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-              helperText="Optional: When EMI payments end"
-            />
-          </Stack>
+          {/* Duration: by end date or by number of occurrences */}
+          <ScheduleDurationFields
+            startDate={emi.startDate}
+            endDate={emi.endDate}
+            frequency={emi.frequency}
+            occurrenceNoun="EMI payments"
+            onEndDateChange={endDate => onEMIChange({ ...emi, endDate })}
+          />
 
           {/* Frequency and Amount */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
