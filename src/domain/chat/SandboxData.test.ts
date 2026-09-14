@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Currency } from '../entities/shared/Currency';
-import { asset, converter, expense, fakeContext, goal, loan, months } from './ChatFixtures';
+import { asset, converter, expense, fakeContext, goal, loan, months, sip } from './ChatFixtures';
 import { buildSandboxData } from './SandboxData';
 
 /**
@@ -75,6 +75,48 @@ describe('buildSandboxData', () => {
 
     expect(data.loans[0]).toMatchObject({ id: 1, name: 'Home Loan', principalAmount: 1000000 });
     expect(data.goals[0]).toMatchObject({ id: 1, name: 'Retirement', targetAmount: 500000 });
+  });
+
+  // A snippet solving for a loan's effective rate against a SIP needs the dated
+  // schedule, not just the aggregate irrPercentage — this is the one place that
+  // schedule leaves the entity.
+  it("carries a loan's future EMIs as a dated cashflow", async () => {
+    const data = await buildSandboxData(
+      fakeContext({ loans: [loan({ emiAmount: 25000, emiEndDate: new Date('2027-01-01') })] })
+    );
+    const futureEmis = (data.loans[0] as { futureEmis: { date: string; amount: number }[] })
+      .futureEmis;
+
+    expect(futureEmis.length).toBeGreaterThan(0);
+    expect(futureEmis[0]).toMatchObject({ date: '2026-08-25', amount: 25000 });
+    // Sorted, and nothing before today.
+    expect(futureEmis.every(row => row.date >= '2026-08-20')).toBe(true);
+  });
+
+  it("carries an asset's future SIP contributions, none of them in the past", async () => {
+    const data = await buildSandboxData(
+      fakeContext({ assets: [asset({ sips: [sip({ price: 5000 })] })] })
+    );
+    const futureContributions = (
+      data.assets[0] as { futureContributions: { date: string; amount: number }[] }
+    ).futureContributions;
+
+    expect(futureContributions.length).toBeGreaterThan(0);
+    expect(futureContributions[0]).toMatchObject({ date: '2026-08-25', amount: 5000 });
+    expect(futureContributions.every(row => row.date > '2026-08-20')).toBe(true);
+  });
+
+  it('converts future cashflows to the base currency', async () => {
+    const data = await buildSandboxData(
+      fakeContext({
+        loans: [loan({ currency: Currency.USD, emiAmount: 1000 })],
+        converter: converter({ [Currency.USD]: 88 }),
+      })
+    );
+    const futureEmis = (data.loans[0] as { futureEmis: { amount: number; amountInBase: number }[] })
+      .futureEmis;
+
+    expect(futureEmis[0].amountInBase).toBeCloseTo(futureEmis[0].amount * 88, 2);
   });
 
   it('summarises spending per month, essential split included', async () => {

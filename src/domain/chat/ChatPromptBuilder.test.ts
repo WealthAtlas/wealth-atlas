@@ -192,6 +192,29 @@ describe('buildChatSystemPrompt', () => {
     // The sandbox is offline, and a snippet that assumes otherwise wastes a turn.
     expect(prompt).toContain('no network and no database access');
   });
+
+  // A question with no exact-match tool must not pattern-match toward the
+  // market/allocation/news workflow just because a word in it sounds adjacent.
+  it('scopes tool calls to what the question actually needs', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain('\n1a.');
+    expect(prompt).toContain('Call only the tools this question actually needs');
+    expect(prompt).toContain('never because a word in it sounds adjacent');
+    expect(prompt).toContain('getLoanSummary, getAssetDetail, getExpenseBreakdown');
+  });
+
+  // The building blocks for an effective rate over a loan's future EMIs and a
+  // SIP's future contributions are dated cashflows, not an existing tool — the
+  // model has to write the root-find itself and check it against a known value.
+  it('gives the recipe for an effective rate over dated cashflows', () => {
+    const prompt = buildChatSystemPrompt();
+
+    expect(prompt).toContain("a loan's future EMIs offset by a SIP's future contributions");
+    expect(prompt).toContain('guess a rate, discount every cashflow');
+    expect(prompt).toContain("run your solver again with the SIP's contributions removed");
+    expect(prompt).toContain("reproduces the loan's own irrPercentage from getLoanSummary");
+  });
 });
 
 describe('buildChatUserPrompt', () => {

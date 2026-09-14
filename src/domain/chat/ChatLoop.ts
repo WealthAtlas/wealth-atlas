@@ -317,9 +317,12 @@ export async function runChatLoop({
   }
 
   warnings.push(`The assistant did not produce an answer within ${MAX_TOOL_STEPS} tool steps.`);
+  const triedTools = toolTrace.map(entry => entry.name).join(', ');
+  Logger.warn(
+    `Chat loop exhausted its tool budget without an answer. Tools called: ${triedTools || 'none'}.`
+  );
   return {
-    reply:
-      'I could not settle on an answer for that. Try asking for one thing at a time, or rephrasing it.',
+    reply: `I could not settle on an answer for that after checking ${triedTools || 'nothing useful'}. Try asking for one thing at a time, or rephrasing it.`,
     toolTrace,
     warnings,
     // Carried anyway: the lookups that did run are what a rephrased follow-up

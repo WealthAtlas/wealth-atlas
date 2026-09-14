@@ -374,7 +374,7 @@ export const CHAT_TOOLS: ChatTool[] = [
     description:
       'Run a short JavaScript snippet to work out a figure the other tools do not return — a projection, a what-if, a comparison, or a total over a set you have filtered yourself. Prefer this over doing arithmetic in your head.',
     argsHint:
-      'code: string — the body of an async function. It receives `data` ({today, baseCurrency, unratedCurrencies, assets[], loans[], goals[], monthlyExpenses[]}, all amounts already in the base currency, keys as in listAssets/getLoanSummary/getGoalProgress; asset, loan and goal amounts are in the base currency, while monthlyExpenses[].byCurrency keeps each currency apart and unconverted) and must `return` a number or a plain object. No network and no database access; console.log is echoed back.',
+      "code: string — the body of an async function. It receives `data` ({today, baseCurrency, unratedCurrencies, assets[], loans[], goals[], monthlyExpenses[]}, all amounts already in the base currency, keys as in listAssets/getLoanSummary/getGoalProgress; asset, loan and goal amounts are in the base currency, while monthlyExpenses[].byCurrency keeps each currency apart and unconverted) and must `return` a number or a plain object. loans[].futureEmis[] and assets[].futureContributions[] carry each future EMI/SIP occurrence as {date, amount, amountInBase} — use these for a question over dated cashflows, such as a loan's effective rate offset by a SIP. No network and no database access; console.log is echoed back.",
     async run(args, ctx) {
       const code = asString(args.code);
       if (code === undefined) return { error: 'code is required.' };

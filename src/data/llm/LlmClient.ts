@@ -411,7 +411,10 @@ export async function testConnection(signal?: AbortSignal): Promise<string> {
     system: 'You are a connectivity check. Reply with JSON only.',
     user: 'Reply with exactly {"ok":true}.',
     signal,
-    maxTokens: 32,
+    // DeepSeek's `thinking` is enabled even at 'low' effort (see
+    // `reasoningBodyFor`), so a ceiling this tight can be spent entirely on
+    // reasoning tokens before the visible `{"ok":true}` is ever emitted.
+    maxTokens: 200,
   });
 
   if (!result || typeof result !== 'object') {

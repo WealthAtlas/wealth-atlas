@@ -1,6 +1,6 @@
 import { computeExpenseBreakdown } from '../services/ExpenseService';
 import { computeGoalProgress } from '../services/GoalService';
-import { isoDate, monthKey } from '../utils/DateUtils';
+import { addUtcYears, isoDate, monthKey } from '../utils/DateUtils';
 import { ChatToolContext } from './ChatToolContext';
 
 /**
@@ -21,10 +21,28 @@ import { ChatToolContext } from './ChatToolContext';
  * were paid in — the same shape the expense pages show. A snippet that wants one
  * spending figure has to pick a currency; there is no rate here to blend them
  * with, deliberately.
+ *
+ * `loans[].futureEmis` and `assets[].futureContributions` are the one place a
+ * *dated* cashflow leaves this file — every other field is a snapshot total.
+ * They exist so a snippet can answer a question like "this loan's effective
+ * rate against that SIP's contributions", which needs the schedule, not just
+ * the aggregate `irrPercentage`. Both carry only occurrences strictly after
+ * `today`; anything already paid or invested is in the aggregate fields
+ * already. Each entry has the native amount alongside `amountInBase`, the same
+ * convention as `outstandingInBase`/`investedInBase` below.
  */
 
 /** Enough for arithmetic over a real portfolio; bounded so one call cannot blow the frame. */
 const ROW_LIMIT = 500;
+
+/**
+ * How far ahead an open-ended (no `endDate`) EMI or SIP schedule is projected.
+ * A generous ceiling on realistic loan/SIP tenures, not a business rule — both
+ * `EMI.getPendingOccurrences` and `Asset.getInvestments` fall back to "today"
+ * when handed no explicit bound, which would silently drop every future
+ * cashflow for a schedule with no end date.
+ */
+const FUTURE_HORIZON_YEARS = 30;
 
 export interface SandboxDataset {
   today: string;
@@ -57,6 +75,8 @@ export async function buildSandboxData(ctx: ChatToolContext): Promise<SandboxDat
     return items.slice(0, ROW_LIMIT);
   };
 
+  const horizon = addUtcYears(ctx.today, FUTURE_HORIZON_YEARS);
+
   return {
     today: isoDate(ctx.today),
     baseCurrency: ctx.converter.getBaseCurrency(),
@@ -78,6 +98,14 @@ export async function buildSandboxData(ctx: ChatToolContext): Promise<SandboxDat
       profitLoss: round(asset.getProfitLoss()),
       irrPercentage: round(asset.getIRR()),
       quantityHeld: round(asset.getTotalQty()),
+      futureContributions: asset
+        .getInvestments(horizon, true)
+        .filter(tx => tx.date > ctx.today)
+        .map(tx => ({
+          date: isoDate(tx.date),
+          amount: round(tx.getSignedAmount()),
+          amountInBase: round(ctx.converter.toBase(tx.getSignedAmount(), asset.currency)),
+        })),
     })),
 
     loans: cap(loans, 'loans').map(loan => ({
@@ -89,6 +117,14 @@ export async function buildSandboxData(ctx: ChatToolContext): Promise<SandboxDat
       outstandingInBase: round(ctx.converter.toBase(loan.getOutstandingAmount(), loan.currency)),
       paid: round(loan.getPaidAmount()),
       interest: round(loan.getInterestAmount()),
+      futureEmis: loan.emis
+        .flatMap(emi => emi.getPendingOccurrences(horizon))
+        .sort((a, b) => a.date.getTime() - b.date.getTime())
+        .map(payment => ({
+          date: isoDate(payment.date),
+          amount: round(payment.amount),
+          amountInBase: round(ctx.converter.toBase(payment.amount, loan.currency)),
+        })),
       irrPercentage: round(loan.getIRR()),
       isFullyPaid: loan.isFullyPaid(),
       nextPaymentDate: loan.getNextPaymentDate() ? isoDate(loan.getNextPaymentDate()!) : undefined,

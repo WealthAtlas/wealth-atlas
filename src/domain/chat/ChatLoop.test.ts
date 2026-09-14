@@ -1,9 +1,10 @@
 import { LlmMessage } from '@/data/llm/LlmClient';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { asset, fakeContext, loan } from './ChatFixtures';
 import { ChatSnapshot } from './ChatContextBuilder';
 import { MAX_TOOL_STEPS, runChatLoop, trimTranscript, TurnsChatFn } from './ChatLoop';
 import { ChatToolContext } from './ChatToolContext';
+import { Logger } from '../utils/Logger';
 
 const SNAPSHOT: ChatSnapshot = {
   asOf: '2026-08-20',
@@ -194,10 +195,24 @@ describe('runChatLoop', () => {
     const answer = await ask(chat);
 
     expect(answer.reply).toContain('could not settle on an answer');
+    expect(answer.reply).toContain('getPortfolioSummary');
     expect(answer.warnings.join(' ')).toContain(`within ${MAX_TOOL_STEPS} tool steps`);
     // The budget bounds tool steps; the final request is answer-only.
     expect(answer.toolTrace).toHaveLength(MAX_TOOL_STEPS);
     expect(chat.calls).toHaveLength(MAX_TOOL_STEPS + 1);
+  });
+
+  // A silent give-up is undiagnosable from the console — only the rendered
+  // warning banner would show it, and this is the one path with no user
+  // report to notice it by.
+  it('logs what it tried when it gives up', async () => {
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+    const chat = scripted([{ toolCalls: [{ name: 'getPortfolioSummary' }] }]);
+
+    await ask(chat);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('getPortfolioSummary'));
+    warn.mockRestore();
   });
 
   it('asks for a final answer once the budget is nearly spent', async () => {
