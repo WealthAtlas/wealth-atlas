@@ -419,6 +419,17 @@ export function LoanView({
                   </Typography>
                 </Box>
               </Grid>
+
+              <Grid item xs={6}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Interest Rate (Overall)
+                  </Typography>
+                  <Typography variant="body1" fontWeight={600} color="warning.main">
+                    {UIUtils.formatPercentage(loan.getOverallInterestRate())}
+                  </Typography>
+                </Box>
+              </Grid>
             </Grid>
 
             {/* Next Payment Alert */}

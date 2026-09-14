@@ -178,5 +178,26 @@ export abstract class AbstractSchedule<T> implements IScheduleBase {
     return pendingOccurrences;
   }
 
+  /**
+   * Returns every occurrence the schedule describes, from `startDate` through
+   * `endDate` inclusive -- the plan, not what has actually run. Unlike
+   * `getPendingOccurrences`, which resumes from `lastGeneratedDate` and so
+   * shrinks as occurrences are materialized into real rows, this always walks
+   * the full term, so a figure derived from it (a loan's cost of borrowing)
+   * stays the same regardless of how much of the schedule happens to be
+   * generated yet. A schedule with no `endDate` has no fixed term to
+   * enumerate, so it falls back to today, the same bound `shouldAdd` uses for
+   * that case.
+   */
+  public getAllOccurrences(): T[] {
+    const occurrences: T[] = [];
+    let nextOccurrenceDate = utcDay(this.startDate);
+    while (this.shouldAdd(nextOccurrenceDate)) {
+      occurrences.push(this.createDataForOccurrence(nextOccurrenceDate));
+      nextOccurrenceDate = this.getNextOccurrenceDateTime(nextOccurrenceDate, this.frequency);
+    }
+    return occurrences;
+  }
+
   protected abstract createDataForOccurrence(date: Date): T;
 }

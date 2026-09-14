@@ -44,13 +44,10 @@ export class Loan implements ILoan {
   }
 
   public getIRR(): number {
-    const transactions: Transaction[] = [];
-    transactions.push(
-      ...this.getPayments(undefined, true).map(payment => ({
-        date: new Date(payment.date),
-        amount: payment.amount,
-      }))
-    );
+    const transactions: Transaction[] = this.getScheduledPayments().map(payment => ({
+      date: new Date(payment.date),
+      amount: payment.amount,
+    }));
 
     return -IRRCalculator.getInstance().calculateIRR({
       transactions: transactions,
@@ -61,11 +58,11 @@ export class Loan implements ILoan {
   }
 
   public getTotalAmount(): number {
-    return this.getPayments(undefined, true).reduce((sum, payment) => sum + payment.amount, 0);
+    return this.getScheduledPayments().reduce((sum, payment) => sum + payment.amount, 0);
   }
 
   public getPaidAmount(): number {
-    return this.getPayments().reduce((sum, payment) => sum + payment.amount, 0);
+    return this.payments.reduce((sum, payment) => sum + payment.amount, 0);
   }
 
   public getOutstandingAmount(): number {
@@ -74,6 +71,17 @@ export class Loan implements ILoan {
 
   public getInterestAmount(): number {
     return this.getTotalAmount() - this.principalAmount;
+  }
+
+  /**
+   * Total interest as a share of the principal, over the whole life of the
+   * loan -- not annualised, unlike `getIRR()`. A 12% IRR on a 20-year loan and
+   * a 12% IRR on a 2-year loan cost very different multiples of the principal;
+   * this is the figure that answers "how much do I pay back in total, as a
+   * percentage of what I borrowed".
+   */
+  public getOverallInterestRate(): number {
+    return this.principalAmount > 0 ? (this.getInterestAmount() / this.principalAmount) * 100 : 0;
   }
 
   public isFullyPaid(): boolean {
@@ -102,28 +110,20 @@ export class Loan implements ILoan {
     return this.payments.length;
   }
 
-  private getPayments(till?: Date, considerFutureTransactions: boolean = false): Payment[] {
-    if (till) {
-      return this.payments
-        .filter(payment => payment.date <= till)
-        .sort((a, b) => a.date.getTime() - b.date.getTime());
-    }
-    if (considerFutureTransactions) {
-      const futureTransactions = this.emis
-        .map(emi => emi.getPendingOccurrences(till))
-        .flat()
-        .map(
-          occurrence =>
-            new Payment({
-              id: undefined,
-              date: new Date(occurrence.date),
-              amount: occurrence.amount,
-              description: occurrence.description,
-              loanId: occurrence.loanId,
-            })
-        );
-      return this.payments.concat(futureTransactions);
-    }
-    return this.payments.sort((a, b) => a.date.getTime() - b.date.getTime());
+  /**
+   * The full set of instalments a loan's cost is measured against: every EMI
+   * occurrence its schedules describe, from `startDate` to `endDate`,
+   * regardless of how many have actually been generated as `Payment` rows or
+   * marked paid -- plus any payment recorded outside an EMI schedule (a
+   * manual prepayment, `emiId` unset), which no schedule knows about and so
+   * must be taken from the actual record. Basing this on `this.payments` for
+   * the EMI-linked share instead would make `getIRR()`/`getTotalAmount()`
+   * drift as instalments get materialized, and would silently drop every
+   * instalment past today for a schedule left open-ended.
+   */
+  private getScheduledPayments(): Payment[] {
+    const manualPayments = this.payments.filter(payment => payment.emiId == null);
+    const emiPayments = this.emis.flatMap(emi => emi.getAllOccurrences());
+    return manualPayments.concat(emiPayments).sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 }
