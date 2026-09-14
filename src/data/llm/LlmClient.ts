@@ -34,6 +34,18 @@ export function isRetryable(error: unknown): boolean {
 const MAX_ATTEMPTS = 3;
 const BASE_BACKOFF_MS = 1_000;
 
+/**
+ * A stalled connection otherwise has no way out. The only signal `postOnce`
+ * used to honour was the caller's own — wired to the Stop button and to
+ * unmount — so a request that DeepSeek's `thinking` leaves open (headers sent,
+ * body never finished, connection never closed) hung forever: no error to
+ * catch, no `finally` to reset the spinner. Reasoning alone has been measured
+ * up to ~8,700 tokens on a real turn (see `chatJsonTurns`), so this has to
+ * clear a slow-but-healthy request, not just a stuck one — hence minutes, not
+ * the 15s used for the market/news fetches, which return small, fast payloads.
+ */
+const REQUEST_TIMEOUT_MS = 180_000;
+
 interface ChatCompletionResponse {
   choices?: { message?: { content?: string }; finish_reason?: string }[];
   error?: { message?: string };
@@ -263,16 +275,36 @@ async function postOnce(
     headers.Authorization = `Bearer ${settings.apiKey}`;
   }
 
+  // Merged so either can end the request: the caller's aborts on Stop/unmount,
+  // the timeout's on a connection that never finishes. Combined into one
+  // fetch call because the same signal also governs the body read below —
+  // `response.text()` can itself hang on a connection that sent headers but
+  // never sent (or finished) a body, which is exactly this failure shape.
+  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const fetchSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+
   let response: Response;
+  let raw: string;
   try {
     response = await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
-      signal,
+      signal: fetchSignal,
     });
+    raw = await response.text();
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      // A caller-initiated abort must still read as one to the caller — the
+      // Stop button and unmount both check their own controller's `aborted`
+      // and stay silent rather than showing a toast for a cancel they asked
+      // for. Only our own timeout firing gets turned into a reported error.
+      if (signal?.aborted) throw error;
+      throw new LlmError(
+        'network',
+        `${normalizeBaseUrl(settings.baseUrl)} did not respond within ${REQUEST_TIMEOUT_MS / 1000}s.`
+      );
+    }
     Logger.warn('LLM request failed at the network layer:', error);
     throw new LlmError(
       'network',
@@ -280,8 +312,6 @@ async function postOnce(
         'requests (CORS) — try OpenRouter or a local Ollama, or point the base URL at a proxy.'
     );
   }
-
-  const raw = await response.text();
 
   if (!response.ok) {
     let detail = raw.slice(0, 300);
