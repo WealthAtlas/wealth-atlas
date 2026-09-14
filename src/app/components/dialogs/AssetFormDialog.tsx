@@ -3,7 +3,7 @@ import { isValid } from '@/domain/validation/ValidationIssue';
 import { AssetCategory } from '@/domain/entities/assets/AssetCategory';
 import { ValueModel } from '@/domain/entities/assets/ValueModel';
 import { Currency, getCurrencySymbol } from '@/domain/entities/shared/Currency';
-import { executeValueScript } from '@/domain/utils/ScriptExecutor';
+import { ScriptTestOutcome } from '@/domain/services/AssetService';
 import { scriptTemplates } from '@/domain/utils/ScriptTemplate';
 import {
   AccountBalance,
@@ -49,6 +49,7 @@ export interface AssetFormDialogProps {
   onClose: () => void;
   onSubmit: () => void;
   onAssetChange: (asset: IAsset) => void;
+  onTestScript: () => Promise<ScriptTestOutcome>;
 }
 
 interface ScriptTestResult {
@@ -66,6 +67,7 @@ export function AssetFormDialog({
   onClose,
   onSubmit,
   onAssetChange,
+  onTestScript,
 }: AssetFormDialogProps) {
   const isFormValid = isValid(validateAsset(asset));
 
@@ -91,20 +93,13 @@ export function AssetFormDialog({
     setIsTestingScript(true);
     setScriptTestResult(null);
 
-    try {
-      const value = await executeValueScript(asset.script);
-      setScriptTestResult({
-        success: true,
-        value,
-      });
-    } catch (error) {
-      setScriptTestResult({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      });
-    } finally {
-      setIsTestingScript(false);
-    }
+    const result = await onTestScript();
+    setScriptTestResult(
+      result.error
+        ? { success: false, error: result.error }
+        : { success: true, value: result.value }
+    );
+    setIsTestingScript(false);
   };
 
   // Template selection functionality
@@ -186,6 +181,7 @@ export function AssetFormDialog({
                     value={asset.category}
                     label="Category"
                     onChange={e => onAssetChange({ ...asset, category: e.target.value })}
+                    MenuProps={{ disablePortal: true }}
                   >
                     {Object.values(AssetCategory).map(category => (
                       <MenuItem key={category} value={category}>
@@ -203,6 +199,7 @@ export function AssetFormDialog({
                     onChange={e =>
                       onAssetChange({ ...asset, currency: e.target.value as Currency })
                     }
+                    MenuProps={{ disablePortal: true }}
                   >
                     {currencies.map(code => (
                       <MenuItem key={code} value={code}>
@@ -233,6 +230,7 @@ export function AssetFormDialog({
                   onChange={e =>
                     onAssetChange({ ...asset, valueModel: e.target.value as ValueModel })
                   }
+                  MenuProps={{ disablePortal: true }}
                 >
                   <MenuItem value={ValueModel.MARKET_BASED}>
                     <Box>
@@ -445,6 +443,7 @@ export function AssetFormDialog({
                         value={selectedTemplate}
                         label="Choose Template (Optional)"
                         onChange={e => handleTemplateSelection(e.target.value)}
+                        MenuProps={{ disablePortal: true }}
                       >
                         <MenuItem value="">
                           <em>No template - write custom script</em>

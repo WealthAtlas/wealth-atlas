@@ -16,7 +16,15 @@ async function fetchStockPrice() {
   try {
     const response = await fetch(url);
     const data = await response.json();
-    
+
+    // AlphaVantage answers a spent quota or a burst-limit hit with HTTP 200
+    // and a prose field instead of a quote - a rejected key looks the same.
+    // Surfacing it separately is what tells "rate limited, try later" apart
+    // from a genuinely broken symbol or key.
+    if (data['Note'] || data['Information']) {
+      throw new Error(\`AlphaVantage rate limit: \${data['Note'] || data['Information']}\`);
+    }
+
     // Check if we got a valid response
     if (data['Global Quote'] && data['Global Quote']['05. price']) {
       return parseFloat(data['Global Quote']['05. price']);
@@ -130,7 +138,10 @@ async function fetchAggregatedData() {
     
     const response = await fetch(url);
     const data = await response.json();
-    
+
+    if (data['Note'] || data['Information']) {
+      throw new Error(\`AlphaVantage rate limit: \${data['Note'] || data['Information']}\`);
+    }
     if (data['Global Quote'] && data['Global Quote']['05. price']) {
       return parseFloat(data['Global Quote']['05. price']);
     }

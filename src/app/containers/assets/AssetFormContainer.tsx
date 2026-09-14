@@ -77,6 +77,17 @@ export function AssetFormContainer({ open, assetToEdit, onClose }: AssetFormCont
       onAssetChange={function (asset: IAsset): void {
         setAsset(asset);
       }}
+      onTestScript={async () => {
+        const result = await assetService.testScript(asset);
+        if (result.value !== undefined) {
+          setAsset(prev => ({
+            ...prev,
+            scriptValue: result.value,
+            scriptValueUpdatedAt: result.scriptValueUpdatedAt,
+          }));
+        }
+        return result;
+      }}
     />
   );
 }

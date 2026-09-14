@@ -75,6 +75,13 @@ interface AssetValueOutcome {
   failure?: AssetValueFailure;
 }
 
+/** What a manual "Test Script" run produced, for the dialog that asked for it. */
+export interface ScriptTestOutcome {
+  value?: number;
+  scriptValueUpdatedAt?: Date;
+  error?: string;
+}
+
 /**
  * How many value scripts may be in flight at once.
  *
@@ -319,6 +326,41 @@ export class AssetService {
           message: error instanceof Error ? error.message : String(error),
         },
       };
+    }
+  }
+
+  /**
+   * Runs a script right now and, for an asset that already exists, writes
+   * what it returns straight through — bypassing the staleness gate and the
+   * failure throttle, because a user pressing "Test Script" is asking for
+   * exactly the attempt those two exist to postpone.
+   *
+   * Without the write, the dialog's alert showed a live figure the stored
+   * asset never actually held: `needsScriptExecution` still saw yesterday's
+   * stamp (or none) and `updateValues()` would not run this script again for
+   * up to a day, so the page kept showing the old value after a successful
+   * test. A brand-new asset has no row yet, so there is nothing to write to
+   * here - `createAsset` runs the script again once it exists.
+   */
+  public async testScript(asset: IAsset): Promise<ScriptTestOutcome> {
+    if (!asset.script || asset.script.trim() === '') {
+      return { error: 'No script to test. Please enter a script first.' };
+    }
+
+    try {
+      const value = await executeValueScript(asset.script);
+      const scriptValueUpdatedAt = new Date();
+      if (asset.id !== undefined) {
+        await AutoSyncService.withoutScheduling(() =>
+          this.assetRepository.updateScriptValue(asset.id!, value, scriptValueUpdatedAt)
+        );
+        clearScriptFailure(asset.id);
+        emitDatabaseReplaced();
+      }
+      return { value, scriptValueUpdatedAt };
+    } catch (error) {
+      if (asset.id !== undefined) recordScriptFailure(asset.id);
+      return { error: error instanceof Error ? error.message : String(error) };
     }
   }
 
