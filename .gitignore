@@ -38,3 +38,6 @@ raw.json
 wealth-atlas-cloud-*.json
 wealth-atlas-recovery-*.json
 wealth-atlas-backup-*.json
+
+# graphify (machine-local knowledge graph)
+graphify-out/
