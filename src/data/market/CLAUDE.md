@@ -1,0 +1,1 @@
+@../../domain/market/CLAUDE.md
