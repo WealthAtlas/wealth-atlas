@@ -7,7 +7,8 @@ import { createNewsData } from '@/data/news/NewsData';
 import { runInSandbox } from '@/data/sandbox/CodeSandbox';
 import { buildChatSnapshot } from '../chat/ChatContextBuilder';
 import { LinkableEntity } from '../chat/EntityLinks';
-import { ChatAnswer, runChatLoop, TurnsChatFn } from '../chat/ChatLoop';
+import { ChatAnswer, TurnsChatFn } from '../chat/ChatLoop';
+import { ChatProgress } from '../chat/agents/ChatAdviser';
 import { CodeRunner, createChatToolContext } from '../chat/ChatToolContext';
 import { CurrencyConverter } from '../entities/shared/CurrencyConverter';
 import { Memory } from '../entities/memory/Memory';
@@ -26,8 +27,13 @@ import { LoanService } from './LoanService';
 
 /**
  * Wires the domain services into a tool context, builds the snapshot, and hands
- * both to `runChatLoop`. The loop itself lives in `src/domain/chat/ChatLoop.ts`
- * so it can be driven by a scripted transport without a database.
+ * both to the assistant graph (`src/data/agents/ChatGraph.ts`), which routes the
+ * question to the single loop or to the research specialists. Every node lives
+ * in `src/domain/chat/` so it can be driven by a scripted transport without a
+ * database.
+ *
+ * The graph is imported on first use rather than at load, so LangGraph stays
+ * out of the main bundle for anyone who never opens the assistant.
  *
  * The conversation is held by the caller and passed in each time, so nothing is
  * persisted — a reload starts a fresh session, which is the intended behaviour
@@ -48,8 +54,8 @@ export interface ChatDeps {
 
 export interface AskOptions {
   signal?: AbortSignal;
-  /** Fires as each tool starts, to caption the spinner with what is running. */
-  onToolCall?: (name: string) => void;
+  /** Fires as each stage and tool starts, to caption the spinner. */
+  onProgress?: (progress: ChatProgress) => void;
 }
 
 export class ChatService {
@@ -149,7 +155,8 @@ export class ChatService {
       this.readMemories(),
     ]);
 
-    return runChatLoop({
+    const { runChatGraph } = await import('@/data/agents/ChatGraph');
+    return runChatGraph({
       chat: this.chat,
       context,
       snapshot,

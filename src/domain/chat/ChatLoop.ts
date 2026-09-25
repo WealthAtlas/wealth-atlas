@@ -10,7 +10,7 @@ import {
   buildToolResultPrompt,
 } from './ChatPromptBuilder';
 import { ChatToolContext } from './ChatToolContext';
-import { CHAT_TOOL_NAMES, CHAT_TOOLS_BY_NAME } from './ChatTools';
+import { CHAT_TOOLS, ChatTool } from './ChatTools';
 import { ChatToolCall, parseAssistantTurn } from './ChatTurn';
 
 /**
@@ -43,6 +43,15 @@ export const MAX_TOOL_STEPS = 5;
 export interface ChatToolTraceEntry {
   name: string;
   args: Record<string, unknown>;
+  /** The specialist that made the call; absent for the answering agent. */
+  agent?: string;
+}
+
+/** One tool call and what it returned, as fed back to the model. */
+export interface ChatToolResult {
+  name: string;
+  args: Record<string, unknown>;
+  result: unknown;
 }
 
 export interface ChatAnswer {
@@ -58,6 +67,18 @@ export interface ChatAnswer {
    * scaffolding for this question alone.
    */
   transcript: LlmMessage[];
+  /**
+   * Every tool result this question produced, in call order. The graph hands a
+   * specialist's results to the adviser, and the figure check reads them to
+   * tell a quoted number from an invented one.
+   */
+  toolResults: ChatToolResult[];
+  /**
+   * This question's durable turns alone — the tail of `transcript` after the
+   * bare question. The graph needs them apart to splice the specialists'
+   * results in ahead of the adviser's answer.
+   */
+  turns: LlmMessage[];
 }
 
 export interface ChatLoopArgs {
@@ -90,35 +111,47 @@ export interface ChatLoopArgs {
   signal?: AbortSignal;
   /** Fires as each tool starts, to caption the spinner with what is running. */
   onToolCall?: (name: string) => void;
-}
-
-interface ToolResult {
-  name: string;
-  args: Record<string, unknown>;
-  result: unknown;
+  /**
+   * The tools this loop may call. The whole registry by default; a specialist
+   * gets its own slice, and a call outside it is dropped by
+   * `parseAssistantTurn` like any other unknown name.
+   */
+  tools?: readonly ChatTool[];
+  /** Replaces the adviser prompt, for a specialist. `memories` is then unused. */
+  systemPrompt?: string;
+  /** What the specialists found, placed ahead of the question. */
+  briefing?: string;
+  /** Tags every trace entry, so the UI can say which specialist read what. */
+  agent?: string;
 }
 
 async function runTools(
   calls: ChatToolCall[],
   context: ChatToolContext,
+  toolsByName: ReadonlyMap<string, ChatTool>,
   collect: {
+    agent?: string;
     signal?: AbortSignal;
     onToolCall?: (name: string) => void;
     toolTrace: ChatToolTraceEntry[];
     warnings: string[];
   }
-): Promise<ToolResult[]> {
-  const results: ToolResult[] = [];
+): Promise<ChatToolResult[]> {
+  const results: ChatToolResult[] = [];
 
   for (const call of calls) {
     collect.signal?.throwIfAborted();
 
     // Unknown names are already filtered out by parseAssistantTurn.
-    const tool = CHAT_TOOLS_BY_NAME.get(call.name);
+    const tool = toolsByName.get(call.name);
     if (!tool) continue;
 
     collect.onToolCall?.(call.name);
-    collect.toolTrace.push({ name: call.name, args: call.args });
+    collect.toolTrace.push({
+      name: call.name,
+      args: call.args,
+      ...(collect.agent ? { agent: collect.agent } : {}),
+    });
 
     try {
       results.push({
@@ -216,16 +249,23 @@ export async function runChatLoop({
   memories,
   signal,
   onToolCall,
+  tools = CHAT_TOOLS,
+  systemPrompt,
+  briefing,
+  agent,
 }: ChatLoopArgs): Promise<ChatAnswer> {
   const carried = trimTranscript(toProtocolHistory(history));
+  const toolsByName = new Map(tools.map(tool => [tool.name, tool]));
+  const toolNames: ReadonlySet<string> = new Set(toolsByName.keys());
 
   const messages: LlmMessage[] = [
-    { role: 'system', content: buildChatSystemPrompt(memories) },
+    { role: 'system', content: systemPrompt ?? buildChatSystemPrompt(memories) },
     ...carried,
-    { role: 'user', content: buildChatUserPrompt(snapshot, question) },
+    { role: 'user', content: buildChatUserPrompt(snapshot, question, briefing) },
   ];
 
   const toolTrace: ChatToolTraceEntry[] = [];
+  const toolResults: ChatToolResult[] = [];
   const warnings: string[] = [];
 
   /**
@@ -271,7 +311,7 @@ export async function runChatLoop({
       warnings.push('The model stopped before finishing this answer, so it may be cut short.');
     }
 
-    const { turn, warnings: turnWarnings } = parseAssistantTurn(raw, CHAT_TOOL_NAMES);
+    const { turn, warnings: turnWarnings } = parseAssistantTurn(raw, toolNames);
     warnings.push(...turnWarnings);
 
     // Kept verbatim so the model sees its own previous turn, including any tool
@@ -281,7 +321,14 @@ export async function runChatLoop({
     durable.push(assistantTurn);
 
     if (turn.reply) {
-      return { reply: turn.reply, toolTrace, warnings, transcript: transcript() };
+      return {
+        reply: turn.reply,
+        toolTrace,
+        warnings,
+        transcript: transcript(),
+        toolResults,
+        turns: [...durable],
+      };
     }
 
     // The budget is spent: this turn was the model's chance to answer, so
@@ -294,12 +341,14 @@ export async function runChatLoop({
       continue;
     }
 
-    const results = await runTools(turn.toolCalls, context, {
+    const results = await runTools(turn.toolCalls, context, toolsByName, {
+      agent,
       signal,
       onToolCall,
       toolTrace,
       warnings,
     });
+    toolResults.push(...results);
 
     const resultTurn: LlmMessage = {
       role: 'user',
@@ -328,5 +377,7 @@ export async function runChatLoop({
     // Carried anyway: the lookups that did run are what a rephrased follow-up
     // would otherwise have to pay for again.
     transcript: transcript(),
+    toolResults,
+    turns: [...durable],
   };
 }

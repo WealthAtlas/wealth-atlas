@@ -25,6 +25,41 @@ reply in history teaches it that prose is allowed and the next turn comes back u
 (`toProtocolHistory` re-wraps anything that is not already an envelope). `trimTranscript` drops the
 oldest turns past `TRANSCRIPT_BUDGET_CHARS` and leaves one fixed note saying so.
 
+**The graph (`agents/`, `src/data/agents/ChatGraph.ts`)** — a question runs through a LangGraph
+`StateGraph`: a **router** picks the direct route or one to three research **specialists**
+(`ChatAgents.ts`: portfolio, cashflow, markets), which run in parallel via `Send`. Then the
+**adviser** answers and a **reviewer** checks the answer, sending it back at most once
+(`MAX_REVISIONS`). The layering is deliberate: `ChatGraph.ts` is the only file that imports
+`@langchain/langgraph`, and it holds no logic. Every node is a plain function in `agents/` over an
+injected `chat`, so the domain keeps no external dependency and `ChatService` loads the graph with
+`import()`, keeping it out of the main bundle. There is no checkpointer, so nothing is persisted.
+
+- **The direct route is today's loop, unchanged.** The router chooses it for anything within one
+  area, and falls back to it on any failure. The adviser is also `runChatLoop` with the persona, the
+  whole rulebook and every tool; the research just goes into its user prompt as a `briefing` between
+  the snapshot and the question. With no briefing the prompt is byte-for-byte the old one.
+- **Specialists research and never recommend.** Each gets its own slice of the tools and a subset
+  of the rulebook: `RULES` in `ChatPromptBuilder` is one keyed list rendered for every agent,
+  numbered as the adviser knows it. A specialist sees no conversation history, so the router has
+  to write each brief so it stands on its own. `ChatAgents.test.ts` checks that every registry tool
+  belongs to some specialist.
+- **The transcript still has one voice.** The stored turn is: carried history, the bare question,
+  *one* merged tool-results turn (`assembleTranscript`), then the adviser's envelope. The
+  specialists' own words are dropped; their rows are kept, which is what lets a follow-up re-cut a
+  researched answer.
+- **The review has two halves.** `FigureCheck.ts` flags reply numbers that no snapshot, tool result,
+  history, memory or question value accounts for, allowing for display rounding, lakh/crore/k
+  suffixes and the difference of two sources. Its output is a *hint* to the model reviewer
+  (`ChatCritic.ts`), never a verdict. The model reviewer checks only the rules whose violation
+  reads as a correct answer (1, 3, 4, 4a, 5, 8b, 8c, 8g, 8h, 8i), never style. It always runs on a
+  researched answer, but on the direct route only when a figure is untraced. A reviewer that fails
+  passes the draft with a warning, and a revision gets the code check only.
+- **There is no on/off setting.** A toggle would have to live in `ISettings`, which means three
+  version bumps on a live multi-device store. The direct fallback already provides the "off"
+  behaviour.
+- **Cost:** direct is router + loop; researched is router + about 2 calls per specialist + adviser +
+  reviewer, so roughly 5–8 calls on the user's own key.
+
 `runCalculation` executes **model-authored JavaScript**, because a model doing arithmetic in its head
 guesses. It runs in `src/data/sandbox/CodeSandbox.ts`, in an iframe sandboxed *without*
 `allow-same-origin` — an opaque origin, where IndexedDB and localStorage throw — under

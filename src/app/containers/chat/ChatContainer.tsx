@@ -1,5 +1,7 @@
 import { ChatSheetView } from '@/app/components/views/ChatSheetView';
 import { LinkableEntity, LinkTarget } from '@/domain/chat/EntityLinks';
+import { ChatProgress } from '@/domain/chat/agents/ChatAdviser';
+import { SPECIALISTS_BY_ID } from '@/domain/chat/agents/ChatAgents';
 import { useCurrency } from '@/app/components/providers/CurrencyContext';
 import { useNotification } from '@/app/components/providers/NotificationContext';
 import { useDatabaseVersion } from '@/app/utils/useDatabaseReplaced';
@@ -42,7 +44,7 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
   const [messages, setMessages] = useState<ChatMessageView[]>([]);
   const [draft, setDraft] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [activeTool, setActiveTool] = useState<string | undefined>(undefined);
+  const [progress, setProgress] = useState<ChatProgress | undefined>(undefined);
   const [entities, setEntities] = useState<LinkableEntity[]>([]);
 
   const abortRef = useRef<AbortController | undefined>(undefined);
@@ -145,12 +147,12 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
       setDraft('');
       setMessages(current => [...current, { id: nextId.current++, role: 'user', text: trimmed }]);
       setIsThinking(true);
-      setActiveTool(undefined);
+      setProgress(undefined);
 
       try {
         const answer = await chatService.ask(history.current, trimmed, converter, {
           signal: controller.signal,
-          onToolCall: setActiveTool,
+          onProgress: setProgress,
         });
 
         history.current = answer.transcript;
@@ -162,7 +164,10 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
             id: replyId,
             role: 'assistant',
             text: answer.reply,
-            toolTrace: answer.toolTrace.map(entry => entry.name),
+            toolTrace: answer.toolTrace.map(entry => ({
+              name: entry.name,
+              agent: entry.agent ? SPECIALISTS_BY_ID.get(entry.agent)?.label : undefined,
+            })),
             warnings: answer.warnings,
           },
         ]);
@@ -182,7 +187,7 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
       } finally {
         if (abortRef.current === controller) abortRef.current = undefined;
         setIsThinking(false);
-        setActiveTool(undefined);
+        setProgress(undefined);
       }
     },
     [chatService, converter, isThinking, notify, rememberFromExchange]
@@ -199,14 +204,14 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
     history.current = [];
     setMessages([]);
     setIsThinking(false);
-    setActiveTool(undefined);
+    setProgress(undefined);
   }, []);
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = undefined;
     setIsThinking(false);
-    setActiveTool(undefined);
+    setProgress(undefined);
   }, []);
 
   return (
@@ -241,7 +246,7 @@ export function ChatContainer({ open, onClose, onNavigate }: ChatContainerProps)
             <ChatThreadView
               messages={messages}
               isThinking={isThinking}
-              activeTool={activeTool}
+              progress={progress}
               suggestions={SUGGESTIONS}
               onSuggestionClick={send}
               entities={entities}

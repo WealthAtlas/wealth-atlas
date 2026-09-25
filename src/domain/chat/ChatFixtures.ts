@@ -20,6 +20,7 @@ import { FundUniversePort, unavailableFundUniverse } from '../funds/FundUniverse
 import { MarketDataPort, unavailableMarketData } from '../market/MarketDataPort';
 import { NewsPort, unavailableNews } from '../news/NewsPort';
 import { monthKey, utcMonthStart } from '../utils/DateUtils';
+import { ChatSnapshot } from './ChatContextBuilder';
 import { ChatToolContext, CodeRunner } from './ChatToolContext';
 
 /**
@@ -299,5 +300,39 @@ export function fakeContext(
     market: data.market ?? unavailableMarketData('no market data in this test'),
     news: data.news ?? unavailableNews('no news provider in this test'),
     funds: data.funds ?? unavailableFundUniverse('no fund list in this test'),
+  };
+}
+
+/** A small, fixed snapshot for driving the loop and the graph. */
+export function chatSnapshot(): ChatSnapshot {
+  return {
+    asOf: '2026-08-20',
+    baseCurrency: 'INR',
+    netWorth: 250000,
+    totalAssetValue: 300000,
+    totalInvested: 200000,
+    totalProfitLoss: 100000,
+    profitLossPercentage: 50,
+    totalLoanOutstanding: 50000,
+    assetCount: 1,
+    loanCount: 1,
+    goalCount: 0,
+    allocation: [{ category: 'Index Fund', percentage: 100 }],
+    recentSpending: {
+      months: 3,
+      byCurrency: [
+        {
+          currency: 'INR',
+          total: 12000,
+          averagePerMonth: 4000,
+          essentialShare: 100,
+          topCategories: [{ category: 'Groceries', amount: 12000 }],
+        },
+      ],
+    },
+    goals: [],
+    committedNextMonth: { sip: 20000, emi: 45000, total: 65000 },
+    allocationDrift: { isSet: false, outOfBand: [] },
+    unratedCurrencies: [],
   };
 }

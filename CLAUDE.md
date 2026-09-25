@@ -146,9 +146,11 @@ when you work in that directory (the `src/data/...` and `src/domain/entities/...
 the same file). Read it before changing the subsystem — most of the rules there are prose that only a
 prompt test or nothing at all would catch.
 
-- **Assistant** — `src/domain/chat/CLAUDE.md` (also `src/data/llm/`, `src/data/sandbox/`): tool
-  registry, transcript invariants, the `runCalculation` sandbox policy, the adviser persona and prompt
-  rules 8g/8h, the chat sheet UI.
+- **Assistant** — `src/domain/chat/CLAUDE.md` (also `src/data/llm/`, `src/data/sandbox/`,
+  `src/data/agents/`): tool registry, the router/specialists/adviser/reviewer graph, transcript
+  invariants, the `runCalculation` sandbox policy, the adviser persona and prompt rules 8g/8h, the
+  chat sheet UI. `@langchain/langgraph` is imported **only** from `src/data/agents/ChatGraph.ts`,
+  lazily; every node's logic stays in `src/domain/chat/agents/`.
 - **Market context & target allocation** — `src/domain/market/CLAUDE.md`: per-category benchmarks,
   drawdown vs return, `AllocationDrift`, `ISettings.targetAllocation` (no default; empty ≠ on target;
   0% is meaningful).

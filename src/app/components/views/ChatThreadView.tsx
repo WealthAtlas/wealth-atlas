@@ -10,9 +10,17 @@ import {
   Typography,
 } from '@mui/material';
 import { LinkableEntity, LinkTarget } from '@/domain/chat/EntityLinks';
+import { ChatProgress } from '@/domain/chat/agents/ChatAdviser';
 import { hasTable, parseMarkdownBlocks } from '@/domain/chat/MarkdownBlocks';
 import { useMemo, useState } from 'react';
 import { ChatMarkdownView } from './ChatMarkdownView';
+
+/** One tool that was read, and the researcher that read it, if any. */
+export interface ChatTraceView {
+  name: string;
+  /** "Portfolio", "Markets"… — absent for the agent that wrote the answer. */
+  agent?: string;
+}
 
 /**
  * One exchange in the thread. Assistant messages carry the tools that were
@@ -22,7 +30,7 @@ export interface ChatMessageView {
   id: number;
   role: 'user' | 'assistant';
   text: string;
-  toolTrace?: string[];
+  toolTrace?: ChatTraceView[];
   warnings?: string[];
   /** Memories written from this exchange, shown so a write is never silent. */
   remembered?: string[];
@@ -33,8 +41,8 @@ export interface ChatMessageView {
 export interface ChatThreadViewProps {
   messages: ChatMessageView[];
   isThinking: boolean;
-  /** Tool currently running, shown so a slow turn does not look stalled. */
-  activeTool?: string;
+  /** What is running now, shown so a slow turn does not look stalled. */
+  progress?: ChatProgress;
   suggestions: string[];
   onSuggestionClick: (suggestion: string) => void;
   /** The user's own records, whose names become tappable in a reply. */
@@ -82,9 +90,32 @@ function MemoryNote({ remembered, forgotten }: { remembered?: string[]; forgotte
   );
 }
 
-function ToolTrace({ tools }: { tools: string[] }) {
+/** `Portfolio` + `listAssets` → `Portfolio: reading your list of assets…`. */
+function describeProgress(progress: ChatProgress | undefined): string {
+  if (!progress) return 'Thinking…';
+  switch (progress.stage) {
+    case 'planning':
+      return 'Working out what to look at…';
+    case 'researching':
+      return progress.tool
+        ? `${progress.agent}: reading your ${humanise(progress.tool)}…`
+        : `${progress.agent}: researching…`;
+    case 'answering':
+      return progress.tool ? `Reading your ${humanise(progress.tool)}…` : 'Thinking…';
+    case 'reviewing':
+      return 'Double-checking the answer…';
+  }
+}
+
+function traceLabel(entry: ChatTraceView): string {
+  return entry.agent
+    ? `your ${humanise(entry.name)} (${entry.agent})`
+    : `your ${humanise(entry.name)}`;
+}
+
+function ToolTrace({ tools }: { tools: ChatTraceView[] }) {
   const [open, setOpen] = useState(false);
-  const unique = Array.from(new Set(tools));
+  const unique = Array.from(new Set(tools.map(traceLabel)));
 
   return (
     <Box sx={{ mt: 1 }}>
@@ -101,9 +132,9 @@ function ToolTrace({ tools }: { tools: string[] }) {
       </Link>
       <Collapse in={open}>
         <Stack sx={{ mt: 0.5 }}>
-          {unique.map(tool => (
-            <Typography key={tool} variant="caption" color="text.secondary">
-              • your {humanise(tool)}
+          {unique.map(label => (
+            <Typography key={label} variant="caption" color="text.secondary">
+              • {label}
             </Typography>
           ))}
         </Stack>
@@ -207,7 +238,7 @@ export function ChatThreadView(props: ChatThreadViewProps) {
         <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 1 }}>
           <CircularProgress size={16} />
           <Typography variant="caption" color="text.secondary">
-            {props.activeTool ? `Reading your ${humanise(props.activeTool)}…` : 'Thinking…'}
+            {describeProgress(props.progress)}
           </Typography>
         </Stack>
       )}
