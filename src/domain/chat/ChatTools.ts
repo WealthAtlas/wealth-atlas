@@ -784,5 +784,3 @@ export const CHAT_TOOLS: ChatTool[] = [
 export const CHAT_TOOLS_BY_NAME: ReadonlyMap<string, ChatTool> = new Map(
   CHAT_TOOLS.map(tool => [tool.name, tool])
 );
-
-export const CHAT_TOOL_NAMES: ReadonlySet<string> = new Set(CHAT_TOOLS.map(tool => tool.name));

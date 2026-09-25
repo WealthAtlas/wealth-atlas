@@ -97,10 +97,16 @@ describe('parseAssistantTurn', () => {
     expect(warnings.join(' ')).toContain('without an answer');
   });
 
-  it('carries proposed operations through unparsed', () => {
-    const { turn } = parseAssistantTurn({ operations: [{ op: 'addExpense', amount: 100 }] }, KNOWN);
+  // The assistant is read-only. A turn proposing writes and nothing else has
+  // answered nothing, and must be reported rather than read as a valid turn.
+  it('reports a turn that only proposes writes as having no answer', () => {
+    const { turn, warnings } = parseAssistantTurn(
+      { operations: [{ op: 'addExpense', amount: 100 }] },
+      KNOWN
+    );
 
-    expect(turn.operations).toEqual([{ op: 'addExpense', amount: 100 }]);
+    expect(turn).toEqual({ toolCalls: [] });
+    expect(warnings.join(' ')).toContain('without an answer');
   });
 
   it('trims a reply', () => {

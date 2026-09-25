@@ -23,11 +23,6 @@ export interface AssistantTurn {
   toolCalls: ChatToolCall[];
   /** The answer to show. Its presence ends the loop. */
   reply?: string;
-  /**
-   * Proposed writes, left unparsed here: they are handed to
-   * `validateImportPlan`, which owns the operation contract.
-   */
-  operations?: unknown[];
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -80,15 +75,10 @@ export function parseAssistantTurn(
   }
 
   const reply = asNonEmptyString(payload.reply);
-  const operations = Array.isArray(payload.operations) ? payload.operations : undefined;
-
-  if (payload.operations !== undefined && operations === undefined) {
-    warnings.push('The model\'s "operations" was not a list and was ignored.');
-  }
 
   // Nothing to run and nothing to say. Reported rather than retried, so the
   // caller can tell the user the model did not follow the contract.
-  if (toolCalls.length === 0 && !reply && !operations) {
+  if (toolCalls.length === 0 && !reply) {
     warnings.push('The model replied without an answer or a tool call.');
   }
 
@@ -96,7 +86,6 @@ export function parseAssistantTurn(
     turn: {
       toolCalls,
       ...(reply !== undefined ? { reply } : {}),
-      ...(operations !== undefined ? { operations } : {}),
     },
     warnings,
   };

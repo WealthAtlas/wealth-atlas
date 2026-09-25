@@ -22,7 +22,7 @@ import {
   TODAY,
   USD_RATE,
 } from './ChatFixtures';
-import { CHAT_TOOL_NAMES, CHAT_TOOLS, CHAT_TOOLS_BY_NAME } from './ChatTools';
+import { CHAT_TOOLS, CHAT_TOOLS_BY_NAME } from './ChatTools';
 
 function tool(name: string) {
   const found = CHAT_TOOLS_BY_NAME.get(name);
@@ -121,7 +121,7 @@ function stubFunds(
 
 describe('the tool registry', () => {
   it('has a unique name and a description for every tool', () => {
-    expect(CHAT_TOOL_NAMES.size).toBe(CHAT_TOOLS.length);
+    expect(CHAT_TOOLS_BY_NAME.size).toBe(CHAT_TOOLS.length);
     for (const entry of CHAT_TOOLS) {
       expect(entry.description.length).toBeGreaterThan(10);
     }
