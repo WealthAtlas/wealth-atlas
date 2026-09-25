@@ -55,8 +55,8 @@ importers:
         specifier: ^9.33.0
         version: 9.39.5
       '@types/node':
-        specifier: ^20.14.12
-        version: 20.19.43
+        specifier: ^26.6.2
+        version: 26.6.2
       '@types/react':
         specifier: ^18.3.5
         version: 18.3.31
@@ -71,7 +71,7 @@ importers:
         version: 8.67.0(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
       '@vitejs/plugin-react':
         specifier: ^5.2.0
-        version: 5.2.0(supports-color@7.2.0)(vite@6.4.3(@types/node@20.19.43)(terser@5.50.0))
+        version: 5.2.0(supports-color@7.2.0)(vite@6.4.3(@types/node@26.6.2)(terser@5.50.0))
       '@vitest/ui':
         specifier: ^3.2.4
         version: 3.2.7(vitest@3.2.7)
@@ -113,13 +113,13 @@ importers:
         version: 8.67.0(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
       vite:
         specifier: ^6.4.3
-        version: 6.4.3(@types/node@20.19.43)(terser@5.50.0)
+        version: 6.4.3(@types/node@26.6.2)(terser@5.50.0)
       vite-plugin-pwa:
         specifier: ^0.20.1
-        version: 0.20.5(supports-color@7.2.0)(vite@6.4.3(@types/node@20.19.43)(terser@5.50.0))(workbox-build@7.4.1(@types/babel__core@7.20.5)(supports-color@7.2.0))(workbox-window@7.4.1)
+        version: 0.20.5(supports-color@7.2.0)(vite@6.4.3(@types/node@26.6.2)(terser@5.50.0))(workbox-build@7.4.1(@types/babel__core@7.20.5)(supports-color@7.2.0))(workbox-window@7.4.1)
       vitest:
         specifier: ^3.2.6
-        version: 3.2.7(@types/node@20.19.43)(@vitest/ui@3.2.7)(jsdom@26.1.0(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.50.0)
+        version: 3.2.7(@types/node@26.6.2)(@vitest/ui@3.2.7)(jsdom@26.1.0(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.50.0)
 
 packages:
 
@@ -1405,8 +1405,8 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
-  '@types/node@20.19.43':
-    resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
+  '@types/node@26.6.2':
+    resolution: {integrity: sha512-X1P21scMv4zGKLYqjdGjaKa7COa0RKVYYZZN/NfvLQ1JegxFhdhpZG/Lyn8AXx6CDUavKAd11v6BvfpkDByK8g==}
 
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
@@ -3064,8 +3064,8 @@ packages:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
 
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
     resolution: {integrity: sha512-dA8WbNeb2a6oQzAQ55YlT5vQAWGV9WXOsi3SskE3bcCdM0P4SDd+24zS/OCacdRq5BkdsRj9q3Pg6YyQoxIGqg==}
@@ -4710,9 +4710,9 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
-  '@types/node@20.19.43':
+  '@types/node@26.6.2':
     dependencies:
-      undici-types: 6.21.0
+      undici-types: 8.9.0
 
   '@types/parse-json@4.0.2': {}
 
@@ -4826,7 +4826,7 @@ snapshots:
       '@typescript-eslint/types': 8.67.0
       eslint-visitor-keys: 5.0.1
 
-  '@vitejs/plugin-react@5.2.0(supports-color@7.2.0)(vite@6.4.3(@types/node@20.19.43)(terser@5.50.0))':
+  '@vitejs/plugin-react@5.2.0(supports-color@7.2.0)(vite@6.4.3(@types/node@26.6.2)(terser@5.50.0))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@7.2.0)
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7(supports-color@7.2.0))
@@ -4834,7 +4834,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 6.4.3(@types/node@20.19.43)(terser@5.50.0)
+      vite: 6.4.3(@types/node@26.6.2)(terser@5.50.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -4846,13 +4846,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.7(vite@6.4.3(@types/node@20.19.43)(terser@5.50.0))':
+  '@vitest/mocker@3.2.7(vite@6.4.3(@types/node@26.6.2)(terser@5.50.0))':
     dependencies:
       '@vitest/spy': 3.2.7
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 6.4.3(@types/node@20.19.43)(terser@5.50.0)
+      vite: 6.4.3(@types/node@26.6.2)(terser@5.50.0)
 
   '@vitest/pretty-format@3.2.7':
     dependencies:
@@ -4883,7 +4883,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 2.0.0
-      vitest: 3.2.7(@types/node@20.19.43)(@vitest/ui@3.2.7)(jsdom@26.1.0(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.50.0)
+      vitest: 3.2.7(@types/node@26.6.2)(@vitest/ui@3.2.7)(jsdom@26.1.0(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.50.0)
 
   '@vitest/utils@3.2.7':
     dependencies:
@@ -6628,7 +6628,7 @@ snapshots:
       has-symbols: 1.1.0
       which-boxed-primitive: 1.1.1
 
-  undici-types@6.21.0: {}
+  undici-types@8.9.0: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
@@ -6663,13 +6663,13 @@ snapshots:
     dependencies:
       react: 18.3.1
 
-  vite-node@3.2.4(@types/node@20.19.43)(supports-color@7.2.0)(terser@5.50.0):
+  vite-node@3.2.4(@types/node@26.6.2)(supports-color@7.2.0)(terser@5.50.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3(supports-color@7.2.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 6.4.3(@types/node@20.19.43)(terser@5.50.0)
+      vite: 6.4.3(@types/node@26.6.2)(terser@5.50.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -6684,18 +6684,18 @@ snapshots:
       - tsx
       - yaml
 
-  vite-plugin-pwa@0.20.5(supports-color@7.2.0)(vite@6.4.3(@types/node@20.19.43)(terser@5.50.0))(workbox-build@7.4.1(@types/babel__core@7.20.5)(supports-color@7.2.0))(workbox-window@7.4.1):
+  vite-plugin-pwa@0.20.5(supports-color@7.2.0)(vite@6.4.3(@types/node@26.6.2)(terser@5.50.0))(workbox-build@7.4.1(@types/babel__core@7.20.5)(supports-color@7.2.0))(workbox-window@7.4.1):
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
       pretty-bytes: 6.1.1
       tinyglobby: 0.2.17
-      vite: 6.4.3(@types/node@20.19.43)(terser@5.50.0)
+      vite: 6.4.3(@types/node@26.6.2)(terser@5.50.0)
       workbox-build: 7.4.1(@types/babel__core@7.20.5)(supports-color@7.2.0)
       workbox-window: 7.4.1
     transitivePeerDependencies:
       - supports-color
 
-  vite@6.4.3(@types/node@20.19.43)(terser@5.50.0):
+  vite@6.4.3(@types/node@26.6.2)(terser@5.50.0):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.5)
@@ -6704,15 +6704,15 @@ snapshots:
       rollup: 4.62.4
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 20.19.43
+      '@types/node': 26.6.2
       fsevents: 2.3.3
       terser: 5.50.0
 
-  vitest@3.2.7(@types/node@20.19.43)(@vitest/ui@3.2.7)(jsdom@26.1.0(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.50.0):
+  vitest@3.2.7(@types/node@26.6.2)(@vitest/ui@3.2.7)(jsdom@26.1.0(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.50.0):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
-      '@vitest/mocker': 3.2.7(vite@6.4.3(@types/node@20.19.43)(terser@5.50.0))
+      '@vitest/mocker': 3.2.7(vite@6.4.3(@types/node@26.6.2)(terser@5.50.0))
       '@vitest/pretty-format': 3.2.7
       '@vitest/runner': 3.2.7
       '@vitest/snapshot': 3.2.7
@@ -6730,11 +6730,11 @@ snapshots:
       tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 6.4.3(@types/node@20.19.43)(terser@5.50.0)
-      vite-node: 3.2.4(@types/node@20.19.43)(supports-color@7.2.0)(terser@5.50.0)
+      vite: 6.4.3(@types/node@26.6.2)(terser@5.50.0)
+      vite-node: 3.2.4(@types/node@26.6.2)(supports-color@7.2.0)(terser@5.50.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 20.19.43
+      '@types/node': 26.6.2
       '@vitest/ui': 3.2.7(vitest@3.2.7)
       jsdom: 26.1.0(supports-color@7.2.0)
     transitivePeerDependencies:
