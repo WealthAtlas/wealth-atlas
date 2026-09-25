@@ -987,6 +987,45 @@ describe('getDecisionJournal', () => {
 });
 
 describe('screenFunds', () => {
+  it('says what the user already holds in each screened segment', async () => {
+    // Rule 8i: a second fund in a segment usually adds cost and overlap. The
+    // tool has to say so, because the researcher that screens may not be the
+    // one that listed the assets.
+    const flexiCap = asset({
+      id: 1,
+      name: 'Parag Parikh Flexi Cap Fund',
+      category: AssetCategory.MUTUAL_FUNDS,
+    });
+    const result = (await tool('screenFunds').run(
+      { segments: ['Flexi Cap'] },
+      fakeContext({
+        assets: [
+          flexiCap,
+          asset({ id: 2, name: 'My monthly SIP', category: AssetCategory.MUTUAL_FUNDS }),
+          asset({ id: 3, name: 'Flexi Cap gold coins', category: AssetCategory.GOLD }),
+        ],
+        funds: stubFunds(),
+      })
+    )) as {
+      segments: {
+        alreadyHeldInSegment: { assetId: number; name: string; currentValueInBase: number }[];
+        unclassifiedHoldingsInCategory: { assetId: number }[];
+      }[];
+      note: string;
+    };
+
+    const [screen] = result.segments;
+    expect(screen.alreadyHeldInSegment).toEqual([
+      {
+        assetId: 1,
+        name: 'Parag Parikh Flexi Cap Fund',
+        currentValueInBase: Math.round(flexiCap.getValue()! * 100) / 100,
+      },
+    ]);
+    expect(screen.unclassifiedHoldingsInCategory.map(entry => entry.assetId)).toEqual([2]);
+    expect(result.note).toContain('adds cost and overlap');
+  });
+
   it('screens the segments of the categories the user is underweight in', async () => {
     // The default is what attaches a suggestion to a reason: a fund is worth
     // adding where the policy says the user is short, not because a segment came

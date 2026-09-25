@@ -246,3 +246,44 @@ export function segmentFor(name: string): FundSegment | undefined {
 export function segmentsForCategory(category: string): FundSegment[] {
   return FUND_SEGMENTS.filter(segment => segment.category === category);
 }
+
+/** Whether a name reads as a fund in this segment, by the same patterns the screen uses. */
+export function nameMatchesSegment(name: string, segment: FundSegment): boolean {
+  return segment.include.test(name) && !segment.exclude?.test(name);
+}
+
+export interface SegmentHoldings<T> {
+  /** Holdings in the segment's category whose name places them in the segment. */
+  inSegment: T[];
+  /**
+   * Holdings in the same category whose name matches no segment at all, so it
+   * cannot be told whether they overlap. Reported rather than dropped: "you
+   * hold nothing like this" and "I cannot tell" must not read the same.
+   */
+  unclassified: T[];
+}
+
+/**
+ * What the user already holds that a new fund in `segment` would sit beside —
+ * rule 8i's "a second fund in the same segment usually adds cost and overlap".
+ *
+ * Matched on the user's own asset *names*, because an asset carries no scheme
+ * code to match on. That is sound for the same reason screening by name is:
+ * SEBI puts the category in every scheme's name, and people mostly record a
+ * fund under its scheme name. Where they did not ("My SIP"), the holding lands
+ * in `unclassified` instead of being counted either way.
+ */
+export function holdingsForSegment<T extends { name: string; category: string }>(
+  holdings: readonly T[],
+  segment: FundSegment
+): SegmentHoldings<T> {
+  const sameCategory = holdings.filter(holding => holding.category === segment.category);
+  const neighbours = segmentsForCategory(segment.category);
+
+  return {
+    inSegment: sameCategory.filter(holding => nameMatchesSegment(holding.name, segment)),
+    unclassified: sameCategory.filter(
+      holding => !neighbours.some(neighbour => nameMatchesSegment(holding.name, neighbour))
+    ),
+  };
+}

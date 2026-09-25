@@ -6,7 +6,7 @@ import {
   computeMonthlyInvestmentData,
 } from '../services/DashboardService';
 import { computeExpenseBreakdown } from '../services/ExpenseService';
-import { segmentsForCategory } from '../funds/FundSegments';
+import { holdingsForSegment, segmentFor, segmentsForCategory } from '../funds/FundSegments';
 import { STALE_AFTER_DAYS } from '../funds/FundScreen';
 import { computeAllocationDrift } from '../market/AllocationDrift';
 import { MIN_REVIEW_DAYS } from '../journal/DecisionReview';
@@ -543,7 +543,7 @@ export const CHAT_TOOLS: ChatTool[] = [
   {
     name: 'screenFunds',
     description:
-      "Real funds currently on the market in a segment — the whole published universe, not the user's holdings. This is the only way to name a fund they do not already own: it returns live schemes with their fund house, the provider's own category and the latest NAV with its date. It reports no performance figure by design; use compareFunds on a shortlist for that. Default segments are the ones matching the categories the user is underweight in, which is where a new holding actually belongs.",
+      "Real funds currently on the market in a segment — the whole published universe, not the user's holdings. This is the only way to name a fund they do not already own: it returns live schemes with their fund house, the provider's own category and the latest NAV with its date, plus what the user already holds in that segment. It reports no performance figure by design; use compareFunds on a shortlist for that. Default segments are the ones matching the categories the user is underweight in, which is where a new holding actually belongs.",
     argsHint:
       'segments?: string[] of segment names, default the segments of the categories the user is most underweight in; if you do not know the segment names, call with no arguments',
     async run(args, ctx) {
@@ -562,9 +562,10 @@ export const CHAT_TOOLS: ChatTool[] = [
       // Defaulting to the underweight categories is what keeps a suggestion
       // attached to a reason. A fund is worth adding where the policy says the
       // user is short, not because the segment came to mind.
+      const assets = await ctx.assets();
       let segments = requested;
       if (!segments) {
-        const [assets, targets] = await Promise.all([ctx.assets(), ctx.targetAllocation()]);
+        const targets = await ctx.targetAllocation();
         const drift = computeAllocationDrift(assets, targets, ctx.converter);
         const underweight = drift.rows
           .filter(row => row.action === 'buy')
@@ -601,6 +602,18 @@ export const CHAT_TOOLS: ChatTool[] = [
         }
 
         const screen = outcome.value;
+        const definition = segmentFor(screen.segment);
+        const held = definition
+          ? holdingsForSegment(assets, definition)
+          : { inSegment: [], unclassified: [] };
+        const describe = (holding: (typeof assets)[number]) => ({
+          assetId: holding.id,
+          name: holding.name,
+          currentValueInBase: round(
+            ctx.converter.toBase(holding.getValue() ?? 0, holding.currency)
+          ),
+        });
+
         screens.push({
           segment: screen.segment,
           category: screen.category,
@@ -624,6 +637,10 @@ export const CHAT_TOOLS: ChatTool[] = [
               navAsOf: candidate.navAsOf,
             }))
           ),
+          // Matched on the user's own asset names, since an asset records no
+          // scheme code. See `holdingsForSegment`.
+          alreadyHeldInSegment: held.inSegment.map(describe),
+          unclassifiedHoldingsInCategory: held.unclassified.map(describe),
         });
       });
 
@@ -639,7 +656,12 @@ export const CHAT_TOOLS: ChatTool[] = [
           'growth schemes. This list carries no expense ratio, no fund size and no past return: it ' +
           'says which funds exist, not which is good. Call compareFunds on a shortlist before you ' +
           'recommend one, and say that the expense ratio is not in these records and should be ' +
-          'checked on the AMC or AMFI site.',
+          'checked on the AMC or AMFI site. alreadyHeldInSegment is what the user already owns in ' +
+          'that segment, matched by their asset names: if it is not empty, say that a second fund ' +
+          'there usually adds cost and overlap rather than diversification before you name one. ' +
+          'unclassifiedHoldingsInCategory are holdings in the same category whose names do not say ' +
+          'their segment — you cannot tell whether they overlap, so say that rather than assuming ' +
+          'they do not.',
       };
     },
   },

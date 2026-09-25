@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { AssetCategory } from '../entities/assets/AssetCategory';
-import { FUND_SEGMENTS, segmentFor, segmentNames, segmentsForCategory } from './FundSegments';
+import {
+  FUND_SEGMENTS,
+  holdingsForSegment,
+  segmentFor,
+  segmentNames,
+  segmentsForCategory,
+} from './FundSegments';
 import { matchSegment, pruneUniverse, UniverseScheme } from './FundScreen';
 
 /**
@@ -138,5 +144,55 @@ describe('the segment table', () => {
     // variant to rank against a direct-growth NAV.
     const pruned = pruneUniverse(REAL_SCHEMES);
     expect(pruned).toHaveLength(REAL_SCHEMES.length);
+  });
+});
+
+describe('holdingsForSegment', () => {
+  const holding = (name: string, category: string = AssetCategory.MUTUAL_FUNDS) => ({
+    name,
+    category,
+  });
+
+  it('finds a holding in the segment by its name', () => {
+    const held = holdingsForSegment(
+      [holding('Parag Parikh Flexi Cap Fund'), holding('Axis Small Cap Fund')],
+      segmentFor('Flexi Cap')!
+    );
+
+    expect(held.inSegment.map(entry => entry.name)).toEqual(['Parag Parikh Flexi Cap Fund']);
+    expect(held.unclassified).toEqual([]);
+  });
+
+  // "Large & Mid Cap" contains "large cap"'s words; it must not count as one.
+  it('honours the neighbouring segment exclusion', () => {
+    const held = holdingsForSegment(
+      [holding('Mirae Asset Large & Mid Cap Fund')],
+      segmentFor('Large Cap')!
+    );
+
+    expect(held.inSegment).toEqual([]);
+  });
+
+  it('ignores holdings in another category, whatever their name', () => {
+    const held = holdingsForSegment(
+      [holding('Flexi Cap Fund', AssetCategory.GOLD)],
+      segmentFor('Flexi Cap')!
+    );
+
+    expect(held).toEqual({ inSegment: [], unclassified: [] });
+  });
+
+  // "I cannot tell" must not read as "you hold nothing like this".
+  it('reports a same-category holding whose name says no segment as unclassified', () => {
+    const held = holdingsForSegment([holding('My monthly SIP')], segmentFor('Flexi Cap')!);
+
+    expect(held.inSegment).toEqual([]);
+    expect(held.unclassified.map(entry => entry.name)).toEqual(['My monthly SIP']);
+  });
+
+  it('does not call a holding unclassified when it names a neighbouring segment', () => {
+    const held = holdingsForSegment([holding('Axis Small Cap Fund')], segmentFor('Flexi Cap')!);
+
+    expect(held.unclassified).toEqual([]);
   });
 });

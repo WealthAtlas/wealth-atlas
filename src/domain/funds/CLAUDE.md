@@ -46,6 +46,13 @@ whole ~37,800-scheme, ~5.7MB list is downloaded and segmented locally.
   actually decides between two funds in a segment is largely the **expense ratio**, and the feed
   carries none — nor fund size, manager tenure, exit load or lock-in. Both tool notes and prompt rule
   8i say so rather than letting it be filled in.
+- **Each screen says what the user already holds in that segment** (`holdingsForSegment`), because
+  rule 8i's "a second fund in the same segment adds cost and overlap" needs the holdings next to the
+  candidates. Under the assistant graph, the markets researcher that screens has no `listAssets`, so
+  the tool is the only place that information can come from. Assets record no scheme code, so the
+  match is on the user's own asset *names*, using the same segment patterns. A same-category holding
+  whose name names no segment ("My SIP") is reported as `unclassifiedHoldingsInCategory` rather
+  than dropped, because "you hold nothing like this" and "cannot tell" must not read the same.
 - **`screenFunds` defaults to the segments of the categories the user is underweight in**, which is
   what attaches a suggestion to a reason: a fund is worth adding where the policy says they are
   short. With no target set and no segment asked for it returns an empty screen that says to ask,
