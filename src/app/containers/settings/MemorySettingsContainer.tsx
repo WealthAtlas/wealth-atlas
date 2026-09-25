@@ -4,7 +4,7 @@ import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { Memory, MemoryKind } from '@/domain/entities/memory/Memory';
 import { MemoryService } from '@/domain/services/MemoryService';
 import { Logger } from '@/domain/utils/Logger';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 export function MemorySettingsContainer() {
   const { notify } = useNotification();
@@ -19,7 +19,9 @@ export function MemorySettingsContainer() {
   // types: a sync pull can land mid-edit, and the row being edited must not be
   // replaced underneath them.
   const draftRef = useRef<MemoryDraft | undefined>(undefined);
-  draftRef.current = draft;
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  });
 
   const load = useCallback(async () => {
     const [isEnabled, rows] = await Promise.all([service.isEnabled(), service.getMemories()]);

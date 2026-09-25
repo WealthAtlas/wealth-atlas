@@ -11,7 +11,7 @@ import { AllocationDrift, DriftRow } from '@/domain/market/AllocationDrift';
 import { AllocationPolicyService } from '@/domain/services/AllocationPolicyService';
 import { Logger } from '@/domain/utils/Logger';
 import { validateTargetAllocation } from '@/domain/validation/EntityValidators';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 /** One draft row per category, so a category is left out by clearing its field. */
 type Draft = Record<string, { targetPercent: string; bandPercent: string }>;
@@ -67,7 +67,9 @@ export function TargetAllocationSettingsContainer() {
   // then refetch as the user types.
   const storedRef = useRef<Draft>(emptyDraft());
   const draftRef = useRef<Draft>(draft);
-  draftRef.current = draft;
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  });
 
   const load = useCallback(async () => {
     const targets = await service.getTargetAllocation();

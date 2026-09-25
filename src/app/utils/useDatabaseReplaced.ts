@@ -1,5 +1,5 @@
 import { onDatabaseReplaced } from '@/data/databaseEvents';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Runs `refresh` whenever a sync pull or a backup restore replaces the database.
@@ -10,7 +10,9 @@ import { useEffect, useRef, useState } from 'react';
  */
 export function useDatabaseReplaced(refresh: () => void): void {
   const latest = useRef(refresh);
-  latest.current = refresh;
+  useLayoutEffect(() => {
+    latest.current = refresh;
+  });
 
   useEffect(() => onDatabaseReplaced(() => latest.current()), []);
 }

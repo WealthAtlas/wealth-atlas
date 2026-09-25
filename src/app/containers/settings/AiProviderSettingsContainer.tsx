@@ -11,7 +11,7 @@ import {
 import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { IAiProviderSettings } from '@/domain/entities/shared/Settings';
 import { Logger } from '@/domain/utils/Logger';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * The provider configuration is a synced row now, so it is edited as a draft and
@@ -71,7 +71,9 @@ export function AiProviderSettingsContainer() {
 
   // Readable from the subscription below without resubscribing on every edit.
   const storedRef = useRef(stored);
-  storedRef.current = stored;
+  useLayoutEffect(() => {
+    storedRef.current = stored;
+  });
 
   // A pull brings the provider, endpoint, model and key from another device.
   // Adopted into the form only when the user has nothing unsaved: the baseline

@@ -59,6 +59,19 @@ export function InvestmentFormDialog({
   const [formattedAmount, setFormattedAmount] = useState<string>('');
   const [formattedQuantity, setFormattedQuantity] = useState<string>('');
 
+  // Format amount for display with proper decimal places
+  const formatDisplayAmount = (value: number): string => {
+    if (value === 0) return '';
+    return value.toFixed(2).replace(/\.?0+$/, ''); // Remove trailing zeros
+  };
+
+  // Parse display amount to number
+  const parseDisplayAmount = (value: string): number => {
+    const cleaned = value.replace(/[^\d.]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100; // Round to 2 decimal places
+  };
+
   // Sync formatted values with investment data
   useEffect(() => {
     if (investment.totalAmount > 0) {
@@ -73,19 +86,6 @@ export function InvestmentFormDialog({
       setFormattedQuantity('');
     }
   }, [investment.totalAmount, investment.quantity]);
-
-  // Format amount for display with proper decimal places
-  const formatDisplayAmount = (value: number): string => {
-    if (value === 0) return '';
-    return value.toFixed(2).replace(/\.?0+$/, ''); // Remove trailing zeros
-  };
-
-  // Parse display amount to number
-  const parseDisplayAmount = (value: string): number => {
-    const cleaned = value.replace(/[^\d.]/g, '');
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100; // Round to 2 decimal places
-  };
 
   const handleAmountChange = (value: string) => {
     // Allow only numbers and decimal point with up to 2 decimal places

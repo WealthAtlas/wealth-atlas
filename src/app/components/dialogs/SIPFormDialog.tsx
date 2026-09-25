@@ -47,21 +47,6 @@ export function SIPFormDialog({
   const [formattedPrice, setFormattedPrice] = useState<string>('');
   const [formattedQuantity, setFormattedQuantity] = useState<string>('');
 
-  // Sync formatted values with SIP data
-  useEffect(() => {
-    if (sip.price > 0) {
-      setFormattedPrice(formatDisplayAmount(sip.price));
-    } else {
-      setFormattedPrice('');
-    }
-
-    if (sip.quantity && sip.quantity > 0) {
-      setFormattedQuantity(formatDisplayQuantity(sip.quantity));
-    } else {
-      setFormattedQuantity('');
-    }
-  }, [sip.price, sip.quantity]);
-
   // Format amount for display with proper decimal places
   const formatDisplayAmount = (value: number): string => {
     if (value === 0) return '';
@@ -88,6 +73,21 @@ export function SIPFormDialog({
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100; // Round to 2 decimal places
   };
+
+  // Sync formatted values with SIP data
+  useEffect(() => {
+    if (sip.price > 0) {
+      setFormattedPrice(formatDisplayAmount(sip.price));
+    } else {
+      setFormattedPrice('');
+    }
+
+    if (sip.quantity && sip.quantity > 0) {
+      setFormattedQuantity(formatDisplayQuantity(sip.quantity));
+    } else {
+      setFormattedQuantity('');
+    }
+  }, [sip.price, sip.quantity]);
 
   const handlePriceChange = (value: string) => {
     // Allow only numbers and decimal point with up to 2 decimal places

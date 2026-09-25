@@ -56,15 +56,6 @@ export function ExpenseFormDialog({
 }: ExpenseFormDialogProps) {
   const [displayAmount, setDisplayAmount] = useState<string>('');
 
-  // Sync display amount with form data
-  useEffect(() => {
-    if (formData.amount === 0) {
-      setDisplayAmount('');
-    } else {
-      setDisplayAmount(formatDisplayAmount(formData.amount));
-    }
-  }, [formData.amount]);
-
   const isFormValid = isValid(validateExpense(formData));
 
   // Format amount for display with proper decimal places
@@ -79,6 +70,15 @@ export function ExpenseFormDialog({
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100; // Round to 2 decimal places
   };
+
+  // Sync display amount with form data
+  useEffect(() => {
+    if (formData.amount === 0) {
+      setDisplayAmount('');
+    } else {
+      setDisplayAmount(formatDisplayAmount(formData.amount));
+    }
+  }, [formData.amount]);
 
   // Event handlers for cleaner JSX
   const handleAmountChange = (event: ChangeEvent<HTMLInputElement>) => {

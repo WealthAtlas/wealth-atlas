@@ -46,15 +46,6 @@ export function EMIFormDialog({
 }: EMIFormDialogProps) {
   const [formattedAmount, setFormattedAmount] = useState<string>('');
 
-  // Sync formatted values with EMI data
-  useEffect(() => {
-    if (emi.amount > 0) {
-      setFormattedAmount(formatDisplayAmount(emi.amount));
-    } else {
-      setFormattedAmount('');
-    }
-  }, [emi.amount]);
-
   // Format amount for display with proper decimal places
   const formatDisplayAmount = (value: number): string => {
     if (value === 0) return '';
@@ -67,6 +58,15 @@ export function EMIFormDialog({
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100; // Round to 2 decimal places
   };
+
+  // Sync formatted values with EMI data
+  useEffect(() => {
+    if (emi.amount > 0) {
+      setFormattedAmount(formatDisplayAmount(emi.amount));
+    } else {
+      setFormattedAmount('');
+    }
+  }, [emi.amount]);
 
   const handleAmountChange = (value: string) => {
     // Allow only numbers and decimal point with up to 2 decimal places

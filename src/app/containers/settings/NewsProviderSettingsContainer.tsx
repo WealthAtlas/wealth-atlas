@@ -3,7 +3,7 @@ import { NewsProviderSettingsView } from '@/app/components/views/NewsProviderSet
 import { useDatabaseReplaced } from '@/app/utils/useDatabaseReplaced';
 import { NewsService } from '@/domain/services/NewsService';
 import { Logger } from '@/domain/utils/Logger';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 export function NewsProviderSettingsContainer() {
   const { notify } = useNotification();
@@ -18,7 +18,9 @@ export function NewsProviderSettingsContainer() {
   // Held in refs so `load` does not depend on them and get rebuilt per keystroke.
   const storedRef = useRef('');
   const draftRef = useRef('');
-  draftRef.current = draft;
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  });
 
   const load = useCallback(async () => {
     const key = (await service.getSettings()).apiKey ?? '';

@@ -1,6 +1,6 @@
 import { useNotification } from '@/app/components/providers/NotificationContext';
 import { onAssetValuesRefreshed } from '@/data/assetValueEvents';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 /**
  * Turns a failed value script into a toast.
@@ -24,7 +24,9 @@ import { useEffect, useRef } from 'react';
 export function AssetValueFailureReporter() {
   const { notify } = useNotification();
   const latest = useRef(notify);
-  latest.current = notify;
+  useLayoutEffect(() => {
+    latest.current = notify;
+  });
 
   useEffect(
     () =>

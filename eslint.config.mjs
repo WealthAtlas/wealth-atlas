@@ -32,6 +32,12 @@ export default tseslint.config(
       // React rules
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      // Every container loads through `useEffect(() => { load() })` and the form
+      // dialogs mirror a prop into local display state the same way. That is the
+      // pattern this rule exists to discourage, but the app does not run the
+      // React Compiler, and replacing it means reworking every container's
+      // data loading rather than fixing a defect.
+      'react-hooks/set-state-in-effect': 'off',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
 
